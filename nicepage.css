@@ -31218,7 +31218,7 @@ a.u-link.u-text-hover-grey-90:hover {
 }
 
 .u-header .u-image-1 {
-  margin: 5px auto 0 calc(((100% - 1140px) / 2) + -60px);
+  margin: 6px auto 0 calc(((100% - 1140px) / 2) + -60px);
 }
 
 .u-header .u-logo-image-1 {
@@ -31229,23 +31229,7 @@ a.u-link.u-text-hover-grey-90:hover {
 .u-header .u-search-1 {
   width: calc(((100% - 1140px) / 2) + 326px);
   min-height: 38px;
-  margin: -40px 0 0 auto;
-}
-
-.u-header .u-menu-1 {
-  font-family: size-14;
-  margin: -38px auto 7px calc(((100% - 1140px) / 2) + 180px);
-}
-
-.u-header .u-nav-1 {
-  font-size: 1rem;
-  letter-spacing: 0px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.u-header .u-nav-2 {
-  font-size: 1rem;
+  margin: -40px 0 12px auto;
 }
 @media (max-width: 1199px) {
   .u-header .u-image-1 {
@@ -31259,11 +31243,7 @@ a.u-link.u-text-hover-grey-90:hover {
     height: auto;
     margin-top: -40px;
     margin-right: calc(((100% - 1140px) / 2) + 120px);
-  }
-
-  .u-header .u-menu-1 {
-    width: auto;
-    margin: -38px calc(((100% - 1140px) / 2) + 420px) 50px calc(((100% - 940px) / 2));
+    margin-bottom: 54px;
   }
 }
 @media (max-width: 991px) {
@@ -31275,11 +31255,6 @@ a.u-link.u-text-hover-grey-90:hover {
     margin-right: auto;
     margin-left: calc(((100% - 1140px) / 2) + 462px);
   }
-
-  .u-header .u-menu-1 {
-    margin-right: calc(((100% - 1140px) / 2) + 219px);
-    margin-left: calc(((100% - 720px) / 2));
-  }
 }
 @media (max-width: 767px) {
   .u-header .u-image-1 {
@@ -31290,11 +31265,6 @@ a.u-link.u-text-hover-grey-90:hover {
   .u-header .u-search-1 {
     margin-left: calc(((100% - 1140px) / 2) + 300px);
   }
-
-  .u-header .u-menu-1 {
-    margin-right: calc(((100% - 1140px) / 2) + 129px);
-    margin-left: calc(((100% - 540px) / 2));
-  }
 }
 @media (max-width: 575px) {
   .u-header .u-image-1 {
@@ -31303,13 +31273,8 @@ a.u-link.u-text-hover-grey-90:hover {
 
   .u-header .u-search-1 {
     margin-right: calc(((100% - 1140px) / 2) + 70px);
+    margin-bottom: 11px;
     margin-left: auto;
-  }
-
-  .u-header .u-menu-1 {
-    margin-right: auto;
-    margin-bottom: 7px;
-    margin-left: calc(((100% - 1140px) / 2) + 158px);
   }
 }
 .u-footer {
