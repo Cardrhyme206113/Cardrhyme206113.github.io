@@ -1,0 +1,70 @@
+.u-section-1 .u-sheet-1 {
+  min-height: 1268px;
+}
+
+.u-section-1 .u-image-1 {
+  width: 361px;
+  height: 361px;
+  background-image: url("images/background.png");
+  background-position: 50% 50%;
+  margin: 100px auto 0;
+}
+
+.u-section-1 .u-text-1 {
+  font-weight: 700;
+  font-style: normal;
+  width: 749px;
+  margin: 73px auto 0;
+}
+
+.u-section-1 .u-text-2 {
+  font-size: 1.875rem;
+  font-weight: 400;
+  width: 855px;
+  margin: 92px auto 60px;
+}
+
+@media (max-width: 1199px) {
+  .u-section-1 .u-text-2 {
+    width: 749px;
+  }
+}
+
+@media (max-width: 991px) {
+  .u-section-1 .u-text-1 {
+    width: 720px;
+  }
+
+  .u-section-1 .u-text-2 {
+    width: 720px;
+  }
+}
+
+@media (max-width: 767px) {
+  .u-section-1 .u-text-1 {
+    width: 540px;
+  }
+
+  .u-section-1 .u-text-2 {
+    width: 540px;
+  }
+}
+
+@media (max-width: 575px) {
+  .u-section-1 .u-sheet-1 {
+    min-height: 972px;
+  }
+
+  .u-section-1 .u-image-1 {
+    width: 340px;
+    height: 340px;
+  }
+
+  .u-section-1 .u-text-1 {
+    width: 340px;
+  }
+
+  .u-section-1 .u-text-2 {
+    width: 340px;
+  }
+}
