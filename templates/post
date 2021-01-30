@@ -3,12 +3,12 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta charset="utf-8">
-    <meta name="keywords" content="">
+    <meta name="keywords" content="Post 1 Headline">
     <meta name="description" content="">
     <meta name="page_type" content="np-template-header-footer-from-plugin">
-    <title>Home</title>
+    <title>Post Template</title>
     <link rel="stylesheet" href="nicepage.css" media="screen">
-<link rel="stylesheet" href="Home.css" media="screen">
+<link rel="stylesheet" href="Post-Template.css" media="screen">
     <script class="u-script" type="text/javascript" src="jquery.js" defer=""></script>
     <script class="u-script" type="text/javascript" src="nicepage.js" defer=""></script>
     <meta name="generator" content="Nicepage 3.5.1, nicepage.com">
@@ -22,13 +22,13 @@
 		"url": "index.html",
 		"logo": "images/kisspng-discord-roblox-computer-icons-logo-computer-server-5adf795a906bc2.0767514315245950345916.jpg"
 }</script>
-    <meta property="og:title" content="Home">
+    <meta property="og:title" content="Post Template">
     <meta property="og:type" content="website">
     <meta name="theme-color" content="#478ac9">
     <link rel="canonical" href="index.html">
     <meta property="og:url" content="index.html">
   </head>
-  <body data-home-page="Home.html" data-home-page-title="Home" class="u-body"><header class="u-clearfix u-header u-header" id="sec-c1b5"><div class="u-clearfix u-sheet u-sheet-1">
+  <body class="u-body"><header class="u-clearfix u-header u-header" id="sec-c1b5"><div class="u-clearfix u-sheet u-sheet-1">
         <a href="https://nicepage.com" class="u-image u-logo u-image-1">
           <img src="images/kisspng-discord-roblox-computer-icons-logo-computer-server-5adf795a906bc2.0767514315245950345916.jpg" class="u-logo-image u-logo-image-1" data-image-width="53.3334">
         </a>
@@ -57,33 +57,22 @@
           </div>
         </nav>
       </div></header>
-    <section class="u-align-center u-clearfix u-section-1" id="sec-0675">
-      <div class="u-expanded-width u-gallery u-layout-grid u-lightbox u-show-text-on-hover u-gallery-1">
-        <div class="u-gallery-inner u-gallery-inner-1">
-          <div class="u-effect-fade u-gallery-item">
-            <div class="u-back-slide">
-              <img class="u-back-image u-expanded" src="images/background.png">
-            </div>
-            <div class="u-over-slide u-shading u-over-slide-1">
-              <h3 class="u-gallery-heading"></h3>
-              <p class="u-gallery-text"></p>
-            </div>
+    <section class="u-align-center u-clearfix u-section-1" id="sec-7edb">
+      <div class="u-clearfix u-sheet u-valign-middle-md u-valign-middle-sm u-valign-middle-xs u-sheet-1"><!--post_details--><!--post_details_options_json--><!--{"source":""}--><!--/post_details_options_json--><!--blog_post-->
+        <div class="u-container-style u-expanded-width u-post-details u-post-details-1">
+          <div class="u-container-layout u-valign-middle u-container-layout-1"><!--blog_post_image-->
+            <img alt="" class="u-blog-control u-expanded-width u-image u-image-default u-image-1" src="images/2.jpeg"><!--/blog_post_image--><!--blog_post_header-->
+            <h2 class="u-blog-control u-text u-text-1">
+              <a class="u-post-header-link" href="#"><!--blog_post_header_content-->Post 1 Headline<!--/blog_post_header_content--></a>
+            </h2><!--/blog_post_header--><!--blog_post_metadata-->
+            <div class="u-blog-control u-metadata u-metadata-1"><!--blog_post_metadata_date-->
+              <span class="u-meta-date u-meta-icon"><!--blog_post_metadata_date_content-->Sat Jan 30 2021<!--/blog_post_metadata_date_content--></span><!--/blog_post_metadata_date--><!--blog_post_metadata_category-->
+              <span class="u-meta-category u-meta-icon"><!--blog_post_metadata_category_content-->Category<!--/blog_post_metadata_category_content--></span><!--/blog_post_metadata_category--><!--blog_post_metadata_comments-->
+              <span class="u-meta-comments u-meta-icon"><!--blog_post_metadata_comments_content-->Comments (0)<!--/blog_post_metadata_comments_content--></span><!--/blog_post_metadata_comments-->
+            </div><!--/blog_post_metadata--><!--blog_post_content-->
+            <div class="u-align-justify u-blog-control u-post-content u-text u-text-2"><!--blog_post_content_content-->Sample small text. Lorem ipsum dolor sit amet.<!--/blog_post_content_content--></div><!--/blog_post_content-->
           </div>
-        </div>
-      </div>
-      <img src="images/1-removebg.png" alt="" class="u-image u-image-default u-image-1" data-image-width="1600" data-image-height="900">
-      <h4 class="u-text u-text-body-alt-color u-text-default u-text-1">Survivalistic</h4>
-      <h4 class="u-text u-text-default u-text-2">
-        <span class="u-text-body-alt-color">T</span>
-        <span class="u-text-body-alt-color">he​ Lost World SMP</span>
-      </h4>
-      <a href="https://discord.com/invite/pQb55FKgbX" class="u-btn u-btn-round u-button-style u-hover-palette-1-light-1 u-palette-1-base u-radius-50 u-btn-1">Button</a>
-      <a href="https://discord.com/invite/yCmG6quVN8" class="u-btn u-btn-round u-button-style u-hover-palette-1-light-1 u-palette-1-base u-radius-50 u-btn-2">Button</a>
-      <div class="u-clearfix u-custom-html u-custom-html-1">
-        <iframe src="https://discord.com/widget?id=773007829211938837&amp;theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
-      </div>
-      <div class="u-clearfix u-custom-html u-custom-html-2">
-        <iframe src="https://discord.com/widget?id=797711696554754058&amp;theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
+        </div><!--/blog_post--><!--/post_details-->
       </div>
     </section>
     
@@ -92,14 +81,14 @@
         <p class="u-small-text u-text u-text-variant u-text-1">Sample text. Click to select the text box. Click again or double click to start editing the text.</p>
       </div></footer>
     <section class="u-backlink u-clearfix u-grey-80">
-      <a class="u-link" href="https://nicepage.com/css-templates" target="_blank">
-        <span>CSS Templates</span>
+      <a class="u-link" href="https://nicepage.com/website-templates" target="_blank">
+        <span>Website Templates</span>
       </a>
       <p class="u-text">
         <span>created with</span>
       </p>
       <a class="u-link" href="https://nicepage.com/" target="_blank">
-        <span>WYSIWYG Web Builder</span>
+        <span>Website Builder Software</span>
       </a>. 
     </section>
   </body>
