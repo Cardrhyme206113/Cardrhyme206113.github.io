@@ -1,0 +1,19 @@
+Hello, welcome,
+torrent files are mostly put because of the limitations of this website.
+Just be sure to have a app that can open torrent files! 
+File names:
+arch2020.torrent
+arch2021.torrent
+CentOSx86.torrent
+debianx64.torrent
+linuxlitex64.torrent
+lubuntux64.torrent
+MintOSx64.torrent
+Pardusx64.torrent
+RaspOS.torrent
+TinyCore.torrent
+Ubuntux64.torrent
+xubuntux64.torrent
+
+this files name:
+info.txt
