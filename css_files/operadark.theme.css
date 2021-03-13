@@ -1,0 +1,37 @@
+/**
+* @name Opera Themed Dark Theme
+* @website https://www.cardrhyme206113.github.io
+* @author Cardrhyme206113
+* @description Universal Opera Gamer Theme
+* @authorId 714125810147262557
+* @version 0.3.4 Pre-Alpha
+* @invite VKfvnTeFf2
+* @donate https://www.cardrhyme206113.github.io
+* @source https://www.cardrhyme206113.github.io
+* @updateUrl https://www.cardrhyme206113.github.io
+*/
+
+@import url(https://mwittrien.github.io/BetterDiscordAddons/Themes/ServerColumns/ServerColumns.css);
+@import url(https://puckzxz.github.io/NotAnotherAnimeTheme/css/qcsl.css);
+
+:root {
+    --background-image: url(https://i.imgur.com/KCsihBl.png);
+--friends-icon: url(https://i.imgur.com/drgep0z.png);
+--friends-icon-position: center center;
+--friends-icon-zoom: 120%;
+--main-color: rgb(244, 0, 0);
+--main-transparency: rgba(0, 0, 0, 0.5);
+--unread-server-animation: rainbow;
+--hover-list-bg-color: rgba(255, 255, 255, .15);
+--border-lines-color: hsla(0,0%,100%,.1);
+--scroll-bar-color: rgba(244, 0, 0, .25);
+--font-size: 16px;
+--selected-text-voice-color: #fe0100;
+--channel-hover-text-color: rgba(68, 191, 0, 1);
+--unread-text-color: #dcddde;
+--user-popup-background: rgba(0, 0, 0, 0.8);
+--columns:			5;							/* default:	3					(amount of servercolumns)																		*/
+--guildsize:		52;							/* default:	50					(serversize in pixel)																			*/
+--guildgap:			3;							/* default:	3					(top/bottom gap between servers in pixel)														*/
+--aligndms:			0;							/* default:	0					(should DMs be aligned in columns: 0 = no, 1 = yes)												*/
+}
