@@ -1,0 +1,17 @@
+Token Almak O kadar kolayki bilemezsin.. Neyse, hacklenebileceğin yollar:
+
+1-Kendisi kendi bilgisini ele versin:
+Bu şöyle oluyor. Ilk başta bir kaç şey öğrenelim:
+Discord Auth Token:
+Discordda giriş yapman için bu gerekir. 2 aşamalı doğrulamayı bile geçer. Biraz karışık ama sana 1 örnek vereyim:
+https://gist.github.com/m-Phoenix852/b47fffb0fd579bc210420cedbda30b61 (Bir örnek kod, senin token'ını biliyorlarsa bu kodu çalıştırarak senin hesaba girebilirler.)
+Bundada işte.. Senin o bilgiyi vermen gerekir. Ama o token'ı almnanın daha zor ama rahat yolu var:
+
+2-BetterDiscord Pluginleri.
+Better Discord bir modife edilmiş discord programıdır. Aslında çok zararsızdır, hatta ben bile kullanıyorum diyelim. Ama "plugin" denilen bir şey var. uygulamaya çok değişik
+ve ilginç özellikler ekliyor. Bazıları iyi.. Bazılarıda kullanıcıların discord user token'lerini almak için kullanıyorlar. Bir yol daha var:
+
+3-Fake Discord Programları.
+Bunu yapmak sıçmaktan bile daha kolay. (Şaka değil gülme xD) Işte bir program alıyorsun deep web'den, onla botnet kuruyorsun, sonra bağlantıları ayarlıyorsun.
+He birde o kodlama bilenler için o kadar kolay. ;) Öyle zannetme yani xDD. Şu an örneğin herhangi bir executable (exe) dosyasını açtıysan bu sana musallat olabilir.
+O yüzden.. Sadece bildiğin yerlerden program indir! :)
