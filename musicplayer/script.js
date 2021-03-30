@@ -42,7 +42,7 @@ new Vue({
         },
 				        {
           name: "28 Days Later",
-          artist: "Capone",
+          artist: "Theme Song",
           cover: "https://i.imgur.com/YpJn6q6.jpeg",
           source: "https://cardrhyme206113.github.io/mp3/28weekslater.mp3",
           url: "https://www.youtube.com/watch?v=DbwlGv9SWfY",
