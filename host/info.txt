@@ -1,7 +1,7 @@
 max limit per server: 100 mb
 server list:
-server1 (less than %2) 100/ 1.9
-server2 (none) 100/0
-server3 (none) 100/0
-server4 (none) 100/0
-server5 (none) 100/0
+server1 (being filled)
+server2 (none)  100/0
+server3 (none)  100/0
+server4 (none)  100/0
+server5 (none)  100/0
