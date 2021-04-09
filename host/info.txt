@@ -1,7 +1,17 @@
 max limit per server: 100 mb
 server list:
-server1 (being filled)
-server2 (none)  100/0
-server3 (none)  100/0
-server4 (none)  100/0
-server5 (none)  100/0
+
+
+Main Directory: (.root)/host
+
+1- -----------------------
+Directory Name: Server1
+What's It used for: Profile Pages Or Bio's
+Size Being Used: 1.70 MB
+Maximum Size: 125 MB
+
+2- -----------------------
+Directory Name: Website
+What's It used for: To Host Websites
+Size Being Used: 1 MB TO 20 MB
+Maximum Size: 375 MB
