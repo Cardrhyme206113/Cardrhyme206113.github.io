@@ -521,7 +521,7 @@ var Framer = {
             {
                 artist: "David Guetta",
                 song: "Hey Mama",
-                url: "https://www.cardrhyme206113.github.io/api/mp3player2/heymama.html"
+                url: "https://cardrhyme206113.github.io/api/mp3player2/heymama.mp3"
             }
         ],
 
