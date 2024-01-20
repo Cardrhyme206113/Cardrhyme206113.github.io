@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href="styles.css"  rel="stylesheet" type="text/css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.js" type="text/javascript" charset="utf-8"></script>
+    <script src="scripts.js" type="text/javascript" charset="utf-8"></script>
+    <script src="loadMap.js" type="text/javascript" charset="utf-8"></script>
+  </head>
+  <body onload="initVariables();">
+
+    <h1>Skin 2 statue </h1>
+
+    <h2>Input skin</h2>
+
+    <input type="file" accept="image/*" id="fileInput" name="skinfile" onchange="loadFile(event)"/>
+    <br />
+    <img id="inputskin" crossOrigin="Anonymous" onclick="" />
+    <br />
+    <input type="button" value="Click to convert" onclick="mapAll(mapjson);" />
+
+    <h2>Output statue </h2>
+
+    <canvas id="inputCanvas" width="64" height="64"> </canvas>
+    <canvas id="inputCanvasFlip" width="64" height="64"> </canvas>
+    <canvas id="outputCanvas" width="196" height="33"> </canvas>
+    <br />
+    <a id="outputImageLink" download="" >
+          <canvas id="outputCanvasBig"> </canvas>
+    </a>
+
+    <script type="text/javascript">
+      // Now to something completely different
+      //var output_canvas = document.createElement('canvas');
+      var output_canvas = document.getElementById('outputCanvas');
+      var output_canvas_big = document.getElementById('outputCanvasBig');
+
+      var output_ctx = output_canvas.getContext('2d');
+
+    </script>
+  </body>
+</html>
