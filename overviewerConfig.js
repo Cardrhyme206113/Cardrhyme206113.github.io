@@ -71,67 +71,11 @@ var overviewerConfig = {
             "north_direction": 0
         },
         {
-            "name": "Cave Render",
-            "zoomLevels": 7,
-            "defaultZoom": 1,
-            "maxZoom": 7,
-            "path": "VE_cave",
-            "base": "",
-            "bgcolor": "#1a1a1a",
-            "world": "VE",
-            "last_rendertime": 1696145769,
-            "imgextension": "jpg",
-            "isOverlay": false,
-            "poititle": "Markers",
-            "showlocationmarker": true,
-            "center": [
-                -298,
-                65,
-                0
-            ],
-            "lastrenderversion": 2,
-            "minZoom": 0,
-            "spawn": [
-                -298,
-                65,
-                0
-            ],
-            "north_direction": 0
-        },
-        {
             "name": "Day Render",
             "zoomLevels": 8,
             "defaultZoom": 2,
             "maxZoom": 8,
             "path": "CardSMP_smooth",
-            "base": "",
-            "bgcolor": "#1a1a1a",
-            "world": "CardSMP",
-            "last_rendertime": 1707555071,
-            "imgextension": "jpg",
-            "isOverlay": false,
-            "poititle": "Markers",
-            "showlocationmarker": true,
-            "center": [
-                48,
-                195,
-                0
-            ],
-            "lastrenderversion": 2,
-            "minZoom": 0,
-            "spawn": [
-                48,
-                195,
-                0
-            ],
-            "north_direction": 0
-        },
-        {
-            "name": "Cave Render",
-            "zoomLevels": 8,
-            "defaultZoom": 2,
-            "maxZoom": 8,
-            "path": "CardSMP_cave",
             "base": "",
             "bgcolor": "#1a1a1a",
             "world": "CardSMP",
