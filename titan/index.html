@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TITAN-1 // TERMINAL UPLINK</title>
+    <!-- XTerm.js CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <!-- Fonts: VT323 for Terminal, Georgia/Special Elite for Docs -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Special+Elite&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="/index.css">
+</head>
+<body>
+    <div id="crt-overlay" class="crt-overlay"></div>
+    <div class="scanlines"></div>
+    
+    <div class="main-wrapper">
+        <header class="hero-container">
+            <div class="hero-banner">
+                <div class="hero-logo-wrapper">
+                    <img src="./logo.png" alt="TITAN-1" class="hero-logo">
+                </div>
+                <div class="hero-text-content">
+                    <h1 class="hero-title">TITAN-1 "OFF THE BOOKS"</h1>
+                    <div class="hero-subtitle">DETACHMENT ALPHA</div>
+                    <div class="hero-redacted"></div>
+                </div>
+            </div>
+            <div class="hero-status">
+                <div class="status-block">
+                    <span class="label">CONNECTION:</span> <span class="val secure">ENCRYPTED (AES-256)</span>
+                </div>
+                <div class="status-block">
+                    <span class="label">UNIT:</span> <span class="val unit">ALPHA DETACHMENT</span>
+                </div>
+                <div class="status-block">
+                    <span class="label">STATUS:</span> <span class="val active blinking">LIVE FEED</span>
+                </div>
+            </div>
+        </header>
+
+        <main id="terminal-container"></main>
+    </div>
+
+    <!-- Document Modal -->
+    <div id="doc-modal" class="modal hidden">
+        <div class="modal-backdrop"></div>
+        <div class="modal-window">
+            <div class="modal-header">
+                <span class="modal-title">SECURE DOCUMENT VIEWER v4.2</span>
+                <button id="close-btn" class="close-btn">X</button>
+            </div>
+            <div class="modal-body-wrapper">
+                <div id="doc-container" class="doc-content scan-effect">
+                    <!-- Content Injected Here -->
+                </div>
+                <!-- Scanline overlay for the document specifically -->
+                <div class="doc-overlay"></div>
+            </div>
+            <div class="modal-footer" id="modal-footer-status">
+                <!-- Status text injected by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- XTerm.js Script -->
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="./script.js" type="module"></script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,364 @@
+:root {
+    --bg-color: #050505;
+    --text-primary: #ffb86c; /* Warm Amber */
+    --text-secondary: #ffcc99;
+    --text-dim: #96694c;
+    --accent-amber: #ffb000;
+    --accent-yellow: #FFEA00; /* Legitimate bright yellow */
+    --accent-orange: #ff5500;
+    --accent-red: #ff3333;
+    --accent-green: #33ff33;
+    --glass-border: rgba(255, 176, 0, 0.15);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: 'VT323', monospace; /* Retro Clunky Font */
+    overflow: hidden; /* Default for terminal app */
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Scrollbar Styling for Webkit (Builder needs this) */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: #111;
+}
+::-webkit-scrollbar-thumb {
+    background: #333;
+    border: 1px solid #000;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-amber);
+}
+
+/* CRT & Scanline Effects */
+.scanlines {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: linear-gradient(
+        to bottom,
+        rgba(255,255,255,0),
+        rgba(255,255,255,0) 50%,
+        rgba(0,0,0,0.1) 50%,
+        rgba(0,0,0,0.1)
+    );
+    background-size: 100% 4px;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.crt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(20,10,0,0.4) 100%);
+    pointer-events: none;
+    z-index: 101;
+    box-shadow: inset 0 0 100px rgba(0,0,0,0.9);
+}
+
+/* Main Layout */
+.main-wrapper {
+    width: 90%;
+    max-width: 1000px;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    z-index: 10;
+    animation: turnOn 0.8s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+    opacity: 0;
+}
+
+@keyframes turnOn {
+    0% { transform: scaleY(0.01) scaleX(0); opacity: 0; }
+    50% { transform: scaleY(0.01) scaleX(1); opacity: 1; }
+    100% { transform: scaleY(1) scaleX(1); opacity: 1; }
+}
+
+/* Hero Section */
+.hero-container {
+    border: 1px solid var(--glass-border);
+    background: rgba(15, 10, 5, 0.9);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 15px rgba(255, 176, 0, 0.1);
+}
+
+.hero-banner {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    padding: 25px 30px;
+    background: #0f0a05;
+    gap: 25px;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.hero-logo-wrapper {
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+    /* Optional: box around logo */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.hero-logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    /* Optional: slight filter to match theme */
+    filter: sepia(1) hue-rotate(-10deg) saturate(1.2);
+}
+
+.hero-text-content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+
+.hero-title {
+    margin: 0;
+    font-size: 3.5rem; /* Larger for VT323 */
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    line-height: 1;
+    font-family: 'VT323', monospace; /* Reverted */
+    text-shadow: 0 0 10px rgba(255, 176, 0, 0.3);
+}
+
+.hero-subtitle {
+    font-size: 1.2rem;
+    font-weight: 400;
+    color: var(--text-primary);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-top: 5px;
+    font-family: 'VT323', monospace;
+}
+
+.hero-redacted {
+    height: 1.2rem;
+    width: 200px; /* Approximate width of "DETACHMENT ALPHA" */
+    background-color: var(--accent-red);
+    opacity: 0.9;
+    margin-top: 5px;
+    box-shadow: 0 0 5px rgba(255, 51, 51, 0.5);
+    animation: pulseRed 3s infinite;
+}
+
+@keyframes pulseRed {
+    0%, 100% { opacity: 0.9; }
+    50% { opacity: 0.7; }
+}
+
+.hero-status {
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    font-size: 1.2rem;
+    background: #0f0a05;
+    letter-spacing: 1px;
+}
+
+.status-block .label {
+    color: var(--text-dim);
+}
+
+.status-block .val {
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+.val.secure { color: var(--accent-amber); }
+.val.unit { color: #fff; }
+.val.active { color: var(--accent-orange); }
+
+.blinking {
+    animation: blink 2s infinite;
+}
+
+/* Terminal Container */
+#terminal-container {
+    flex-grow: 1;
+    background: #080500;
+    padding: 10px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 0 20px rgba(255, 100, 0, 0.1);
+    overflow: hidden;
+    position: relative;
+}
+
+.xterm-viewport {
+    scrollbar-width: thin;
+    scrollbar-color: var(--accent-amber) #000;
+}
+
+/* Modal / Document Viewer */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 200;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px);
+}
+
+.modal-window {
+    position: relative;
+    width: 85%;
+    max-width: 900px;
+    height: 85vh;
+    background: #111;
+    border: 1px solid var(--accent-yellow);
+    box-shadow: 0 0 30px rgba(255, 234, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    z-index: 201;
+    animation: modalPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+/* Updated Header: Black BG, Yellow Text */
+.modal-header {
+    background: #000000;
+    color: var(--accent-yellow);
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    letter-spacing: 1px;
+    font-size: 1.2rem;
+    border-bottom: 2px solid var(--accent-yellow);
+    font-family: 'VT323', monospace;
+}
+
+.close-btn {
+    background: transparent;
+    border: 2px solid var(--accent-yellow);
+    color: var(--accent-yellow);
+    font-weight: bold;
+    cursor: pointer;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    padding: 2px 8px;
+    transition: all 0.2s;
+}
+
+.close-btn:hover {
+    background: var(--accent-yellow);
+    color: #000;
+}
+
+.modal-body-wrapper {
+    flex-grow: 1;
+    background: #555;
+    padding: 2px;
+    overflow: hidden;
+    position: relative;
+}
+
+/* Document Content Styling */
+.doc-content {
+    height: 100%;
+    overflow-y: auto;
+    padding: 40px;
+    box-sizing: border-box;
+    
+    /* Paper Background Logic */
+    background-color: #f8f6f2; /* Off-white/Bone */
+    
+    /* Stronger Grid Lines - opacity increased for visibility */
+    background-image:
+        linear-gradient(90deg, transparent 95%, rgba(0,0,0,0.15) 95%),
+        linear-gradient(0deg, transparent 95%, rgba(0,0,0,0.15) 95%);
+    background-size: 25px 25px;
+    background-attachment: local; /* Critical: Scrolls with content */
+    
+    color: #111;
+    position: relative;
+}
+
+/* Simulation of old scanner pixelation/blur */
+.doc-content.scan-effect {
+    /* Slight blur to mimic ink bleed */
+    /* Contrast to sharpen edges and threshold light greys */
+    filter: contrast(1.15) brightness(0.98) blur(0.2px) sepia(0.05);
+}
+
+.doc-overlay {
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMDAiIGhlaWdodD0iMjAwIj48ZmlsdGVyIGlkPSJub2lzZSI+PGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuNjUiIG51bU9jdGF2ZXM9IjMiIHN0aXRjaFRpbGVzPSJzdGl0Y2giLz48L2ZpbHRlcj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWx0ZXI9InVybCgjbm9pc2UpIiBvcGFjaXR5PSIwLjA1Ii8+PC9zdmc+');
+    opacity: 0.4;
+    mix-blend-mode: multiply;
+    z-index: 5;
+}
+
+.modal-footer {
+    background: #080500;
+    border-top: 1px solid #333;
+    padding: 8px 15px;
+    font-size: 1.1rem;
+    display: flex;
+    justify-content: center;
+    text-transform: uppercase;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+/* Keyframes */
+@keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes scan {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 200% 0%; }
+}
+
+@keyframes modalPop {
+    0% { transform: scale(0.95); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}

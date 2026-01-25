@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TITAN-1 // CONSTRUCT</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&family=Special+Elite&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+    <style>
+        /* Specific Overrides for Builder Page */
+        body {
+            overflow: hidden; 
+            flex-direction: row;
+            align-items: flex-start;
+            padding: 0;
+            background-color: #0e0e0e;
+        }
+        
+        .b-layout {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* 1. Sidebar */
+        .b-sidebar {
+            width: 300px;
+            background: #080500;
+            border-right: 1px solid var(--accent-amber);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            gap: 20px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        
+        .b-logo {
+            font-size: 1.8rem;
+            color: var(--accent-amber);
+            font-weight: bold;
+            text-align: center;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .b-section-header {
+            font-size: 1.1rem;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .b-palette {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .b-block-btn {
+            background: #111;
+            border: 1px solid #333;
+            color: var(--text-primary);
+            padding: 10px;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        .b-block-btn:hover {
+            border-color: var(--accent-amber);
+            background: #1a1a1a;
+        }
+        .b-block-btn:active {
+            cursor: grabbing;
+        }
+
+        /* 2. Workspace (Middle) */
+        .b-workspace {
+            flex: 1;
+            background: #151515;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #333;
+            position: relative;
+        }
+
+        .b-toolbar {
+            background: #222;
+            padding: 10px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .b-tool-btn {
+            background: #333;
+            color: #ccc;
+            border: 1px solid #555;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-family: monospace;
+            font-weight: bold;
+            min-width: 25px;
+        }
+        .b-tool-btn:hover { background: #444; color: #fff; }
+
+        .b-canvas {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .b-canvas-empty {
+            color: #444;
+            text-align: center;
+            margin-top: 50px;
+            border: 2px dashed #333;
+            padding: 40px;
+        }
+
+        /* 3. Preview (Right) */
+        .b-preview {
+            width: 45%;
+            background: #555; /* Match document background context */
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--accent-yellow);
+        }
+        .b-preview-header {
+            background: #000;
+            color: var(--accent-yellow);
+            padding: 8px;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 2px solid var(--accent-yellow);
+        }
+        .b-preview-content {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+        }
+
+        /* Draggable Items in Canvas */
+        .c-item {
+            background: #0a0a0a;
+            border: 1px solid #333;
+            padding: 10px;
+            position: relative;
+            display: flex;
+            gap: 10px;
+        }
+        .c-item.dragging { opacity: 0.5; }
+        .c-handle {
+            width: 20px;
+            background: #222;
+            cursor: grab;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            user-select: none;
+        }
+        .c-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .c-delete {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            color: #900;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        
+        .input-group { margin-bottom: 5px; }
+        .input-label { font-size: 0.8rem; color: #666; display: block; margin-bottom: 2px; }
+        .c-input, .c-textarea {
+            width: 100%;
+            background: #111;
+            border: 1px solid #333;
+            color: #ddd;
+            padding: 5px;
+            font-family: monospace;
+            box-sizing: border-box;
+        }
+        .c-textarea { min-height: 60px; resize: vertical; }
+        .c-input:focus, .c-textarea:focus { border-color: var(--accent-amber); outline: none; }
+
+        /* JSON Export Modal */
+        .export-modal {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            background: #111;
+            border: 2px solid var(--accent-green);
+            padding: 20px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 0 20px rgba(0,255,0,0.2);
+        }
+        .export-overlay {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 999;
+            display: none;
+        }
+        
+        .merge-section {
+            border-bottom: 1px solid #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="b-layout">
+    <!-- Sidebar -->
+    <div class="b-sidebar">
+        <div class="b-logo">TITAN-1 BUILDER</div>
+        
+        <div>
+            <div class="b-section-header">Meta Data</div>
+            <input type="text" id="metaKey" class="c-input" placeholder="File Key (e.g. mission-log)" style="margin-bottom:5px;">
+            <select id="metaAccess" class="c-input" style="margin-bottom:5px;" onchange="renderPreview()">
+                <option value="public">Public</option>
+                <option value="restricted">Restricted</option>
+            </select>
+            <input type="text" id="metaDesc" class="c-input" placeholder="Terminal Description">
+        </div>
+
+        <div style="flex:1;">
+            <div class="b-section-header">Building Blocks</div>
+            <div class="b-palette" id="palette">
+                <!-- Draggables -->
+                <div class="b-block-btn" draggable="true" data-type="header-row">
+                    <span>📑</span> Doc Header (Logo/Title)
+                </div>
+                <div class="b-block-btn" draggable="true" data-type="section-title">
+                    <span>🛑</span> Section Title
+                </div>
+                <div class="b-block-btn" draggable="true" data-type="body-text">
+                    <span>📝</span> Body Text
+                </div>
+                <div class="b-block-btn" draggable="true" data-type="list-group">
+                    <span>≣</span> List Group
+                </div>
+                <div class="b-block-btn" draggable="true" data-type="rank-category">
+                    <span>👮</span> Rank Category
+                </div>
+                <div class="b-block-btn" draggable="true" data-type="rank-item">
+                    <span>👤</span> Rank Item
+                </div>
+                <div class="b-block-btn" draggable="true" data-type="update-box">
+                    <span>✉️</span> Update Box
+                </div>
+                <div class="b-block-btn" draggable="true" data-type="discord-link">
+                    <span>🔗</span> Discord Link
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="b-section-header">Actions</div>
+            <button class="b-block-btn" style="width:100%; justify-content:center; border-color: var(--accent-green);" onclick="openExportModal()">
+                GENERATE JSON PAYLOAD
+            </button>
+            <div style="margin-top:10px; font-size:0.8rem; color:#666;">
+                *Output includes merged data from database.
+            </div>
+        </div>
+    </div>
+
+    <!-- Workspace -->
+    <div class="b-workspace">
+        <!-- Rich Text Toolbar -->
+        <div class="b-toolbar">
+            <button class="b-tool-btn" onmousedown="event.preventDefault()" onclick="format('bold')">B</button>
+            <button class="b-tool-btn" onmousedown="event.preventDefault()" onclick="format('italic')">I</button>
+            <button class="b-tool-btn" onmousedown="event.preventDefault()" onclick="format('underline')">U</button>
+            <button class="b-tool-btn" onmousedown="event.preventDefault()" onclick="format('strike')">S</button>
+            <div style="width:1px; background:#444; margin:0 5px;"></div>
+            <button class="b-tool-btn" onmousedown="event.preventDefault()" onclick="insertTag('span', 'style=\x22color:#ff3333\x22')">Red</button>
+            <button class="b-tool-btn" onmousedown="event.preventDefault()" onclick="insertTag('span', 'style=\x22color:#33ff33\x22')">Green</button>
+            <button class="b-tool-btn" onmousedown="event.preventDefault()" onclick="insertTag('strong')">Strong</button>
+            <div style="width:1px; background:#444; margin:0 5px;"></div>
+            <button class="b-tool-btn" onmousedown="event.preventDefault()" onclick="insertLink()">Link</button>
+        </div>
+
+        <div class="b-canvas" id="canvas">
+            <div class="b-canvas-empty">Drag blocks from sidebar here</div>
+        </div>
+    </div>
+
+    <!-- Preview -->
+    <div class="b-preview">
+        <div class="b-preview-header">LIVE PREVIEW</div>
+        <div class="modal-body-wrapper">
+             <div id="previewContainer" class="doc-content scan-effect"></div>
+             <div class="doc-overlay"></div>
+        </div>
+        <div class="modal-footer" id="previewFooter" style="background:#000;"></div>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div class="export-overlay" id="exportOverlay" onclick="hideExport()"></div>
+<div class="export-modal" id="exportModal">
+    <h3 style="color:var(--accent-green); margin-top:0;">JSON PAYLOAD GENERATED</h3>
+    
+    <div class="merge-section">
+        <div style="color:#666; font-size:0.8rem; margin-bottom:5px;">MERGE BASE (Loaded from documents.json)</div>
+        <textarea id="jsonMergeBase" class="c-textarea" style="height:60px; color:#aaa;" placeholder="{ ... loading ... }"></textarea>
+    </div>
+
+    <div style="color:#666; font-size:0.8rem; margin-bottom:5px;">RESULTING PAYLOAD</div>
+    <textarea id="jsonOutput" style="width:100%; height:200px; background:#000; color:#0f0; border:1px solid #333; font-family:monospace; margin-bottom:10px;"></textarea>
+    
+    <div style="display:flex; justify-content:space-between;">
+        <button class="b-tool-btn" style="border-color:var(--accent-amber); color:var(--accent-amber);" onclick="generatePayload()">REFRESH / MERGE</button>
+        <div>
+            <button class="b-tool-btn" onclick="copyToClipboard()">COPY</button>
+            <button class="b-tool-btn" onclick="hideExport()">CLOSE</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Data ---
+    const canvas = document.getElementById('canvas');
+    const previewContainer = document.getElementById('previewContainer');
+    const previewFooter = document.getElementById('previewFooter');
+    let blocks = [];
+    let lastActiveElement = null; // Track last focused input for toolbar actions
+
+    // --- Initialization ---
+    // Load existing documents automatically
+    fetch('./documents.json')
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('jsonMergeBase').value = JSON.stringify(data, null, 2);
+        })
+        .catch(err => {
+            console.warn("Could not auto-load documents.json", err);
+            document.getElementById('jsonMergeBase').placeholder = "{ ... no existing docs found ... }";
+        });
+
+    // Track focus for toolbar
+    document.addEventListener('focusin', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            lastActiveElement = e.target;
+        }
+    });
+
+    // --- Drag & Drop from Sidebar ---
+    document.querySelectorAll('.b-block-btn').forEach(btn => {
+        btn.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('type', btn.dataset.type);
+            e.dataTransfer.effectAllowed = 'copy';
+        });
+    });
+
+    // --- Canvas Drop Zone ---
+    canvas.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    });
+
+    canvas.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const type = e.dataTransfer.getData('type');
+        if (type) {
+            addBlock(type);
+            removePlaceholder();
+        }
+    });
+
+    function removePlaceholder() {
+        const ph = document.querySelector('.b-canvas-empty');
+        if (ph) ph.remove();
+    }
+
+    // --- Block Logic ---
+    function addBlock(type) {
+        const id = Date.now().toString() + Math.random().toString().slice(2);
+        const block = { id, type, data: {} };
+        
+        // Defaults
+        if (type === 'header-row') {
+            block.data = { title: 'Titan-1 // Alpha Detachment', subtitle: 'SCP FOUNDATION // R.A.I.S.A.', date: 'SNAPSHOT-2026-24-01' };
+        } else if (type === 'section-title') {
+            block.data = { title: 'New Section' };
+        } else if (type === 'body-text') {
+            block.data = { content: 'Enter text content here...' };
+        } else if (type === 'list-group') {
+            block.data = { items: 'Item 1\nItem 2\nItem 3' };
+        } else if (type === 'rank-category') {
+            block.data = { title: 'OFFICERS' };
+        } else if (type === 'rank-item') {
+            block.data = { rank: 'Captain', desc: 'Team Leader.' };
+        } else if (type === 'update-box') {
+            block.data = { from: 'COMMAND', subject: 'UPDATE', content: 'Details...' };
+        } else if (type === 'discord-link') {
+            block.data = { url: 'https://discord.gg/' };
+        }
+
+        blocks.push(block);
+        renderCanvas();
+        renderPreview();
+    }
+
+    function deleteBlock(id) {
+        blocks = blocks.filter(b => b.id !== id);
+        renderCanvas();
+        renderPreview();
+    }
+
+    function updateBlock(id, key, value) {
+        const block = blocks.find(b => b.id === id);
+        if (block) {
+            block.data[key] = value;
+            renderPreview(); // Real-time update
+        }
+    }
+
+    // --- Rendering Canvas (Inputs) ---
+    function renderCanvas() {
+        canvas.innerHTML = '';
+        if (blocks.length === 0) {
+            canvas.innerHTML = '<div class="b-canvas-empty">Drag blocks from sidebar here</div>';
+            return;
+        }
+
+        blocks.forEach((block, index) => {
+            const el = document.createElement('div');
+            el.className = 'c-item';
+            el.draggable = true;
+            el.dataset.id = block.id; 
+            el.dataset.index = index; 
+
+            // Drag Events for Sorting
+            el.addEventListener('dragstart', handleDragStart);
+            el.addEventListener('dragover', handleDragOver);
+            el.addEventListener('drop', handleDrop);
+            el.addEventListener('dragend', handleDragEnd);
+
+            let contentHTML = '';
+
+            // Render inputs based on type
+            if (block.type === 'header-row') {
+                contentHTML = `
+                    <div class="input-group"><label class="input-label">Top Subtitle</label>
+                    <input class="c-input" oninput="updateBlock('${block.id}', 'subtitle', this.value)" value="${block.data.subtitle}"></div>
+                    <div class="input-group"><label class="input-label">Main Title</label>
+                    <input class="c-input" oninput="updateBlock('${block.id}', 'title', this.value)" value="${block.data.title}"></div>
+                    <div class="input-group"><label class="input-label">Date/Ref</label>
+                    <input class="c-input" oninput="updateBlock('${block.id}', 'date', this.value)" value="${block.data.date}"></div>
+                `;
+            } else if (block.type === 'section-title') {
+                contentHTML = `
+                    <div class="input-group"><label class="input-label">Section Name</label>
+                    <input class="c-input" oninput="updateBlock('${block.id}', 'title', this.value)" value="${block.data.title}"></div>
+                `;
+            } else if (block.type === 'body-text') {
+                contentHTML = `
+                    <div class="input-group"><label class="input-label">Content (HTML Supported)</label>
+                    <textarea class="c-textarea" oninput="updateBlock('${block.id}', 'content', this.value)">${block.data.content}</textarea></div>
+                `;
+            } else if (block.type === 'list-group') {
+                contentHTML = `
+                    <div class="input-group"><label class="input-label">List Items (One per line)</label>
+                    <textarea class="c-textarea" oninput="updateBlock('${block.id}', 'items', this.value)">${block.data.items}</textarea></div>
+                `;
+            } else if (block.type === 'rank-category') {
+                contentHTML = `
+                    <div class="input-group"><label class="input-label">Category Name</label>
+                    <input class="c-input" oninput="updateBlock('${block.id}', 'title', this.value)" value="${block.data.title}"></div>
+                `;
+            } else if (block.type === 'rank-item') {
+                contentHTML = `
+                    <div class="input-group"><label class="input-label">Rank Name</label>
+                    <input class="c-input" oninput="updateBlock('${block.id}', 'rank', this.value)" value="${block.data.rank}"></div>
+                    <div class="input-group"><label class="input-label">Description</label>
+                    <input class="c-input" oninput="updateBlock('${block.id}', 'desc', this.value)" value="${block.data.desc}"></div>
+                `;
+            } else if (block.type === 'update-box') {
+                contentHTML = `
+                    <div class="input-group"><label class="input-label">From</label>
+                    <input class="c-input" oninput="updateBlock('${block.id}', 'from', this.value)" value="${block.data.from}"></div>
+                    <div class="input-group"><label class="input-label">Subject</label>
+                    <input class="c-input" oninput="updateBlock('${block.id}', 'subject', this.value)" value="${block.data.subject}"></div>
+                    <div class="input-group"><label class="input-label">Body</label>
+                    <textarea class="c-textarea" oninput="updateBlock('${block.id}', 'content', this.value)">${block.data.content}</textarea></div>
+                `;
+            } else if (block.type === 'discord-link') {
+                contentHTML = `
+                    <div class="input-group"><label class="input-label">Invite URL</label>
+                    <input class="c-input" oninput="updateBlock('${block.id}', 'url', this.value)" value="${block.data.url}"></div>
+                `;
+            }
+
+            el.innerHTML = `
+                <div class="c-handle">::</div>
+                <div class="c-content">
+                    <strong style="color:var(--accent-amber); font-size:0.8rem; text-transform:uppercase;">${block.type.replace('-', ' ')}</strong>
+                    ${contentHTML}
+                </div>
+                <div class="c-delete" onclick="deleteBlock('${block.id}')">X</div>
+            `;
+            canvas.appendChild(el);
+        });
+    }
+
+    // --- Rendering Preview (HTML Generation) ---
+    function renderPreview() {
+        const access = document.getElementById('metaAccess').value;
+        
+        // Update Footer Status
+        if (access === 'public') {
+            previewFooter.innerHTML = '<span style="color: var(--accent-green);">Declassified [SC-5] Material</span>';
+        } else {
+            previewFooter.innerHTML = '<span style="color: var(--accent-red);">Classified [SC-5] Material</span>';
+        }
+
+        let html = `<div class="dossier-wrapper">
+    <style>
+        .dossier-wrapper { font-family: 'Georgia', serif; color: #111; line-height: 1.5; padding: 10px; }
+        .header-row { display: flex; justify-content: space-between; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 25px; align-items: flex-end; }
+        .title-block h1 { margin: 0; font-size: 26px; letter-spacing: 1px; text-transform: uppercase; }
+        .title-block span { font-family: 'Arial', sans-serif; font-size: 10px; letter-spacing: 2px; display: block; }
+        .stamp-box { border: 3px double #008000; color: #008000; padding: 5px 15px; font-weight: bold; font-family: 'Arial Black', sans-serif; font-size: 18px; text-transform: uppercase; transform: rotate(-3deg); opacity: 1; }
+        .section { margin-bottom: 25px; page-break-inside: avoid; }
+        .section-title { background: #222; color: #fff; padding: 4px 10px; font-family: 'Arial', sans-serif; font-weight: bold; font-size: 14px; text-transform: uppercase; margin-bottom: 10px; border-left: 5px solid #ffb000; }
+        .body-text { text-align: justify; font-size: 15px; margin-bottom: 10px; }
+        .update-box { border: 1px dashed #666; background: #f4f4f4; padding: 10px; margin: 10px 0; font-family: 'Courier New', Courier, monospace; font-size: 13px; }
+        .rank-category { font-weight: bold; text-transform: uppercase; margin-top: 15px; border-bottom: 1px solid #ccc; font-family: 'Arial', sans-serif; font-size: 12px; color: #444; }
+        .rank-item { margin-bottom: 8px; margin-left: 10px; }
+        .rank-title { font-weight: bold; }
+        ul.simple-list { list-style-type: square; padding-left: 20px; margin-top: 5px; }
+        .discord-link { text-align: center; margin-top: 30px; font-family: 'Arial', sans-serif; font-weight: bold; }
+        .discord-link a { color: #5865F2; text-decoration: none; }
+    </style>
+`;
+
+        blocks.forEach(block => {
+            const d = block.data;
+            if (block.type === 'header-row') {
+                // Dynamic Header Stamp
+                let stampText = "DECLASSIFIED";
+                let stampColor = "#008000"; // Green
+                
+                if (access === 'restricted') {
+                    stampText = "CLASSIFIED";
+                    stampColor = "#ff3333"; // Red
+                }
+
+                html += `
+    <div class="header-row">
+        <div class="title-block">
+            <span>${d.subtitle}</span>
+            <h1>${d.title}</h1>
+            <span>DOCUMENT REF: ${d.date}</span>
+        </div>
+        <div class="stamp-box" style="border-color: ${stampColor}; color: ${stampColor};">${stampText}</div>
+    </div>`;
+            } else if (block.type === 'section-title') {
+                html += `\n    <div class="section"><div class="section-title">${d.title}</div>`;
+            } else if (block.type === 'body-text') {
+                html += `\n    <div class="body-text">${d.content}</div>`;
+            } else if (block.type === 'list-group') {
+                const items = d.items.split('\n').filter(i => i.trim() !== '').map(i => `<li>${i}</li>`).join('');
+                html += `\n    <ul class="simple-list">${items}</ul>`;
+            } else if (block.type === 'rank-category') {
+                html += `\n    <div class="rank-category">${d.title}</div>`;
+            } else if (block.type === 'rank-item') {
+                html += `\n    <div class="rank-item"><span class="rank-title">${d.rank}:</span> ${d.desc}</div>`;
+            } else if (block.type === 'update-box') {
+                html += `
+    <div class="update-box">
+        <strong>FROM:</strong> ${d.from}<br>
+        <strong>SUBJECT:</strong> ${d.subject}<br><br>
+        ${d.content}
+    </div>`;
+            } else if (block.type === 'discord-link') {
+                html += `
+    <div class="discord-link">
+        SECURE COMMS: <a href="${d.url}" target="_blank">UPLINK ESTABLISHED [CLICK TO JOIN]</a>
+    </div>`;
+            }
+            
+            if (block.type === 'section-title') {
+                html += `</div>`; 
+            }
+        });
+
+        html += `\n</div>`;
+        previewContainer.innerHTML = html;
+        return html;
+    }
+
+    // --- Toolbar Formatting ---
+    function format(command) {
+        if (command === 'bold') insertTag('b');
+        else if (command === 'italic') insertTag('i');
+        else if (command === 'underline') insertTag('u');
+        else if (command === 'strike') insertTag('s');
+    }
+
+    function insertTag(tag, attrs = '', selfClosing = false) {
+        // Use last tracked active element if current focus is lost (e.g. clicked button)
+        let activeEl = document.activeElement;
+        
+        if (!activeEl || (activeEl.tagName !== 'TEXTAREA' && activeEl.tagName !== 'INPUT')) {
+            if (lastActiveElement) {
+                activeEl = lastActiveElement;
+            } else {
+                return; // No valid input to format
+            }
+        }
+
+        const start = activeEl.selectionStart;
+        const end = activeEl.selectionEnd;
+        const text = activeEl.value;
+        const selected = text.substring(start, end);
+        
+        let replacement = '';
+        if (selfClosing) {
+            replacement = `<${tag}${attrs ? ' ' + attrs : ''} />`;
+        } else {
+            replacement = `<${tag}${attrs ? ' ' + attrs : ''}>${selected}</${tag}>`;
+        }
+        
+        // Insert the tag
+        activeEl.value = text.substring(0, start) + replacement + text.substring(end);
+        
+        // Restore selection / cursor position
+        activeEl.selectionStart = start + replacement.length;
+        activeEl.selectionEnd = start + replacement.length;
+
+        // Trigger input event to update model
+        activeEl.dispatchEvent(new Event('input'));
+        
+        // Keep focus
+        activeEl.focus();
+    }
+
+    function insertLink() {
+        const url = prompt('Enter URL:');
+        if (url) insertTag('a', `href="${url}" target="_blank"`);
+    }
+
+    // --- Sorting Logic ---
+    function handleDragStart(e) {
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('source', 'canvas');
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const container = document.getElementById('canvas');
+        const afterElement = getDragAfterElement(container, e.clientY);
+        const draggable = document.querySelector('.dragging');
+        if (draggable && afterElement) {
+            container.insertBefore(draggable, afterElement);
+        } else if (draggable) {
+            container.appendChild(draggable);
+        }
+    }
+
+    function handleDrop(e) {
+        if (e.dataTransfer.getData('source') === 'canvas') {
+            updateBlocksOrder();
+        }
+    }
+
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        updateBlocksOrder();
+    }
+
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.c-item:not(.dragging)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    function updateBlocksOrder() {
+        const domItems = document.querySelectorAll('.c-item');
+        const newBlocks = [];
+        domItems.forEach(el => {
+            const id = el.dataset.id;
+            const block = blocks.find(b => b.id === id);
+            if (block) newBlocks.push(block);
+        });
+        blocks = newBlocks;
+        renderPreview();
+    }
+
+    // --- Export / Import Logic ---
+    function openExportModal() {
+        generatePayload(); // Initial gen
+        document.getElementById('exportOverlay').style.display = 'block';
+        document.getElementById('exportModal').style.display = 'block';
+    }
+
+    function generatePayload() {
+        const key = document.getElementById('metaKey').value || 'new-doc';
+        const access = document.getElementById('metaAccess').value;
+        const desc = document.getElementById('metaDesc').value || 'No description';
+        const content = renderPreview();
+
+        // Check for merge
+        const mergeBase = document.getElementById('jsonMergeBase').value.trim();
+        let payload = {};
+
+        if (mergeBase) {
+            try {
+                payload = JSON.parse(mergeBase);
+            } catch (e) {
+                alert("Existing JSON is invalid. Creating fresh payload.");
+            }
+        }
+
+        // Add/Overwrite current doc
+        payload[key] = {
+            access: access,
+            desc: desc,
+            content: content
+        };
+
+        const jsonStr = JSON.stringify(payload, null, 2);
+        document.getElementById('jsonOutput').value = jsonStr;
+    }
+
+    function hideExport() {
+        document.getElementById('exportOverlay').style.display = 'none';
+        document.getElementById('exportModal').style.display = 'none';
+    }
+    
+    function copyToClipboard() {
+        const copyText = document.getElementById("jsonOutput");
+        copyText.select();
+        document.execCommand("copy");
+        alert("Copied to clipboard!");
+    }
+
+    renderCanvas();
+    renderPreview();
+
+</script>
+</body>
+</html>
