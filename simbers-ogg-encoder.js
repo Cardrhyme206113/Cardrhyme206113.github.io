@@ -70,21 +70,36 @@ export async function encodeOggVorbis(
   samples,
   sampleRate,
   {
-    vbrQuality = 2,
+    vbrQuality = 3,
     blockSize = 16384,
     onProgress = null
   } = {}
 ) {
+  const channels = Array.isArray(samples) ? samples : [samples];
+  if (channels.length < 1 || channels.length > 2) {
+    throw new Error(`OGG encoder supports 1 or 2 channels, got ${channels.length}.`);
+  }
+
+  const sampleCount = channels[0]?.length || 0;
+  if (!sampleCount || channels.some(channel => channel.length !== sampleCount)) {
+    throw new Error("OGG encoder channels must be non-empty and the same length.");
+  }
+
   const encoder = await getEmbeddedOggEncoder();
-  encoder.configure({ sampleRate, channels: 1, vbrQuality });
+  encoder.configure({
+    sampleRate,
+    channels: channels.length,
+    vbrQuality
+  });
 
   const chunks = [];
   let totalLength = 0;
 
-  for (let offset = 0; offset < samples.length; offset += blockSize) {
-    const encoded = encoder.encode([
-      samples.subarray(offset, Math.min(samples.length, offset + blockSize))
-    ]);
+  for (let offset = 0; offset < sampleCount; offset += blockSize) {
+    const end = Math.min(sampleCount, offset + blockSize);
+    const encoded = encoder.encode(
+      channels.map(channel => channel.subarray(offset, end))
+    );
 
     if (encoded.length) {
       const copy = new Uint8Array(encoded.length);
@@ -94,7 +109,7 @@ export async function encodeOggVorbis(
     }
 
     if ((offset / blockSize) % 10 === 0 && onProgress) {
-      await onProgress(offset / Math.max(1, samples.length));
+      await onProgress(offset / Math.max(1, sampleCount));
     }
   }
 

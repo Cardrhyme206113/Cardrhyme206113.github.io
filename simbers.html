@@ -3483,7 +3483,7 @@ function downloadBlob(blob,name){
   setTimeout(()=>URL.revokeObjectURL(url),30000);
 }
 
-async function buildMapZip(result,monoSamples,sampleRate){
+async function buildMapZip(result,audioChannels,sampleRate){
   const seed=await songSeed(sourceBlob);
   const songName=safeBaseName(sourceBlob.name);
   const featureOptions={
@@ -3563,15 +3563,13 @@ async function buildMapZip(result,monoSamples,sampleRate){
   const expertPlusNps=expertPlus?.nps||0;
   els.npsNote.textContent="";
 
-  setProgress(
-    .87,
-    `Encoding OGG • Expert+ NPS ${expertPlusNps.toFixed(2)}…`
-  );
-  const oggBytes=await encodeOggVorbis(monoSamples,sampleRate,{
+  setProgress(.87,"Encoding high-quality OGG…");
+  const oggBytes=await encodeOggVorbis(audioChannels,sampleRate,{
+    vbrQuality:3,
     onProgress:async ratio=>{
       setProgress(
         .875+ratio*.09,
-        `Encoding bundled OGG Vorbis… ${Math.round(ratio*100)}%`
+        `Encoding high-quality OGG… ${Math.round(ratio*100)}%`
       );
       await nextTick();
     }
@@ -3644,20 +3642,26 @@ async function runAnalysis(){
     const data = await sourceBlob.arrayBuffer();
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const decoded = await ctx.decodeAudioData(data.slice(0));
-    const targetRate = 22050;
+    const analysisRate = 22050;
+    const outputRate = 32000;
     const maxSeconds = Math.min(300, decoded.duration);
-    const mono = downmixAndResample(decoded, targetRate, maxSeconds);
+    const mono = downmixAndResample(decoded, analysisRate, maxSeconds);
+    const outputChannels = resampleChannelsForOutput(
+      decoded,
+      outputRate,
+      maxSeconds
+    );
     await ctx.close();
 
     setProgress(.05,"Computing harmonic salience…");
-    const result = await analyzeSamples(mono, targetRate, {
+    const result = await analyzeSamples(mono, analysisRate, {
       tracks:1,
       confidence:0.90,
       ambiguity:0.10,
       stability:2.50
     });
     setProgress(.82,"Detecting independent beat events…");
-    result.patterns = await analyzeBeatSynchronousPatterns(result,mono,targetRate,{
+    result.patterns = await analyzeBeatSynchronousPatterns(result,mono,analysisRate,{
       contextBeats:4,
       threshold:0.78,
       transposeInvariant:true,
@@ -3674,7 +3678,7 @@ async function runAnalysis(){
     setInitialBeatView();
     renderAll();
 
-    const output=await buildMapZip(result,mono,targetRate);
+    const output=await buildMapZip(result,outputChannels,outputRate);
     lastMapZip=output.blob;
     lastMapZipName=output.name;
     els.analyzeBtn.textContent="Open Map";
@@ -3718,6 +3722,29 @@ function downmixAndResample(buffer, targetRate, maxSeconds){
     out[i]=s/channels;
   }
   return out;
+}
+
+function resampleChannelsForOutput(buffer,targetRate,maxSeconds){
+  const srcRate=buffer.sampleRate;
+  const srcLen=Math.min(buffer.length,Math.floor(maxSeconds*srcRate));
+  const outputChannelCount=Math.min(2,Math.max(1,buffer.numberOfChannels));
+  const outLen=Math.floor(srcLen*targetRate/srcRate);
+  const sourceChannels=[];
+  for(let c=0;c<outputChannelCount;c++){
+    sourceChannels.push(buffer.getChannelData(c));
+  }
+
+  return sourceChannels.map(source=>{
+    const out=new Float32Array(outLen);
+    for(let i=0;i<outLen;i++){
+      const pos=i*srcRate/targetRate;
+      const i0=Math.floor(pos);
+      const i1=Math.min(srcLen-1,i0+1);
+      const t=pos-i0;
+      out[i]=source[i0]*(1-t)+source[i1]*t;
+    }
+    return out;
+  });
 }
 
 function fft(re, im){
