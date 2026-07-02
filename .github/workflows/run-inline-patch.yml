@@ -1,0 +1,26 @@
+name: Run inline viewer patch
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.issue.title == 'RUN INLINE VIEWER PATCH'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: python .github/scripts/patch_inline_viewer.py
+      - run: node --check /tmp/simbers-check.js
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add simbers.html
+          git commit -m "Show ArcViewer inline after map generation"
+          git push
