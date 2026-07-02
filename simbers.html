@@ -36,11 +36,7 @@
     display:flex;
     align-items:center;
     justify-content:center;
-    padding:
-      max(18px,env(safe-area-inset-top))
-      max(16px,env(safe-area-inset-right))
-      max(18px,env(safe-area-inset-bottom))
-      max(16px,env(safe-area-inset-left));
+    padding:0;
     overflow-x:hidden;
     color:var(--text);
     font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
@@ -98,8 +94,8 @@
 
   .app{
     width:100%;
-    max-width:540px;
-    flex:0 1 540px;
+    max-width:600px;
+    flex:0 1 600px;
     margin:0 auto;
     position:relative;
     isolation:isolate;
@@ -126,9 +122,9 @@
     width:100%;
     max-width:100%;
     overflow:hidden;
-    padding:34px;
+    padding:22px;
     border:1px solid var(--panel-line);
-    border-radius:28px;
+    border-radius:20px;
     background:
       linear-gradient(
         145deg,
@@ -199,7 +195,7 @@
   }
 
   .subtitle{
-    margin:13px 0 28px;
+    margin:9px 0 18px;
     max-width:36ch;
     color:var(--muted);
     font-size:14px;
@@ -209,7 +205,7 @@
     width:100%;
     display:grid;
     grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-    gap:12px;
+    gap:8px;
   }
 
   .fileInput{
@@ -271,7 +267,7 @@
     width:100%;
     height:7px;
     display:block;
-    margin:23px 0 12px;
+    margin:16px 0 10px;
     overflow:hidden;
     border:0;
     border-radius:999px;
@@ -324,26 +320,36 @@
   @media(max-width:520px){
     body{
       align-items:center;
-      padding-left:12px;
-      padding-right:12px;
+      padding:0;
     }
 
-    .card{
-      padding:27px 21px 23px;
-      border-radius:24px;
+    .app{
+      max-width:none;
+      flex-basis:auto;
+      margin:0;
     }
 
     .app::before{
-      border-radius:26px;
+      display:none;
+    }
+
+    .card{
+      padding:14px;
+      border-left:0;
+      border-right:0;
+      border-radius:0;
     }
 
     .actions{
       grid-template-columns:1fr;
+      justify-items:center;
     }
 
     .uploadButton,
     button{
-      min-height:52px;
+      width:min(100%,420px);
+      min-height:48px;
+      margin-inline:auto;
     }
   }
 
@@ -616,6 +622,8 @@ viewerBack.textContent = "Hide";
 let arcViewerReady = false;
 let arcViewerWaiters = [];
 let arcViewerPrepared = false;
+let arcViewerSession = 0;
+let arcViewerLaunchQueue = Promise.resolve();
 
 function showArcViewerPanel(message="Preparing ArcViewer…"){
   viewerStatus.textContent=message;
@@ -638,10 +646,43 @@ function prepareArcViewer(){
   arcViewerFrame.src = ARC_VIEWER_URL + "?bridge=1&v=" + Date.now();
 }
 
+function rejectArcViewerWaiters(message="ArcViewer was reset."){
+  settleArcViewerWaiters(new Error(message));
+}
+
 function resetArcViewerBridge(){
+  arcViewerSession++;
   arcViewerPrepared = false;
   arcViewerReady = false;
-  arcViewerFrame.removeAttribute("src");
+  rejectArcViewerWaiters();
+  arcViewerFrame.src = "about:blank";
+}
+
+async function unloadArcViewer({collapse=false}={}){
+  arcViewerSession++;
+  arcViewerPrepared = false;
+  arcViewerReady = false;
+  rejectArcViewerWaiters("Previous ArcViewer map was unloaded.");
+  if(collapse) hideArcViewerPanel();
+
+  if(!arcViewerFrame.getAttribute("src") || arcViewerFrame.src === "about:blank"){
+    arcViewerFrame.src = "about:blank";
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    return;
+  }
+
+  await new Promise(resolve=>{
+    let finished=false;
+    const done=()=>{
+      if(finished) return;
+      finished=true;
+      arcViewerFrame.removeEventListener("load",done);
+      resolve();
+    };
+    arcViewerFrame.addEventListener("load",done,{once:true});
+    arcViewerFrame.src="about:blank";
+    setTimeout(done,1200);
+  });
 }
 
 function waitForArcViewerReady(timeoutMs=30000){
@@ -668,6 +709,7 @@ function settleArcViewerWaiters(error=null){
 
 window.addEventListener("message",(event)=>{
   if(event.origin!==ARC_VIEWER_ORIGIN) return;
+  if(event.source!==arcViewerFrame.contentWindow) return;
   const data=event.data||{};
   if(data.type==="SIMPLIFIED_ARCVIEWER_READY"){
     arcViewerReady=true;
@@ -696,19 +738,32 @@ viewerDownload.addEventListener("click",()=>{
 });
 
 async function launchArcViewer(blob,filename){
-  showArcViewerPanel("Loading ArcViewer…");
-  prepareArcViewer();
-  await waitForArcViewerReady();
-  const bytes=await blob.arrayBuffer();
-  viewerStatus.textContent="Sending generated map…";
-  arcViewerFrame.contentWindow.postMessage({
-    type:"SIMPLIFIED_SABERS_LOAD_MAP",
-    bytes,
-    filename,
-    mode:"Standard",
-    difficulty:"ExpertPlus",
-    uiOff:true
-  },ARC_VIEWER_ORIGIN,[bytes]);
+  const queuedLaunch = async()=>{
+    showArcViewerPanel("Unloading previous map…");
+    await unloadArcViewer();
+
+    const session=arcViewerSession;
+    showArcViewerPanel("Loading ArcViewer…");
+    prepareArcViewer();
+    await waitForArcViewerReady();
+    if(session!==arcViewerSession) throw new Error("ArcViewer launch was replaced by a newer map.");
+
+    const bytes=await blob.arrayBuffer();
+    if(session!==arcViewerSession) throw new Error("ArcViewer launch was replaced by a newer map.");
+    viewerStatus.textContent="Sending generated map…";
+    arcViewerFrame.contentWindow.postMessage({
+      type:"SIMPLIFIED_SABERS_LOAD_MAP",
+      bytes,
+      filename,
+      mode:"Standard",
+      difficulty:"ExpertPlus",
+      uiOff:true
+    },ARC_VIEWER_ORIGIN,[bytes]);
+  };
+
+  const result=arcViewerLaunchQueue.then(queuedLaunch,queuedLaunch);
+  arcViewerLaunchQueue=result.catch(()=>{});
+  return result;
 }
 
 function bindPair(range, num){
@@ -745,7 +800,6 @@ els.analyzeBtn.addEventListener("click", ()=>{
     });
     return;
   }
-  prepareArcViewer();
   runAnalysis();
 });
 els.jsonBtn.addEventListener("click", exportJSON);
@@ -770,6 +824,8 @@ function setViewMode(mode){
 }
 
 function setSource(blob){
+  unloadArcViewer({collapse:true}).catch(console.warn);
+  viewerStatus.textContent="Preview will appear here after the map is created.";
   sourceBlob = blob;
   lastMapZip=null;
   lastMapZipName="";
