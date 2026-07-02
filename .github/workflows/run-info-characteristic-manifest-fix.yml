@@ -1,15 +1,15 @@
 name: Fix Info.dat characteristic manifest
 
 on:
-  push:
-    paths:
-      - .github/trigger-info-characteristic-fix.txt
+  issues:
+    types: [opened]
 
 permissions:
   contents: write
 
 jobs:
   patch:
+    if: github.event.issue.title == 'RUN INFO CHARACTERISTIC FIX'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -35,7 +35,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/trigger-info-characteristic-fix.txt
           git add simbers.html
           git commit -m "Validate and expose generated map characteristics"
           git push
