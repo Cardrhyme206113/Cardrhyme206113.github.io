@@ -347,6 +347,45 @@
     }
   }
 
+
+  .viewerShell{
+    position:fixed;
+    inset:0;
+    z-index:9999;
+    display:none;
+    overflow:hidden;
+    background:#101116;
+  }
+  .viewerShell.open{display:block}
+  .viewerShell iframe{
+    width:100%;
+    height:100%;
+    display:block;
+    border:0;
+    background:#101116;
+  }
+  .viewerToolbar{
+    position:absolute;
+    z-index:2;
+    top:max(10px,env(safe-area-inset-top));
+    right:max(10px,env(safe-area-inset-right));
+    display:flex;
+    gap:8px;
+  }
+  .viewerToolbar button{
+    width:auto;
+    min-width:62px;
+    min-height:40px;
+    padding:0 13px;
+    border:1px solid rgba(255,255,255,.18);
+    border-radius:13px;
+    background:rgba(20,10,31,.88);
+    color:#fff;
+    box-shadow:0 5px 0 rgba(0,0,0,.22);
+    font-size:13px;
+  }
+  .viewerToolbar button:active{transform:translateY(2px)}
+
 </style>
 </head>
 <body>
@@ -445,6 +484,20 @@
   </div>
 
   </main>
+
+  <section id="viewerShell" class="viewerShell" aria-hidden="true">
+    <iframe
+      id="arcViewerFrame"
+      title="ArcViewer preview"
+      allow="autoplay; fullscreen"
+      allowfullscreen
+    ></iframe>
+    <div class="viewerToolbar">
+      <button id="viewerBack" type="button">Back</button>
+      <button id="viewerDownload" type="button">ZIP</button>
+    </div>
+  </section>
+
 <!--
 Bundled dependency: wasm-media-encoders 0.7.0
 MIT License
@@ -522,6 +575,103 @@ let lastTickPlaybackTime = 0;
 let lastMapZip = null;
 let lastMapZipName = "";
 
+const ARC_VIEWER_URL = "https://cardrhyme206113.github.io/ArcViewer-simtest/";
+const ARC_VIEWER_ORIGIN = new URL(ARC_VIEWER_URL).origin;
+const viewerShell = document.getElementById("viewerShell");
+const arcViewerFrame = document.getElementById("arcViewerFrame");
+const viewerBack = document.getElementById("viewerBack");
+const viewerDownload = document.getElementById("viewerDownload");
+let arcViewerReady = false;
+let arcViewerWaiters = [];
+let arcViewerPrepared = false;
+
+function prepareArcViewer(){
+  if(arcViewerPrepared) return;
+  arcViewerPrepared = true;
+  arcViewerReady = false;
+  arcViewerFrame.src = ARC_VIEWER_URL + "?bridge=1";
+}
+
+function resetArcViewerBridge(){
+  arcViewerPrepared = false;
+  arcViewerReady = false;
+  arcViewerFrame.removeAttribute("src");
+  prepareArcViewer();
+}
+
+function waitForArcViewerReady(timeoutMs=45000){
+  if(arcViewerReady) return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    const waiter={resolve,reject};
+    arcViewerWaiters.push(waiter);
+    const timer=setTimeout(()=>{
+      arcViewerWaiters=arcViewerWaiters.filter(item=>item!==waiter);
+      reject(new Error("ArcViewer did not become ready."));
+    },timeoutMs);
+    waiter.resolve=()=>{
+      clearTimeout(timer);
+      resolve();
+    };
+    waiter.reject=(error)=>{
+      clearTimeout(timer);
+      reject(error);
+    };
+  });
+}
+
+function settleArcViewerWaiters(error=null){
+  const waiters=arcViewerWaiters.splice(0);
+  for(const waiter of waiters){
+    if(error) waiter.reject(error);
+    else waiter.resolve();
+  }
+}
+
+window.addEventListener("message",(event)=>{
+  if(event.origin!==ARC_VIEWER_ORIGIN) return;
+  const data=event.data||{};
+  if(data.type==="SIMPLIFIED_ARCVIEWER_READY"){
+    arcViewerReady=true;
+    settleArcViewerWaiters();
+  }else if(data.type==="SIMPLIFIED_ARCVIEWER_MAP_ACCEPTED"){
+    viewerShell.classList.add("open");
+    viewerShell.setAttribute("aria-hidden","false");
+    els.mapStatus.textContent="Opening ArcViewer preview…";
+  }else if(data.type==="SIMPLIFIED_ARCVIEWER_STARTED"){
+    els.mapStatus.textContent="Map ready in ArcViewer.";
+  }else if(data.type==="SIMPLIFIED_ARCVIEWER_ERROR"){
+    const message=data.message||"ArcViewer failed to load.";
+    els.mapStatus.textContent=`Map created. Preview unavailable: ${message}`;
+    settleArcViewerWaiters(new Error(message));
+  }
+});
+
+viewerBack.addEventListener("click",()=>{
+  viewerShell.classList.remove("open");
+  viewerShell.setAttribute("aria-hidden","true");
+  resetArcViewerBridge();
+});
+
+viewerDownload.addEventListener("click",()=>{
+  if(lastMapZip) downloadBlob(lastMapZip,lastMapZipName);
+});
+
+async function launchArcViewer(blob,filename){
+  prepareArcViewer();
+  await waitForArcViewerReady();
+  const bytes=await blob.arrayBuffer();
+  viewerShell.classList.add("open");
+  viewerShell.setAttribute("aria-hidden","false");
+  arcViewerFrame.contentWindow.postMessage({
+    type:"SIMPLIFIED_SABERS_LOAD_MAP",
+    bytes,
+    filename,
+    mode:"Standard",
+    difficulty:"ExpertPlus",
+    uiOff:true
+  },ARC_VIEWER_ORIGIN,[bytes]);
+}
+
 function bindPair(range, num){
   range.addEventListener("input", ()=>num.value=range.value);
   num.addEventListener("input", ()=>{
@@ -553,6 +703,7 @@ els.analyzeBtn.addEventListener("click", ()=>{
     downloadBlob(lastMapZip,lastMapZipName);
     return;
   }
+  prepareArcViewer();
   runAnalysis();
 });
 els.jsonBtn.addEventListener("click", exportJSON);
@@ -2985,7 +3136,13 @@ async function runAnalysis(){
       1,
       `Ready: ${difficultySummary} • ${output.lightingEventCount} light events • Expert+ ${output.expertPlusNps.toFixed(2)} NPS • ${output.usedFlowCount}/30 flows • ${(output.blob.size/1048576).toFixed(1)} MB`
     );
-    downloadBlob(lastMapZip,lastMapZipName);
+    try{
+      await launchArcViewer(lastMapZip,lastMapZipName);
+    }catch(viewerError){
+      console.warn(viewerError);
+      els.mapStatus.textContent=
+        `Map created. ArcViewer preview unavailable; tap Download Map for the ZIP.`;
+    }
   }catch(err){
     console.error(err);
     const message="Build failed: "+(err.message||err);
