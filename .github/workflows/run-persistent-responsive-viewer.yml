@@ -1,0 +1,36 @@
+name: Apply persistent responsive viewer
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.event.issue.title == 'RUN PERSISTENT RESPONSIVE VIEWER'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: python .github/scripts/set_persistent_responsive_viewer.py
+      - name: Validate JavaScript
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('simbers.html').read_text(encoding='utf-8')
+          scripts=[m.group(1) for m in re.finditer(r'<script(?:\s+[^>]*)?>(.*?)</script>',text,re.S) if m.group(1).strip()]
+          Path('/tmp/simbers.js').write_text('\n'.join(scripts),encoding='utf-8')
+          PY
+          node --check /tmp/simbers.js
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add simbers.html
+          git commit -m "Keep ArcViewer ready and use responsive split layout"
+          git push
