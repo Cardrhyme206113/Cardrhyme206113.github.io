@@ -276,6 +276,86 @@
     box-shadow:none;
   }
 
+  .featureToggles{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    margin:12px auto 0;
+  }
+
+  .featureToggle{
+    position:relative;
+    display:block;
+    width:48px;
+    height:44px;
+    cursor:pointer;
+    user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+
+  .featureToggle input{
+    position:absolute;
+    width:1px;
+    height:1px;
+    opacity:0;
+    pointer-events:none;
+  }
+
+  .featureIcon{
+    width:100%;
+    height:100%;
+    display:grid;
+    place-items:center;
+    border:1px solid rgba(255,255,255,.17);
+    border-radius:14px;
+    color:rgba(255,255,255,.44);
+    background:rgba(255,255,255,.045);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+    transform:translateY(0) scale(1);
+    transition:
+      color .18s ease,
+      border-color .18s ease,
+      background .18s ease,
+      box-shadow .18s ease,
+      transform .16s ease,
+      opacity .18s ease;
+  }
+
+  .featureIcon svg{
+    width:28px;
+    height:28px;
+    fill:none;
+    stroke:currentColor;
+    stroke-width:2.5;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+
+  .featureToggle input:checked + .featureIcon{
+    color:#fff;
+    border-color:rgba(255,134,199,.66);
+    background:linear-gradient(145deg,rgba(255,91,167,.24),rgba(139,78,255,.22));
+    box-shadow:
+      0 5px 16px rgba(71,18,81,.22),
+      inset 0 1px 0 rgba(255,255,255,.14);
+  }
+
+  .featureToggle input:focus-visible + .featureIcon{
+    outline:2px solid rgba(130,180,255,.95);
+    outline-offset:2px;
+  }
+
+  .featureToggle:active .featureIcon{
+    transform:translateY(1px) scale(.96);
+  }
+
+  .featureToggle input:disabled + .featureIcon{
+    opacity:.38;
+    cursor:not-allowed;
+  }
+
   progress{
     width:100%;
     height:7px;
@@ -352,7 +432,10 @@
       margin-inline:auto;
     }
 
-    progress{margin:10px auto 7px}
+    .featureToggles{margin-top:9px;gap:8px}
+    .featureToggle{width:46px;height:40px}
+    .featureIcon svg{width:25px;height:25px}
+    progress{margin:9px auto 7px}
   }
 
 
@@ -512,6 +595,40 @@
         <button id="analyzeBtn" disabled>Create Map</button>
       </div>
 
+      <div class="featureToggles" role="group" aria-label="Map objects">
+        <label class="featureToggle" title="Bombs">
+          <input id="featureBombs" type="checkbox" checked aria-label="Bombs">
+          <span class="featureIcon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" focusable="false">
+              <circle cx="24" cy="25" r="11"></circle>
+              <path d="M24 9v5M24 36v5M8 25h5M35 25h5M13 14l4 4M31 32l4 4M35 14l-4 4M17 32l-4 4"></path>
+              <path d="M29 16c2-5 7-6 10-3"></path>
+            </svg>
+          </span>
+        </label>
+
+        <label class="featureToggle" title="Walls">
+          <input id="featureWalls" type="checkbox" checked aria-label="Walls">
+          <span class="featureIcon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" focusable="false">
+              <rect x="10" y="9" width="28" height="30" rx="3"></rect>
+              <path d="M10 20h28M10 30h28M19 9v11M29 20v10M19 30v9"></path>
+            </svg>
+          </span>
+        </label>
+
+        <label class="featureToggle" title="Arcs">
+          <input id="featureArcs" type="checkbox" checked aria-label="Arcs">
+          <span class="featureIcon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" focusable="false">
+              <rect x="7" y="28" width="9" height="9" rx="2"></rect>
+              <rect x="32" y="11" width="9" height="9" rx="2"></rect>
+              <path d="M14 30C19 17 25 14 34 17"></path>
+            </svg>
+          </span>
+        </label>
+      </div>
+
       <progress id="progress" max="1" value="0"></progress>
         <div id="mapStatus" class="mapStatus">Select a song.</div>
         <div id="npsNote" class="mapStatus"></div>
@@ -643,6 +760,7 @@ var e,t;e=this,t=function(){function e(e,t,r){return t in e?Object.definePropert
 const $ = id => document.getElementById(id);
 const els = {
   file:$("file"), demoBtn:$("demoBtn"), analyzeBtn:$("analyzeBtn"),
+  featureBombs:$("featureBombs"), featureWalls:$("featureWalls"), featureArcs:$("featureArcs"),
   tracks:$("tracks"), tracksNum:$("tracksNum"),
   confidence:$("confidence"), confidenceNum:$("confidenceNum"),
   ambiguity:$("ambiguity"), ambiguityNum:$("ambiguityNum"),
@@ -953,6 +1071,24 @@ els.file.addEventListener("change", ()=>{
   if(!els.file.files[0]) return;
   setSource(els.file.files[0]);
 });
+
+function invalidateMapForFeatureChange(){
+  lastMapZip=null;
+  lastMapZipName="";
+  els.npsNote.textContent="";
+  els.analyzeBtn.textContent="Create Map";
+  els.mapStatus.textContent=sourceBlob
+    ?"Map options changed. Create the map again."
+    :"Select a song.";
+  setViewerEmpty(true);
+  viewerStatus.textContent="ArcViewer ready.";
+  unloadArcViewer().then(()=>prepareArcViewer()).catch(console.warn);
+  scheduleUiCenterMotion(true);
+}
+
+for(const control of [els.featureBombs,els.featureWalls,els.featureArcs]){
+  control.addEventListener("change",invalidateMapForFeatureChange);
+}
 els.demoBtn.addEventListener("click", ()=>setSource(makeDemoWav()));
 els.analyzeBtn.addEventListener("click", ()=>{
   if(lastMapZip){
@@ -2839,7 +2975,7 @@ function buildWallsForDifficulty(
   return walls.sort((a,b)=>a._time-b._time);
 }
 
-function buildBeatmap(result,seed,config,lightingEvents){
+function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
   const allSegments=result.patterns?.segments||[];
   if(!allSegments.length){
     throw new Error("No beat events were detected.");
@@ -2939,26 +3075,32 @@ function buildBeatmap(result,seed,config,lightingEvents){
     _cutDirection:note.cutDirection
   }));
 
-  const sliders=buildArcsForDifficulty(
-    generatedNotes,
-    config,
-    seed
-  );
+  const sliders=featureOptions.arcs
+    ?buildArcsForDifficulty(
+      generatedNotes,
+      config,
+      seed
+    )
+    :[];
 
-  const bombs=buildBombsForDifficulty(
-    generatedNotes,
-    sliders,
-    config,
-    seed
-  );
+  const bombs=featureOptions.bombs
+    ?buildBombsForDifficulty(
+      generatedNotes,
+      sliders,
+      config,
+      seed
+    )
+    :[];
 
-  const obstacles=buildWallsForDifficulty(
-    generatedNotes,
-    sliders,
-    bombs,
-    config,
-    seed
-  );
+  const obstacles=featureOptions.walls
+    ?buildWallsForDifficulty(
+      generatedNotes,
+      sliders,
+      bombs,
+      config,
+      seed
+    )
+    :[];
 
   const notes=[
     ...colorNotes,
@@ -3002,16 +3144,18 @@ function buildBeatmap(result,seed,config,lightingEvents){
           config.arcMinGap,
           config.arcMaxGap
         ],
-        _arcEveryEvents:config.arcEveryEvents,
-        _arcAlgorithm:"movement+timing+melody continuity",
-        _bombAlgorithm:config.bombEveryEvents
+        _arcEveryEvents:featureOptions.arcs?config.arcEveryEvents:0,
+        _arcAlgorithm:featureOptions.arcs
+          ?"movement+timing+melody continuity"
+          :"disabled",
+        _bombAlgorithm:featureOptions.bombs&&config.bombEveryEvents
           ?"strong attack + follow-through space + next-note safety"
           :"disabled",
-        _bombEveryEvents:config.bombEveryEvents,
-        _wallAlgorithm:config.wallEveryEvents
+        _bombEveryEvents:featureOptions.bombs?config.bombEveryEvents:0,
+        _wallAlgorithm:featureOptions.walls&&config.wallEveryEvents
           ?"strong accent + open gap + arc/bomb safety"
           :"disabled",
-        _wallEveryEvents:config.wallEveryEvents,
+        _wallEveryEvents:featureOptions.walls?config.wallEveryEvents:0,
         _lightingAlgorithm:
           "beat strength + built-in LinkinPark normal/boost palette",
         _lightingCompatibility:
@@ -3265,6 +3409,11 @@ function downloadBlob(blob,name){
 async function buildMapZip(result,monoSamples,sampleRate){
   const seed=await songSeed(sourceBlob);
   const songName=safeBaseName(sourceBlob.name);
+  const featureOptions={
+    bombs:els.featureBombs.checked,
+    walls:els.featureWalls.checked,
+    arcs:els.featureArcs.checked
+  };
 
   setProgress(
     .845,
@@ -3277,14 +3426,15 @@ async function buildMapZip(result,monoSamples,sampleRate){
 
   setProgress(
     .855,
-    "Building five difficulties with arcs, bombs, walls, and lighting…"
+    "Building five difficulties with selected objects and lighting…"
   );
   const difficulties=DIFFICULTY_CONFIGS.map(
     config=>buildBeatmap(
       result,
       seed,
       config,
-      lightingEvents
+      lightingEvents,
+      featureOptions
     )
   );
 
@@ -3350,6 +3500,7 @@ async function buildMapZip(result,monoSamples,sampleRate){
 async function runAnalysis(){
   if(!sourceBlob) return;
   els.analyzeBtn.disabled=true; els.demoBtn.disabled=true; els.file.disabled=true;
+  els.featureBombs.disabled=true; els.featureWalls.disabled=true; els.featureArcs.disabled=true;
   els.jsonBtn.disabled=true; els.csvBtn.disabled=true;
   try{
     setProgress(.01,"Decoding audio…");
@@ -3417,6 +3568,7 @@ async function runAnalysis(){
     document.body.scrollLeft=0;
     window.scrollTo({left:0,top:window.scrollY,behavior:"auto"});
     els.analyzeBtn.disabled=false; els.demoBtn.disabled=false; els.file.disabled=false;
+    els.featureBombs.disabled=false; els.featureWalls.disabled=false; els.featureArcs.disabled=false;
     if(!lastMapZip&&els.analyzeBtn.textContent!=="Try Again")els.analyzeBtn.textContent="Create Map";
   }
 }
