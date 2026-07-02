@@ -154,12 +154,15 @@
       );
   }
 
-  .card > *{
+  .uiCluster{
     position:relative;
     z-index:1;
     width:min(100%,600px);
-    margin-left:auto;
-    margin-right:auto;
+    margin-block:auto;
+    margin-inline:auto;
+    opacity:1;
+    transform:translate3d(0,0,0);
+    will-change:transform,opacity;
   }
 
   .titleRow{
@@ -486,7 +489,7 @@
       border-top:0;
     }
 
-    .card > *{width:min(100%,620px)}
+    .uiCluster{width:min(100%,620px)}
   }
 
 </style>
@@ -494,7 +497,8 @@
 <body>
   <main class="app">
     <section class="card">
-      <div class="titleRow">
+      <div class="uiCluster">
+        <div class="titleRow">
         <div class="brandMark" aria-hidden="true">
           <span></span><span></span>
         </div>
@@ -509,8 +513,9 @@
       </div>
 
       <progress id="progress" max="1" value="0"></progress>
-      <div id="mapStatus" class="mapStatus">Select a song.</div>
-      <div id="npsNote" class="mapStatus"></div>
+        <div id="mapStatus" class="mapStatus">Select a song.</div>
+        <div id="npsNote" class="mapStatus"></div>
+      </div>
     </section>
 
     <audio id="audio" class="hidden" controls></audio>
@@ -679,6 +684,68 @@ let nextTickEventIndex = 0;
 let lastTickPlaybackTime = 0;
 let lastMapZip = null;
 let lastMapZipName = "";
+
+const uiCard = document.querySelector(".card");
+const uiCluster = document.querySelector(".uiCluster");
+const uiReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+let uiCenterSnapshot = null;
+let uiCenterRaf = 0;
+let uiCenterAnimation = null;
+
+function scheduleUiCenterMotion(animate=true){
+  cancelAnimationFrame(uiCenterRaf);
+  uiCenterRaf=requestAnimationFrame(()=>{
+    const rect=uiCluster.getBoundingClientRect();
+    const next={top:rect.top,height:rect.height};
+
+    if(uiCenterSnapshot && animate && !uiReducedMotion.matches){
+      const deltaY=uiCenterSnapshot.top-next.top;
+      const heightChanged=Math.abs(uiCenterSnapshot.height-next.height)>.5;
+
+      if(Math.abs(deltaY)>.5 || heightChanged){
+        if(uiCenterAnimation) uiCenterAnimation.cancel();
+        uiCenterAnimation=uiCluster.animate([
+          {
+            transform:`translate3d(0,${deltaY}px,0)`,
+            opacity:1,
+            offset:0
+          },
+          {
+            transform:`translate3d(0,${deltaY*.72}px,0)`,
+            opacity:.68,
+            offset:.26
+          },
+          {
+            transform:`translate3d(0,${deltaY*.16}px,0)`,
+            opacity:.9,
+            offset:.68
+          },
+          {
+            transform:"translate3d(0,0,0)",
+            opacity:1,
+            offset:1
+          }
+        ],{
+          duration:560,
+          easing:"cubic-bezier(.22,1,.36,1)"
+        });
+        uiCenterAnimation.addEventListener("finish",()=>{
+          uiCenterAnimation=null;
+        },{once:true});
+      }
+    }
+
+    uiCenterSnapshot=next;
+  });
+}
+
+const uiCenterResizeObserver=new ResizeObserver(()=>scheduleUiCenterMotion(true));
+uiCenterResizeObserver.observe(uiCard);
+uiCenterResizeObserver.observe(uiCluster);
+requestAnimationFrame(()=>scheduleUiCenterMotion(false));
+if(document.fonts && document.fonts.ready){
+  document.fonts.ready.then(()=>scheduleUiCenterMotion(true));
+}
 
 const ARC_VIEWER_URL = "https://cardrhyme206113.github.io/ArcViewer-simtest/";
 const ARC_VIEWER_ORIGIN = new URL(ARC_VIEWER_URL).origin;
