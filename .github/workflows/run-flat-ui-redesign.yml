@@ -1,0 +1,41 @@
+name: Apply flat UI redesign
+
+on:
+  push:
+    paths:
+      - .github/trigger-flat-ui-redesign.txt
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Apply UI-only patch
+        run: python .github/scripts/remake_simbers_ui_flat.py
+
+      - name: Validate JavaScript
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('simbers.html').read_text(encoding='utf-8')
+          scripts=[m.group(1) for m in re.finditer(r'<script(?:\s+[^>]*)?>(.*?)</script>',text,re.S) if m.group(1).strip()]
+          Path('/tmp/simbers.js').write_text('\n'.join(scripts),encoding='utf-8')
+          PY
+          node --check /tmp/simbers.js
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/trigger-flat-ui-redesign.txt
+          git add simbers.html
+          git commit -m "Redesign Simplified Sabers UI"
+          git push
