@@ -132,7 +132,7 @@
     display:flex;
     flex-direction:column;
     justify-content:center;
-    padding:12px max(14px,env(safe-area-inset-right)) 12px max(14px,env(safe-area-inset-left));
+    padding:16px max(28px,env(safe-area-inset-right)) 16px max(28px,env(safe-area-inset-left));
     border:0;
     border-bottom:1px solid rgba(255,255,255,.14);
     border-radius:0;
@@ -162,11 +162,19 @@
     margin-right:auto;
   }
 
+  .titleRow{
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    gap:14px;
+  }
+
   .brandMark{
+    flex:0 0 auto;
     display:flex;
     align-items:center;
     gap:10px;
-    margin-bottom:18px;
+    margin:0;
   }
 
   .brandMark span{
@@ -322,10 +330,9 @@
   @media(max-width:520px){
     .card{
       justify-content:flex-start;
-      padding:10px 10px 8px;
+      padding:12px 20px 10px;
     }
 
-    .brandMark{margin-bottom:10px}
     h1{font-size:clamp(28px,9vw,38px)}
     .subtitle{margin:7px auto 12px}
 
@@ -349,15 +356,17 @@
   .viewerShell{
     position:relative;
     width:100%;
-    height:0;
-    max-height:0;
+    height:50vh;
+    height:50dvh;
+    max-height:50vh;
+    max-height:50dvh;
     margin:0;
     overflow:hidden;
-    opacity:0;
+    opacity:1;
     border:0;
+    border-top:1px solid rgba(255,255,255,.12);
     border-radius:0;
     background:#08090d;
-    transition:opacity .16s ease;
   }
 
   .viewerShell.open{
@@ -367,7 +376,6 @@
     max-height:50dvh;
     margin:0;
     opacity:1;
-    border-top:1px solid rgba(255,255,255,.12);
   }
 
   .viewerStatus{
@@ -397,6 +405,27 @@
     border:0;
     background:#08090d;
   }
+
+  .viewerEmptyState{
+    position:absolute;
+    z-index:2;
+    inset:0;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    text-align:center;
+    color:rgba(255,255,255,.92);
+    font-size:clamp(17px,3vw,24px);
+    font-weight:800;
+    letter-spacing:-.02em;
+    background:rgba(7,8,12,.42);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+  }
+
+  .viewerShell.empty .viewerEmptyState{display:flex}
+  .viewerShell.empty iframe{filter:brightness(.45)}
 
   .viewerToolbar{
     position:absolute;
@@ -429,15 +458,48 @@
   .viewerToolbar button:active{transform:translateY(1px)}
   body.viewer-open{align-items:flex-start}
 
+
+  @media(min-width:900px) and (min-aspect-ratio:4/3){
+    .app{
+      display:grid;
+      grid-template-columns:50% 50%;
+      grid-template-rows:100%;
+    }
+
+    .card{
+      width:100%;
+      height:100vh;
+      height:100dvh;
+      padding:28px max(36px,env(safe-area-inset-right)) 28px max(36px,env(safe-area-inset-left));
+      border-right:1px solid rgba(255,255,255,.14);
+      border-bottom:0;
+      justify-content:center;
+    }
+
+    .viewerShell,
+    .viewerShell.open{
+      width:100%;
+      height:100vh;
+      height:100dvh;
+      max-height:100vh;
+      max-height:100dvh;
+      border-top:0;
+    }
+
+    .card > *{width:min(100%,620px)}
+  }
+
 </style>
 </head>
 <body>
   <main class="app">
     <section class="card">
-      <div class="brandMark" aria-hidden="true">
-        <span></span><span></span>
+      <div class="titleRow">
+        <div class="brandMark" aria-hidden="true">
+          <span></span><span></span>
+        </div>
+        <h1>Simplified Sabers</h1>
       </div>
-      <h1>Simplified Sabers</h1>
       <p class="subtitle">Upload a song and create a complete five-difficulty Beat Saber map.</p>
 
       <div class="actions">
@@ -528,7 +590,7 @@
 
   </main>
 
-  <section id="viewerShell" class="viewerShell" aria-hidden="true">
+  <section id="viewerShell" class="viewerShell open empty" aria-hidden="false">
     <iframe
       id="arcViewerFrame"
       title="ArcViewer preview"
@@ -626,15 +688,26 @@ const viewerBack = document.getElementById("viewerBack");
 const viewerDownload = document.getElementById("viewerDownload");
 const viewerStatus = document.createElement("div");
 viewerStatus.className = "viewerStatus";
-viewerStatus.textContent = "Preview will appear here after the map is created.";
+viewerStatus.textContent = "ArcViewer ready.";
 viewerShell.insertBefore(viewerStatus, arcViewerFrame);
+const viewerEmptyState = document.createElement("div");
+viewerEmptyState.className = "viewerEmptyState";
+viewerEmptyState.textContent = "Create a map to see its preview here!";
+viewerShell.insertBefore(viewerEmptyState, arcViewerFrame.nextSibling);
 document.querySelector(".app").appendChild(viewerShell);
-viewerBack.textContent = "Hide";
+viewerBack.textContent = "Clear";
 let arcViewerReady = false;
 let arcViewerWaiters = [];
 let arcViewerPrepared = false;
 let arcViewerSession = 0;
 let arcViewerLaunchQueue = Promise.resolve();
+
+function setViewerEmpty(isEmpty,message="Create a map to see its preview here!"){
+  viewerShell.classList.toggle("empty",isEmpty);
+  viewerEmptyState.textContent=message;
+  viewerShell.classList.add("open");
+  viewerShell.setAttribute("aria-hidden","false");
+}
 
 function showArcViewerPanel(message="Preparing ArcViewer…"){
   viewerStatus.textContent=message;
@@ -645,8 +718,7 @@ function showArcViewerPanel(message="Preparing ArcViewer…"){
 }
 
 function hideArcViewerPanel(){
-  viewerShell.classList.remove("open");
-  viewerShell.setAttribute("aria-hidden","true");
+  setViewerEmpty(true);
   document.body.classList.remove("viewer-open");
 }
 
@@ -727,31 +799,43 @@ window.addEventListener("message",(event)=>{
     viewerStatus.textContent="ArcViewer ready. Sending generated map…";
     settleArcViewerWaiters();
   }else if(data.type==="SIMPLIFIED_ARCVIEWER_MAP_ACCEPTED"){
+    setViewerEmpty(false);
     showArcViewerPanel("Map received. Starting Expert+ preview…");
   }else if(data.type==="SIMPLIFIED_ARCVIEWER_STARTED"){
     viewerStatus.textContent="Playing Expert+ • Standard";
     els.mapStatus.textContent="Map ready in ArcViewer.";
   }else if(data.type==="SIMPLIFIED_ARCVIEWER_ERROR"){
     const message=data.message||"ArcViewer failed to load.";
+    setViewerEmpty(true);
     showArcViewerPanel(`Preview unavailable: ${message}`);
     els.mapStatus.textContent=`Map created. Preview unavailable: ${message}`;
     settleArcViewerWaiters(new Error(message));
   }
 });
 
-viewerBack.addEventListener("click",()=>{
-  hideArcViewerPanel();
-  resetArcViewerBridge();
+viewerBack.addEventListener("click",async()=>{
+  setViewerEmpty(true);
+  viewerStatus.textContent="ArcViewer ready.";
+  await unloadArcViewer();
+  prepareArcViewer();
 });
 
 viewerDownload.addEventListener("click",()=>{
   if(lastMapZip) downloadBlob(lastMapZip,lastMapZipName);
 });
 
+setViewerEmpty(true);
+prepareArcViewer();
+
 async function launchArcViewer(blob,filename){
   const queuedLaunch = async()=>{
-    showArcViewerPanel("Unloading previous map…");
-    await unloadArcViewer();
+    if(!viewerShell.classList.contains("empty")){
+      showArcViewerPanel("Unloading previous map…");
+      setViewerEmpty(true,"Loading new map preview…");
+      await unloadArcViewer();
+    }else{
+      setViewerEmpty(true,"Loading map preview…");
+    }
 
     const session=arcViewerSession;
     showArcViewerPanel("Loading ArcViewer…");
@@ -835,8 +919,9 @@ function setViewMode(mode){
 }
 
 function setSource(blob){
-  unloadArcViewer({collapse:true}).catch(console.warn);
-  viewerStatus.textContent="Preview will appear here after the map is created.";
+  setViewerEmpty(true);
+  viewerStatus.textContent="ArcViewer ready.";
+  unloadArcViewer().then(()=>prepareArcViewer()).catch(console.warn);
   sourceBlob = blob;
   lastMapZip=null;
   lastMapZipName="";
