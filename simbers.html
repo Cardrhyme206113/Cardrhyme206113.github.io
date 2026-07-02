@@ -1009,7 +1009,7 @@ window.addEventListener("message",(event)=>{
     setViewerEmpty(false);
     showArcViewerPanel("Map received. Starting Expert+ preview…");
   }else if(data.type==="SIMPLIFIED_ARCVIEWER_STARTED"){
-    viewerStatus.textContent="Playing Expert+ • Standard";
+    viewerStatus.textContent="Playing Expert+ • choose a mode below";
     els.mapStatus.textContent="Map ready in ArcViewer.";
   }else if(data.type==="SIMPLIFIED_ARCVIEWER_ERROR"){
     const message=data.message||"ArcViewer failed to load.";
@@ -1057,9 +1057,8 @@ async function launchArcViewer(blob,filename){
       type:"SIMPLIFIED_SABERS_LOAD_MAP",
       bytes,
       filename,
-      mode:"Standard",
       difficulty:"ExpertPlus",
-      uiOff:true
+      uiOff:false
     },ARC_VIEWER_ORIGIN,[bytes]);
   };
 
@@ -3471,6 +3470,9 @@ function makeInfo(songName,duration,characteristicSets){
     _coverImageFilename:"cover.png",
     _environmentName:"LinkinParkEnvironment",
     _allDirectionsEnvironmentName:"GlassDesertEnvironment",
+    _customData:{
+      _simplifiedSabersCharacteristics:characteristicSets.map(set=>set.characteristic)
+    },
     _difficultyBeatmapSets:characteristicSets.map(set=>({
       _beatmapCharacteristicName:set.characteristic,
       _difficultyBeatmaps:set.difficulties.map(difficulty=>{
@@ -3492,6 +3494,35 @@ function makeInfo(songName,duration,characteristicSets){
       })
     }))
   };
+}
+
+function validateInfoCharacteristics(info,characteristicSets){
+  const expected=characteristicSets.map(set=>set.characteristic);
+  const actual=(info._difficultyBeatmapSets||[])
+    .map(set=>set._beatmapCharacteristicName);
+
+  if(JSON.stringify(actual)!==JSON.stringify(expected)){
+    throw new Error(
+      `Info.dat mode manifest mismatch. Expected ${expected.join(", ")}; got ${actual.join(", ")||"none"}.`
+    );
+  }
+
+  const filenames=new Set();
+  for(const set of info._difficultyBeatmapSets){
+    if(set._difficultyBeatmaps.length!==DIFFICULTY_CONFIGS.length){
+      throw new Error(
+        `Info.dat ${set._beatmapCharacteristicName} mode has ${set._difficultyBeatmaps.length} difficulties instead of ${DIFFICULTY_CONFIGS.length}.`
+      );
+    }
+    for(const difficulty of set._difficultyBeatmaps){
+      if(!difficulty._beatmapFilename){
+        throw new Error(`Info.dat contains a mode difficulty without a filename.`);
+      }
+      filenames.add(difficulty._beatmapFilename);
+    }
+  }
+
+  return {expected,actual,filenames};
 }
 
 function canvasBlob(canvas,type="image/png",quality){
@@ -3761,17 +3792,26 @@ async function buildMapZip(result,monoSamples,sampleRate){
   setProgress(.975,"Creating cover and multi-difficulty package…");
   const cover=await createCover(songName,seed);
   const info=makeInfo(songName,result.duration,characteristicSets);
+  const manifest=validateInfoCharacteristics(info,characteristicSets);
   const encoder=new TextEncoder();
+  const beatmapEntries=difficulties.map(difficulty=>({
+    name:difficulty.filename,
+    data:encoder.encode(JSON.stringify(difficulty.beatmap))
+  }));
+  const packagedFilenames=new Set(beatmapEntries.map(entry=>entry.name));
+
+  for(const filename of manifest.filenames){
+    if(!packagedFilenames.has(filename)){
+      throw new Error(`Info.dat references missing beatmap file: ${filename}`);
+    }
+  }
 
   const entries=[
     {
       name:"Info.dat",
       data:encoder.encode(JSON.stringify(info,null,2))
     },
-    ...difficulties.map(difficulty=>({
-      name:difficulty.filename,
-      data:encoder.encode(JSON.stringify(difficulty.beatmap))
-    })),
+    ...beatmapEntries,
     {name:"song.ogg",data:oggBytes},
     {name:"cover.png",data:await bytesFromBlob(cover)}
   ];
@@ -3786,6 +3826,7 @@ async function buildMapZip(result,monoSamples,sampleRate){
     blob:zipBlob,
     name:`${songName}_SimplifiedSabers.zip`,
     characteristicSets,
+    packagedCharacteristics:manifest.actual,
     difficulties,
     usedFlowCount:allFlowIds.size,
     lightingEventCount:lightingEvents.length,
@@ -3843,8 +3884,8 @@ async function runAnalysis(){
     lastMapZip=output.blob;
     lastMapZipName=output.name;
     els.analyzeBtn.textContent="Open Map";
-    const difficultySummary=output.characteristicSets
-      .map(set=>`${set.characteristic} ${set.difficulties.length} difficulties`)
+    const difficultySummary=output.packagedCharacteristics
+      .map(characteristic=>`${characteristic} ${DIFFICULTY_CONFIGS.length} difficulties`)
       .join(" • ");
     setProgress(
       1,
