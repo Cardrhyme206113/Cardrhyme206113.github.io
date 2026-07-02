@@ -349,42 +349,68 @@
 
 
   .viewerShell{
-    position:fixed;
-    inset:0;
-    z-index:9999;
-    display:none;
+    width:100%;
+    max-height:0;
+    margin-top:0;
     overflow:hidden;
+    opacity:0;
+    border:0 solid rgba(255,255,255,.16);
+    border-radius:20px;
     background:#101116;
+    transition:max-height .34s ease,margin-top .34s ease,opacity .18s ease,border-width .18s ease;
   }
-  .viewerShell.open{display:block}
+  .viewerShell.open{
+    max-height:540px;
+    margin-top:18px;
+    opacity:1;
+    border-width:1px;
+  }
+  .viewerStatus{
+    min-height:34px;
+    display:flex;
+    align-items:center;
+    padding:7px 12px;
+    color:rgba(255,255,255,.78);
+    background:rgba(255,255,255,.045);
+    font-size:12px;
+    text-align:left;
+  }
   .viewerShell iframe{
     width:100%;
-    height:100%;
+    height:min(56vh,430px);
+    min-height:330px;
     display:block;
     border:0;
     background:#101116;
   }
   .viewerToolbar{
-    position:absolute;
-    z-index:2;
-    top:max(10px,env(safe-area-inset-top));
-    right:max(10px,env(safe-area-inset-right));
+    min-height:48px;
     display:flex;
+    align-items:center;
+    justify-content:flex-end;
     gap:8px;
+    padding:6px 8px;
+    background:rgba(15,8,24,.96);
   }
   .viewerToolbar button{
     width:auto;
     min-width:62px;
-    min-height:40px;
+    min-height:36px;
     padding:0 13px;
     border:1px solid rgba(255,255,255,.18);
-    border-radius:13px;
-    background:rgba(20,10,31,.88);
+    border-radius:12px;
+    background:rgba(255,255,255,.08);
     color:#fff;
-    box-shadow:0 5px 0 rgba(0,0,0,.22);
+    box-shadow:none;
     font-size:13px;
   }
-  .viewerToolbar button:active{transform:translateY(2px)}
+  .viewerToolbar button:active{transform:translateY(1px)}
+  body.viewer-open{align-items:flex-start}
+
+  @media(max-width:520px){
+    .viewerShell.open{max-height:470px}
+    .viewerShell iframe{height:360px;min-height:360px}
+  }
 
 </style>
 </head>
@@ -581,25 +607,44 @@ const viewerShell = document.getElementById("viewerShell");
 const arcViewerFrame = document.getElementById("arcViewerFrame");
 const viewerBack = document.getElementById("viewerBack");
 const viewerDownload = document.getElementById("viewerDownload");
+const viewerStatus = document.createElement("div");
+viewerStatus.className = "viewerStatus";
+viewerStatus.textContent = "Preview will appear here after the map is created.";
+viewerShell.insertBefore(viewerStatus, arcViewerFrame);
+document.querySelector(".card").appendChild(viewerShell);
+viewerBack.textContent = "Hide";
 let arcViewerReady = false;
 let arcViewerWaiters = [];
 let arcViewerPrepared = false;
+
+function showArcViewerPanel(message="Preparing ArcViewer…"){
+  viewerStatus.textContent=message;
+  viewerShell.classList.add("open");
+  viewerShell.setAttribute("aria-hidden","false");
+  document.body.classList.add("viewer-open");
+  requestAnimationFrame(()=>viewerShell.scrollIntoView({behavior:"smooth",block:"nearest"}));
+}
+
+function hideArcViewerPanel(){
+  viewerShell.classList.remove("open");
+  viewerShell.setAttribute("aria-hidden","true");
+  document.body.classList.remove("viewer-open");
+}
 
 function prepareArcViewer(){
   if(arcViewerPrepared) return;
   arcViewerPrepared = true;
   arcViewerReady = false;
-  arcViewerFrame.src = ARC_VIEWER_URL + "?bridge=1";
+  arcViewerFrame.src = ARC_VIEWER_URL + "?bridge=1&v=" + Date.now();
 }
 
 function resetArcViewerBridge(){
   arcViewerPrepared = false;
   arcViewerReady = false;
   arcViewerFrame.removeAttribute("src");
-  prepareArcViewer();
 }
 
-function waitForArcViewerReady(timeoutMs=45000){
+function waitForArcViewerReady(timeoutMs=30000){
   if(arcViewerReady) return Promise.resolve();
   return new Promise((resolve,reject)=>{
     const waiter={resolve,reject};
@@ -608,14 +653,8 @@ function waitForArcViewerReady(timeoutMs=45000){
       arcViewerWaiters=arcViewerWaiters.filter(item=>item!==waiter);
       reject(new Error("ArcViewer did not become ready."));
     },timeoutMs);
-    waiter.resolve=()=>{
-      clearTimeout(timer);
-      resolve();
-    };
-    waiter.reject=(error)=>{
-      clearTimeout(timer);
-      reject(error);
-    };
+    waiter.resolve=()=>{clearTimeout(timer);resolve();};
+    waiter.reject=(error)=>{clearTimeout(timer);reject(error);};
   });
 }
 
@@ -632,23 +671,23 @@ window.addEventListener("message",(event)=>{
   const data=event.data||{};
   if(data.type==="SIMPLIFIED_ARCVIEWER_READY"){
     arcViewerReady=true;
+    viewerStatus.textContent="ArcViewer ready. Sending generated map…";
     settleArcViewerWaiters();
   }else if(data.type==="SIMPLIFIED_ARCVIEWER_MAP_ACCEPTED"){
-    viewerShell.classList.add("open");
-    viewerShell.setAttribute("aria-hidden","false");
-    els.mapStatus.textContent="Opening ArcViewer preview…";
+    showArcViewerPanel("Map received. Starting Expert+ preview…");
   }else if(data.type==="SIMPLIFIED_ARCVIEWER_STARTED"){
+    viewerStatus.textContent="Playing Expert+ • Standard";
     els.mapStatus.textContent="Map ready in ArcViewer.";
   }else if(data.type==="SIMPLIFIED_ARCVIEWER_ERROR"){
     const message=data.message||"ArcViewer failed to load.";
+    showArcViewerPanel(`Preview unavailable: ${message}`);
     els.mapStatus.textContent=`Map created. Preview unavailable: ${message}`;
     settleArcViewerWaiters(new Error(message));
   }
 });
 
 viewerBack.addEventListener("click",()=>{
-  viewerShell.classList.remove("open");
-  viewerShell.setAttribute("aria-hidden","true");
+  hideArcViewerPanel();
   resetArcViewerBridge();
 });
 
@@ -657,11 +696,11 @@ viewerDownload.addEventListener("click",()=>{
 });
 
 async function launchArcViewer(blob,filename){
+  showArcViewerPanel("Loading ArcViewer…");
   prepareArcViewer();
   await waitForArcViewerReady();
   const bytes=await blob.arrayBuffer();
-  viewerShell.classList.add("open");
-  viewerShell.setAttribute("aria-hidden","false");
+  viewerStatus.textContent="Sending generated map…";
   arcViewerFrame.contentWindow.postMessage({
     type:"SIMPLIFIED_SABERS_LOAD_MAP",
     bytes,
@@ -700,7 +739,10 @@ els.file.addEventListener("change", ()=>{
 els.demoBtn.addEventListener("click", ()=>setSource(makeDemoWav()));
 els.analyzeBtn.addEventListener("click", ()=>{
   if(lastMapZip){
-    downloadBlob(lastMapZip,lastMapZipName);
+    launchArcViewer(lastMapZip,lastMapZipName).catch(error=>{
+      console.warn(error);
+      showArcViewerPanel("Preview unavailable. Use ZIP to download the map.");
+    });
     return;
   }
   prepareArcViewer();
@@ -3128,7 +3170,7 @@ async function runAnalysis(){
     const output=await buildMapZip(result,mono,targetRate);
     lastMapZip=output.blob;
     lastMapZipName=output.name;
-    els.analyzeBtn.textContent="Download Map";
+    els.analyzeBtn.textContent="Open Map";
     const difficultySummary=output.difficulties
       .map(difficulty=>`${difficulty.config.label} ${difficulty.eventCount} events / ${difficulty.arcCount} arcs / ${difficulty.bombCount} bombs / ${difficulty.wallCount} walls`)
       .join(" • ");
