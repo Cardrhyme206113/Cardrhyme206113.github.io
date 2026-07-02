@@ -629,8 +629,8 @@
           </span>
         </label>
 
-        <label class="featureToggle" title="Dot notes">
-          <input id="featureDots" type="checkbox" aria-label="Dot notes">
+        <label class="featureToggle" title="Debug: include No Arrows mode">
+          <input id="featureDots" type="checkbox" checked aria-label="Include No Arrows mode">
           <span class="featureIcon" aria-hidden="true">
             <svg viewBox="0 0 48 48" focusable="false">
               <rect x="10" y="10" width="28" height="28" rx="6"></rect>
@@ -639,8 +639,8 @@
           </span>
         </label>
 
-        <label class="featureToggle" title="Single saber sections">
-          <input id="featureSingleSaber" type="checkbox" aria-label="Single saber sections">
+        <label class="featureToggle" title="Debug: include One Saber mode">
+          <input id="featureSingleSaber" type="checkbox" checked aria-label="Include One Saber mode">
           <span class="featureIcon" aria-hidden="true">
             <svg viewBox="0 0 48 48" focusable="false">
               <path d="M13 35l21-21"></path>
@@ -3103,10 +3103,6 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
     seed,
     config
   );
-  const notationSections=(featureOptions.dots||featureOptions.singleSaber)
-    ?buildNotationSections(segments,config,seed)
-    :[];
-  const notationByEvent=sectionLookup(notationSections,segments.length);
   const previous={left:null,right:null};
   const generatedNotes=[];
   const flowCounts=new Map();
@@ -3132,39 +3128,26 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
     );
     const safePattern=chosen.pattern;
 
-    const notationSection=notationByEvent[i];
-    const makeDot=featureOptions.dots&&Boolean(notationSection);
-    const singleHand=featureOptions.singleSaber&&notationSection
-      ?notationSection.hand
-      :null;
-
-    if(singleHand===null||singleHand===0){
-      generatedNotes.push({
-        eventIndex:i,
-        time,
-        lineIndex:safePattern.l[0],
-        lineLayer:safePattern.l[1],
-        type:0,
-        cutDirection:makeDot?8:CUT[chosen.leftDirection].code,
-        flowDifficulty:pattern.difficulty,
-        notationSection:notationSection?.peak??null,
-        segment
-      });
-    }
-
-    if(singleHand===null||singleHand===1){
-      generatedNotes.push({
-        eventIndex:i,
-        time,
-        lineIndex:safePattern.r[0],
-        lineLayer:safePattern.r[1],
-        type:1,
-        cutDirection:makeDot?8:CUT[chosen.rightDirection].code,
-        flowDifficulty:pattern.difficulty,
-        notationSection:notationSection?.peak??null,
-        segment
-      });
-    }
+    generatedNotes.push({
+      eventIndex:i,
+      time,
+      lineIndex:safePattern.l[0],
+      lineLayer:safePattern.l[1],
+      type:0,
+      cutDirection:CUT[chosen.leftDirection].code,
+      flowDifficulty:pattern.difficulty,
+      segment
+    });
+    generatedNotes.push({
+      eventIndex:i,
+      time,
+      lineIndex:safePattern.r[0],
+      lineLayer:safePattern.r[1],
+      type:1,
+      cutDirection:CUT[chosen.rightDirection].code,
+      flowDifficulty:pattern.difficulty,
+      segment
+    });
 
     previous.left={
       column:safePattern.l[0],
@@ -3279,14 +3262,7 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
           ?"strong accent + open gap + arc/bomb safety"
           :"disabled",
         _wallEveryEvents:featureOptions.walls?config.wallEveryEvents:0,
-        _dotNoteSections:featureOptions.dots?notationSections.length:0,
-        _dotNoteAlgorithm:featureOptions.dots
-          ?"directionless notes in musically important sections"
-          :"disabled",
-        _singleSaberSections:featureOptions.singleSaber?notationSections.length:0,
-        _singleSaberAlgorithm:featureOptions.singleSaber
-          ?"alternating left/right hands across musically important sections"
-          :"disabled",
+        _characteristic:"Standard",
         _lightingAlgorithm:
           "beat strength + built-in LinkinPark normal/boost palette",
         _lightingCompatibility:
@@ -3303,9 +3279,170 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
     arcCount:sliders.length,
     nps,
     activeDuration,
+    characteristic:"Standard",
     usedFlowCount:flowCounts.size,
     usedFlowIds:[...flowCounts.keys()],
-    flowTierCounts
+    flowTierCounts,
+    sourceNotes:generatedNotes
+  };
+}
+
+function filenameForCharacteristic(config,characteristic){
+  if(characteristic==="Standard")return config.filename;
+  if(/Standard\.dat$/i.test(config.filename)){
+    return config.filename.replace(/Standard\.dat$/i,`${characteristic}.dat`);
+  }
+  return `${config.difficulty}${characteristic}.dat`;
+}
+
+function cloneJson(value){
+  return JSON.parse(JSON.stringify(value));
+}
+
+function makeNoArrowsDifficulty(standard){
+  const beatmap=cloneJson(standard.beatmap);
+
+  for(const note of beatmap._notes){
+    if(note._type===0||note._type===1)note._cutDirection=8;
+  }
+  for(const slider of beatmap._sliders||[]){
+    slider._headCutDirection=8;
+    slider._tailCutDirection=8;
+  }
+
+  beatmap._customData={
+    ...beatmap._customData,
+    _characteristic:"NoArrows",
+    _dotNoteAlgorithm:"all color notes are directionless",
+    _singleSaberAlgorithm:"disabled"
+  };
+
+  return {
+    ...standard,
+    characteristic:"NoArrows",
+    filename:filenameForCharacteristic(standard.config,"NoArrows"),
+    beatmap,
+    sourceNotes:standard.sourceNotes.map(note=>({
+      ...note,
+      cutDirection:8
+    }))
+  };
+}
+
+function buildOneSaberDifficulty(
+  standard,
+  seed,
+  lightingEvents,
+  featureOptions
+){
+  const config=standard.config;
+  const byEvent=new Map();
+
+  for(const note of standard.sourceNotes){
+    if(!byEvent.has(note.eventIndex))byEvent.set(note.eventIndex,[]);
+    byEvent.get(note.eventIndex).push(note);
+  }
+
+  const eventIndices=[...byEvent.keys()].sort((a,b)=>a-b);
+  const segments=eventIndices.map(index=>byEvent.get(index)[0].segment);
+  const notationSections=buildNotationSections(segments,config,seed);
+  const notationByEvent=sectionLookup(notationSections,segments.length);
+  const generatedNotes=[];
+  let sourceHand=hashString(`${seed}|${config.id}|one-saber-first-side`)%2;
+  let activeSectionPeak=null;
+
+  for(let localIndex=0;localIndex<eventIndices.length;localIndex++){
+    const eventIndex=eventIndices[localIndex];
+    const section=notationByEvent[localIndex];
+
+    if(section&&section.peak!==activeSectionPeak){
+      sourceHand=section.hand;
+      activeSectionPeak=section.peak;
+    }else if(!section){
+      activeSectionPeak=null;
+    }
+
+    const eventNotes=byEvent.get(eventIndex);
+    const source=(
+      eventNotes.find(note=>note.type===sourceHand)||
+      eventNotes[0]
+    );
+
+    generatedNotes.push({
+      ...source,
+      eventIndex:localIndex,
+      type:0,
+      oneSaberSourceHand:sourceHand,
+      notationSection:section?.peak??null
+    });
+  }
+
+  const colorNotes=generatedNotes.map(note=>({
+    _time:+note.time.toFixed(4),
+    _lineIndex:note.lineIndex,
+    _lineLayer:note.lineLayer,
+    _type:0,
+    _cutDirection:note.cutDirection
+  }));
+
+  const sliders=featureOptions.arcs
+    ?buildArcsForDifficulty(generatedNotes,config,seed)
+    :[];
+  const bombs=featureOptions.bombs
+    ?buildBombsForDifficulty(generatedNotes,sliders,config,seed)
+    :[];
+  const obstacles=featureOptions.walls
+    ?buildWallsForDifficulty(
+      generatedNotes,
+      sliders,
+      bombs,
+      config,
+      seed
+    )
+    :[];
+
+  const notes=[...colorNotes,...bombs].sort((a,b)=>
+    a._time-b._time||a._type-b._type
+  );
+  const activeStart=generatedNotes.length?generatedNotes[0].time:0;
+  const activeEnd=generatedNotes.length
+    ?generatedNotes[generatedNotes.length-1].time
+    :0;
+  const activeDuration=Math.max(1,activeEnd-activeStart);
+  const nps=colorNotes.length/activeDuration;
+
+  return {
+    config,
+    characteristic:"OneSaber",
+    filename:filenameForCharacteristic(config,"OneSaber"),
+    beatmap:{
+      _version:"2.6.0",
+      _notes:notes,
+      _obstacles:obstacles,
+      _sliders:sliders,
+      _events:lightingEvents,
+      _waypoints:[],
+      _specialEventsKeywordFilters:{_keywords:[]},
+      _customData:{
+        ...standard.beatmap._customData,
+        _characteristic:"OneSaber",
+        _dotNoteAlgorithm:"disabled",
+        _singleSaberSections:notationSections.length,
+        _singleSaberAlgorithm:
+          "one saber switches between left-side and right-side source patterns at musically important sections"
+      }
+    },
+    noteCount:colorNotes.length,
+    eventCount:eventIndices.length,
+    bombCount:bombs.length,
+    wallCount:obstacles.length,
+    arcCount:sliders.length,
+    nps,
+    activeDuration,
+    usedFlowCount:standard.usedFlowCount,
+    usedFlowIds:standard.usedFlowIds,
+    flowTierCounts:standard.flowTierCounts,
+    sourceNotes:generatedNotes
   };
 }
 
@@ -3314,7 +3451,7 @@ function safeBaseName(name){
   return raw.replace(/[\\/:*?"<>|]+/g,"_").slice(0,80);
 }
 
-function makeInfo(songName,duration){
+function makeInfo(songName,duration,characteristicSets){
   return {
     _version:"2.0.0",
     _songName:songName,
@@ -3334,27 +3471,26 @@ function makeInfo(songName,duration){
     _coverImageFilename:"cover.png",
     _environmentName:"LinkinParkEnvironment",
     _allDirectionsEnvironmentName:"GlassDesertEnvironment",
-    _difficultyBeatmapSets:[{
-      _beatmapCharacteristicName:"Standard",
-      _difficultyBeatmaps:DIFFICULTY_CONFIGS.map(config=>{
+    _difficultyBeatmapSets:characteristicSets.map(set=>({
+      _beatmapCharacteristicName:set.characteristic,
+      _difficultyBeatmaps:set.difficulties.map(difficulty=>{
+        const config=difficulty.config;
         const customData={
           _minimumEventGapMs:config.minimumGapMs,
           _flowWeights:config.weights
         };
-        if(config.id==="medium"){
-          customData._difficultyLabel="Medium";
-        }
+        if(config.id==="medium")customData._difficultyLabel="Medium";
 
         return {
           _difficulty:config.difficulty,
           _difficultyRank:config.rank,
-          _beatmapFilename:config.filename,
+          _beatmapFilename:difficulty.filename,
           _noteJumpMovementSpeed:config.noteJumpMovementSpeed,
           _noteJumpStartBeatOffset:0,
           _customData:customData
         };
       })
-    }]
+    }))
   };
 }
 
@@ -3544,8 +3680,8 @@ async function buildMapZip(result,monoSamples,sampleRate){
     bombs:els.featureBombs.checked,
     walls:els.featureWalls.checked,
     arcs:els.featureArcs.checked,
-    dots:els.featureDots.checked,
-    singleSaber:els.featureSingleSaber.checked
+    noArrows:els.featureDots.checked,
+    oneSaber:els.featureSingleSaber.checked
   };
 
   setProgress(
@@ -3557,11 +3693,17 @@ async function buildMapZip(result,monoSamples,sampleRate){
     seed
   );
 
+  const requestedModes=[
+    "Standard",
+    ...(featureOptions.noArrows?["No Arrows"]:[]),
+    ...(featureOptions.oneSaber?["One Saber"]:[])
+  ];
   setProgress(
     .855,
-    "Building five difficulties with selected objects and lighting…"
+    `Building ${requestedModes.join(", ")} difficulties…`
   );
-  const difficulties=DIFFICULTY_CONFIGS.map(
+
+  const standardDifficulties=DIFFICULTY_CONFIGS.map(
     config=>buildBeatmap(
       result,
       seed,
@@ -3570,8 +3712,33 @@ async function buildMapZip(result,monoSamples,sampleRate){
       featureOptions
     )
   );
+  const characteristicSets=[{
+    characteristic:"Standard",
+    difficulties:standardDifficulties
+  }];
 
-  const expertPlus=difficulties.find(
+  if(featureOptions.noArrows){
+    characteristicSets.push({
+      characteristic:"NoArrows",
+      difficulties:standardDifficulties.map(makeNoArrowsDifficulty)
+    });
+  }
+  if(featureOptions.oneSaber){
+    characteristicSets.push({
+      characteristic:"OneSaber",
+      difficulties:standardDifficulties.map(difficulty=>
+        buildOneSaberDifficulty(
+          difficulty,
+          seed,
+          lightingEvents,
+          featureOptions
+        )
+      )
+    });
+  }
+
+  const difficulties=characteristicSets.flatMap(set=>set.difficulties);
+  const expertPlus=standardDifficulties.find(
     difficulty=>difficulty.config.id==="expertPlus"
   );
   const expertPlusNps=expertPlus?.nps||0;
@@ -3593,7 +3760,7 @@ async function buildMapZip(result,monoSamples,sampleRate){
 
   setProgress(.975,"Creating cover and multi-difficulty package…");
   const cover=await createCover(songName,seed);
-  const info=makeInfo(songName,result.duration);
+  const info=makeInfo(songName,result.duration,characteristicSets);
   const encoder=new TextEncoder();
 
   const entries=[
@@ -3617,7 +3784,8 @@ async function buildMapZip(result,monoSamples,sampleRate){
 
   return {
     blob:zipBlob,
-    name:`${songName}_SimplifiedSabers_FiveDifficulty.zip`,
+    name:`${songName}_SimplifiedSabers.zip`,
+    characteristicSets,
     difficulties,
     usedFlowCount:allFlowIds.size,
     lightingEventCount:lightingEvents.length,
@@ -3675,8 +3843,8 @@ async function runAnalysis(){
     lastMapZip=output.blob;
     lastMapZipName=output.name;
     els.analyzeBtn.textContent="Open Map";
-    const difficultySummary=output.difficulties
-      .map(difficulty=>`${difficulty.config.label} ${difficulty.eventCount} events / ${difficulty.arcCount} arcs / ${difficulty.bombCount} bombs / ${difficulty.wallCount} walls`)
+    const difficultySummary=output.characteristicSets
+      .map(set=>`${set.characteristic} ${set.difficulties.length} difficulties`)
       .join(" • ");
     setProgress(
       1,
