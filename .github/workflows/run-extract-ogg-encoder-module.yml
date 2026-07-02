@@ -1,0 +1,49 @@
+name: Extract OGG encoder module
+
+on:
+  push:
+    paths:
+      - .github/trigger-extract-ogg-encoder-module.txt
+
+permissions:
+  contents: write
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Extract encoder module
+        run: python .github/scripts/extract_ogg_encoder_module.py
+
+      - name: Validate module JavaScript
+        shell: bash
+        run: |
+          cp simbers-ogg-encoder.js /tmp/simbers-ogg-encoder.mjs
+          node --check /tmp/simbers-ogg-encoder.mjs
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('simbers.html').read_text(encoding='utf-8')
+          modules=[m.group(1) for m in re.finditer(r'<script\s+type="module"[^>]*>(.*?)</script>',text,re.S)]
+          if len(modules)!=1:
+              raise SystemExit(f'Expected one inline app module, found {len(modules)}')
+          Path('/tmp/simbers-main.mjs').write_text(modules[0],encoding='utf-8')
+          if 'EMBEDDED_OGG_WASM_B64' in text:
+              raise SystemExit('Embedded OGG payload still exists in simbers.html')
+          if './simbers-ogg-encoder.js' not in text:
+              raise SystemExit('Encoder module import missing from simbers.html')
+          PY
+          node --check /tmp/simbers-main.mjs
+
+      - name: Commit extracted module
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/trigger-extract-ogg-encoder-module.txt
+          git add simbers.html simbers-ogg-encoder.js
+          git commit -m "Move embedded OGG encoder into ES module"
+          git push
