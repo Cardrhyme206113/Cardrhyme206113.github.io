@@ -692,7 +692,7 @@ viewerStatus.textContent = "ArcViewer ready.";
 viewerShell.insertBefore(viewerStatus, arcViewerFrame);
 const viewerEmptyState = document.createElement("div");
 viewerEmptyState.className = "viewerEmptyState";
-viewerEmptyState.textContent = "Create a map to see its preview here!";
+viewerEmptyState.textContent = "Create a map to see it's preview here!";
 viewerShell.insertBefore(viewerEmptyState, arcViewerFrame.nextSibling);
 document.querySelector(".app").appendChild(viewerShell);
 viewerBack.textContent = "Clear";
@@ -702,7 +702,7 @@ let arcViewerPrepared = false;
 let arcViewerSession = 0;
 let arcViewerLaunchQueue = Promise.resolve();
 
-function setViewerEmpty(isEmpty,message="Create a map to see its preview here!"){
+function setViewerEmpty(isEmpty,message="Create a map to see it's preview here!"){
   viewerShell.classList.toggle("empty",isEmpty);
   viewerEmptyState.textContent=message;
   viewerShell.classList.add("open");
@@ -796,7 +796,7 @@ window.addEventListener("message",(event)=>{
   const data=event.data||{};
   if(data.type==="SIMPLIFIED_ARCVIEWER_READY"){
     arcViewerReady=true;
-    viewerStatus.textContent="ArcViewer ready. Sending generated map…";
+    viewerStatus.textContent=viewerShell.classList.contains("empty")?"ArcViewer ready.":"ArcViewer ready. Sending generated map…";
     settleArcViewerWaiters();
   }else if(data.type==="SIMPLIFIED_ARCVIEWER_MAP_ACCEPTED"){
     setViewerEmpty(false);
