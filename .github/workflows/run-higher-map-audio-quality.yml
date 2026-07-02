@@ -1,0 +1,48 @@
+name: Increase generated map audio quality
+
+on:
+  push:
+    paths:
+      - .github/trigger-higher-map-audio-quality.txt
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Apply quality patch
+        run: python .github/scripts/increase_map_audio_quality.py
+
+      - name: Validate JavaScript
+        shell: bash
+        run: |
+          cp simbers-ogg-encoder.js /tmp/simbers-ogg-encoder.mjs
+          node --check /tmp/simbers-ogg-encoder.mjs
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('simbers.html').read_text(encoding='utf-8')
+          modules=[m.group(1) for m in re.finditer(r'<script\s+type="module"[^>]*>(.*?)</script>',text,re.S)]
+          if len(modules)!=1:
+              raise SystemExit(f'Expected one app module, found {len(modules)}')
+          Path('/tmp/simbers-main.mjs').write_text(modules[0],encoding='utf-8')
+          for required in ('const outputRate = 32000;','vbrQuality:3','resampleChannelsForOutput'):
+              if required not in text:
+                  raise SystemExit(f'Missing quality setting: {required}')
+          PY
+          node --check /tmp/simbers-main.mjs
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/trigger-higher-map-audio-quality.txt
+          git add simbers.html simbers-ogg-encoder.js
+          git commit -m "Increase generated map audio quality"
+          git push
