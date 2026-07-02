@@ -3,7 +3,7 @@ name: Create simbers2
 on:
   push:
     paths:
-      - .github/trigger-make-simbers2.txt
+      - .github/run-s2.txt
 
 permissions:
   contents: write
@@ -37,7 +37,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/trigger-make-simbers2.txt
+          git rm .github/run-s2.txt
           git add simbers2.html
           git commit -m "Add lightweight 3D viewer version of Simplified Sabers"
           git push
