@@ -628,6 +628,26 @@
             </svg>
           </span>
         </label>
+
+        <label class="featureToggle" title="Dot notes">
+          <input id="featureDots" type="checkbox" aria-label="Dot notes">
+          <span class="featureIcon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" focusable="false">
+              <rect x="10" y="10" width="28" height="28" rx="6"></rect>
+              <circle cx="24" cy="24" r="4"></circle>
+            </svg>
+          </span>
+        </label>
+
+        <label class="featureToggle" title="Single saber sections">
+          <input id="featureSingleSaber" type="checkbox" aria-label="Single saber sections">
+          <span class="featureIcon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" focusable="false">
+              <path d="M13 35l21-21"></path>
+              <path d="M10 38l6-6 4 4-6 6zM31 12l5-2 2 2-2 5"></path>
+            </svg>
+          </span>
+        </label>
       </div>
 
       <progress id="progress" max="1" value="0"></progress>
@@ -762,6 +782,7 @@ const $ = id => document.getElementById(id);
 const els = {
   file:$("file"), demoBtn:$("demoBtn"), analyzeBtn:$("analyzeBtn"),
   featureBombs:$("featureBombs"), featureWalls:$("featureWalls"), featureArcs:$("featureArcs"),
+  featureDots:$("featureDots"), featureSingleSaber:$("featureSingleSaber"),
   tracks:$("tracks"), tracksNum:$("tracksNum"),
   confidence:$("confidence"), confidenceNum:$("confidenceNum"),
   ambiguity:$("ambiguity"), ambiguityNum:$("ambiguityNum"),
@@ -1087,7 +1108,13 @@ function invalidateMapForFeatureChange(){
   scheduleUiCenterMotion(true);
 }
 
-for(const control of [els.featureBombs,els.featureWalls,els.featureArcs]){
+for(const control of [
+  els.featureBombs,
+  els.featureWalls,
+  els.featureArcs,
+  els.featureDots,
+  els.featureSingleSaber
+]){
   control.addEventListener("change",invalidateMapForFeatureChange);
 }
 els.demoBtn.addEventListener("click", ()=>setSource(makeDemoWav()));
@@ -2976,6 +3003,84 @@ function buildWallsForDifficulty(
   return walls.sort((a,b)=>a._time-b._time);
 }
 
+function notationImportance(segment,previousSegment,nextSegment){
+  const melodyJump=Math.max(
+    Math.abs((segment.melodyValue||0)-(previousSegment?.melodyValue||0)),
+    Math.abs((segment.melodyValue||0)-(nextSegment?.melodyValue||0))
+  );
+
+  return clamp(
+    .40*(segment.stateChange||0)+
+    .28*(segment.beatStrength||0)+
+    .18*(segment.activity||0)+
+    .14*clamp(melodyJump/.45,0,1),
+    0,1
+  );
+}
+
+function buildNotationSections(segments,config,seed){
+  if(segments.length<6)return [];
+
+  const threshold=
+    config.id==="expertPlus"?.62:
+    config.id==="expert"?.65:
+    config.id==="hard"?.68:
+    config.id==="medium"?.71:.74;
+  const cooldown=
+    config.id==="expertPlus"?11:
+    config.id==="expert"?13:
+    config.id==="hard"?15:
+    config.id==="medium"?17:19;
+
+  const scores=segments.map((segment,index)=>notationImportance(
+    segment,
+    segments[index-1],
+    segments[index+1]
+  ));
+
+  const candidates=[];
+  for(let i=2;i<segments.length-2;i++){
+    const score=scores[i];
+    if(score<threshold)continue;
+    if(score<scores[i-1]||score<scores[i+1])continue;
+    candidates.push({index:i,score});
+  }
+
+  candidates.sort((a,b)=>b.score-a.score||a.index-b.index);
+  const chosen=[];
+  const targetCount=Math.max(1,Math.ceil(segments.length/(cooldown*2.2)));
+
+  for(const candidate of candidates){
+    if(chosen.some(section=>Math.abs(section.peak-candidate.index)<cooldown))continue;
+
+    const span=clamp(
+      Math.round(4+(candidate.score-threshold)*10),
+      4,
+      8
+    );
+    const start=Math.max(0,candidate.index-1);
+    const end=Math.min(segments.length,start+span);
+    chosen.push({peak:candidate.index,start,end,score:candidate.score});
+    if(chosen.length>=targetCount)break;
+  }
+
+  chosen.sort((a,b)=>a.start-b.start);
+  let hand=hashString(`${seed}|${config.id}|single-saber-first-hand`)%2;
+  return chosen.map(section=>{
+    const result={...section,hand};
+    hand=1-hand;
+    return result;
+  });
+}
+
+function sectionLookup(sections,length){
+  const lookup=new Array(length).fill(null);
+  for(const section of sections){
+    for(let i=section.start;i<section.end;i++)lookup[i]=section;
+  }
+  return lookup;
+}
+
 function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
   const allSegments=result.patterns?.segments||[];
   if(!allSegments.length){
@@ -2998,6 +3103,10 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
     seed,
     config
   );
+  const notationSections=(featureOptions.dots||featureOptions.singleSaber)
+    ?buildNotationSections(segments,config,seed)
+    :[];
+  const notationByEvent=sectionLookup(notationSections,segments.length);
   const previous={left:null,right:null};
   const generatedNotes=[];
   const flowCounts=new Map();
@@ -3023,26 +3132,39 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
     );
     const safePattern=chosen.pattern;
 
-    generatedNotes.push({
-      eventIndex:i,
-      time,
-      lineIndex:safePattern.l[0],
-      lineLayer:safePattern.l[1],
-      type:0,
-      cutDirection:CUT[chosen.leftDirection].code,
-      flowDifficulty:pattern.difficulty,
-      segment
-    });
-    generatedNotes.push({
-      eventIndex:i,
-      time,
-      lineIndex:safePattern.r[0],
-      lineLayer:safePattern.r[1],
-      type:1,
-      cutDirection:CUT[chosen.rightDirection].code,
-      flowDifficulty:pattern.difficulty,
-      segment
-    });
+    const notationSection=notationByEvent[i];
+    const makeDot=featureOptions.dots&&Boolean(notationSection);
+    const singleHand=featureOptions.singleSaber&&notationSection
+      ?notationSection.hand
+      :null;
+
+    if(singleHand===null||singleHand===0){
+      generatedNotes.push({
+        eventIndex:i,
+        time,
+        lineIndex:safePattern.l[0],
+        lineLayer:safePattern.l[1],
+        type:0,
+        cutDirection:makeDot?8:CUT[chosen.leftDirection].code,
+        flowDifficulty:pattern.difficulty,
+        notationSection:notationSection?.peak??null,
+        segment
+      });
+    }
+
+    if(singleHand===null||singleHand===1){
+      generatedNotes.push({
+        eventIndex:i,
+        time,
+        lineIndex:safePattern.r[0],
+        lineLayer:safePattern.r[1],
+        type:1,
+        cutDirection:makeDot?8:CUT[chosen.rightDirection].code,
+        flowDifficulty:pattern.difficulty,
+        notationSection:notationSection?.peak??null,
+        segment
+      });
+    }
 
     previous.left={
       column:safePattern.l[0],
@@ -3157,6 +3279,14 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
           ?"strong accent + open gap + arc/bomb safety"
           :"disabled",
         _wallEveryEvents:featureOptions.walls?config.wallEveryEvents:0,
+        _dotNoteSections:featureOptions.dots?notationSections.length:0,
+        _dotNoteAlgorithm:featureOptions.dots
+          ?"directionless notes in musically important sections"
+          :"disabled",
+        _singleSaberSections:featureOptions.singleSaber?notationSections.length:0,
+        _singleSaberAlgorithm:featureOptions.singleSaber
+          ?"alternating left/right hands across musically important sections"
+          :"disabled",
         _lightingAlgorithm:
           "beat strength + built-in LinkinPark normal/boost palette",
         _lightingCompatibility:
@@ -3167,7 +3297,7 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
       }
     },
     noteCount:colorNotes.length,
-    eventCount:colorNotes.length/2,
+    eventCount:new Set(generatedNotes.map(note=>note.eventIndex)).size,
     bombCount:bombs.length,
     wallCount:obstacles.length,
     arcCount:sliders.length,
@@ -3413,7 +3543,9 @@ async function buildMapZip(result,monoSamples,sampleRate){
   const featureOptions={
     bombs:els.featureBombs.checked,
     walls:els.featureWalls.checked,
-    arcs:els.featureArcs.checked
+    arcs:els.featureArcs.checked,
+    dots:els.featureDots.checked,
+    singleSaber:els.featureSingleSaber.checked
   };
 
   setProgress(
@@ -3502,6 +3634,7 @@ async function runAnalysis(){
   if(!sourceBlob) return;
   els.analyzeBtn.disabled=true; els.demoBtn.disabled=true; els.file.disabled=true;
   els.featureBombs.disabled=true; els.featureWalls.disabled=true; els.featureArcs.disabled=true;
+  els.featureDots.disabled=true; els.featureSingleSaber.disabled=true;
   els.jsonBtn.disabled=true; els.csvBtn.disabled=true;
   try{
     setProgress(.01,"Decoding audio…");
@@ -3570,6 +3703,7 @@ async function runAnalysis(){
     window.scrollTo({left:0,top:window.scrollY,behavior:"auto"});
     els.analyzeBtn.disabled=false; els.demoBtn.disabled=false; els.file.disabled=false;
     els.featureBombs.disabled=false; els.featureWalls.disabled=false; els.featureArcs.disabled=false;
+    els.featureDots.disabled=false; els.featureSingleSaber.disabled=false;
     if(!lastMapZip&&els.analyzeBtn.textContent!=="Try Again")els.analyzeBtn.textContent="Create Map";
   }
 }
