@@ -1,9 +1,9 @@
 SIMBERS_LIVE_TEST_STATUS=FAIL
-TESTED_URL=https://cardrhyme206113.github.io/simbers.html?build=20260703-4
-UTC=2026-07-03T12:25:37Z
+TESTED_URL=https://cardrhyme206113.github.io/simbers.html?build=20260703-5
+UTC=2026-07-03T12:31:32Z
 browser=failure
 
-URL: https://cardrhyme206113.github.io/simbers.html?build=20260703-4
+URL: https://cardrhyme206113.github.io/simbers.html?build=20260703-5
 TITLE: Simplified Sabers v0.9.5
 BODY_START: Simbers v0.9.5 failed to load.
 
