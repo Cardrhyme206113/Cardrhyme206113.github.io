@@ -1314,6 +1314,21 @@ function explicitHandStep(steps,key,fromEnd=false){
   return null;
 }
 
+function compoundEntryMatchesPrevious(previous,steps){
+  const hands=[
+    {key:"left",step:explicitHandStep(steps,"l")},
+    {key:"right",step:explicitHandStep(steps,"r")}
+  ];
+  for(const hand of hands){
+    if(!hand.step)continue;
+    const target=oppositeDirection(hand.step.note[2]);
+    if(!previous[hand.key]||previous[hand.key].direction!==target){
+      return false;
+    }
+  }
+  return true;
+}
+
 function retunePreviousForCompound(
   generatedNotes,
   previous,
@@ -3010,6 +3025,7 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
   };
 
   let lastWasCompound=false;
+  let lastNormalBridgesCompound=false;
   let boundaryTargets={left:null,right:null};
 
   for(let i=0;i<segments.length;i++){
@@ -3029,9 +3045,12 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
         result.duration
       );
 
-      // Keep explicit streams separated by at least one ordinary flow so the
-      // exit reversal from one stream can become the entry reversal of the next.
-      if(lastWasCompound||!compoundWindow){
+      // One normal note may bridge two explicit flows only when it is the
+      // exact reverse of the previous exit and the next entry for both hands.
+      const bridgeConflict=
+        lastNormalBridgesCompound &&
+        !compoundEntryMatchesPrevious(previous,pattern.steps);
+      if(lastWasCompound||bridgeConflict||!compoundWindow){
         pattern=normalFallbackForCompound(
           assignedPattern,
           seed,
@@ -3136,13 +3155,17 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
       );
       flowTierCounts[pattern.difficulty]++;
       lastWasCompound=true;
+      lastNormalBridgesCompound=false;
 
-      // A two-beat compound flow owns the intermediate detected event.
+      // A multi-beat compound flow owns its intermediate detected events.
       i+=compoundWindow.span-1;
       continue;
     }
 
     const time=+segment.start.toFixed(4);
+    const usedBoundaryBridge=Boolean(
+      boundaryTargets.left||boundaryTargets.right
+    );
     const chosen=chooseDirections(
       pattern,
       previous,
@@ -3193,6 +3216,7 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
     );
     flowTierCounts[pattern.difficulty]++;
     lastWasCompound=false;
+    lastNormalBridgesCompound=usedBoundaryBridge;
   }
 
   generatedNotes.sort(
