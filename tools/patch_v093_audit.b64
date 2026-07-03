@@ -1,1 +1,30 @@
-ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQpwPVBhdGgoJ3NpbWJlcnMuaHRtbCcpCnM9cC5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04JykKcmVwbGFjZW1lbnQ9JycnZnVuY3Rpb24gY291bnRGYWlsZWRSb3RhdGlvbnMobm90ZXMpewogIGxldCBmYWlsdXJlcz0wOwogIGZvcihjb25zdCB0eXBlIG9mIFswLDFdKXsKICAgIGNvbnN0IGhhbmROb3Rlcz1ub3Rlcy5maWx0ZXIobm90ZT0+bm90ZS50eXBlPT09dHlwZSkuc2xpY2UoKS5zb3J0KChhLGIpPT4KICAgICAgYS50aW1lLWIudGltZXx8KGEuY29tcG91bmRTdGVwPz8wKS0oYi5jb21wb3VuZFN0ZXA/PzApCiAgICApOwogICAgZm9yKGxldCBpPTE7aTxoYW5kTm90ZXMubGVuZ3RoO2krKyl7CiAgICAgIGNvbnN0IGJlZm9yZT1oYW5kTm90ZXNbaS0xXSxhZnRlcj1oYW5kTm90ZXNbaV07CiAgICAgIGNvbnN0IGludGVybmFsPUJvb2xlYW4oCiAgICAgICAgYmVmb3JlLmNvbXBvdW5kRmxvdyYmYWZ0ZXIuY29tcG91bmRGbG93JiYKICAgICAgICBiZWZvcmUuY29tcG91bmRGbG93PT09YWZ0ZXIuY29tcG91bmRGbG93JiYKICAgICAgICBiZWZvcmUuY29tcG91bmRTdGFydEluZGV4PT09YWZ0ZXIuY29tcG91bmRTdGFydEluZGV4CiAgICAgICk7CiAgICAgIGlmKGludGVybmFsKWNvbnRpbnVlOwogICAgICBjb25zdCBiZWZvcmVEaXJlY3Rpb249ZGlyZWN0aW9uTmFtZUZyb21Db2RlKGJlZm9yZS5jdXREaXJlY3Rpb24pOwogICAgICBjb25zdCBhZnRlckRpcmVjdGlvbj1kaXJlY3Rpb25OYW1lRnJvbUNvZGUoYWZ0ZXIuY3V0RGlyZWN0aW9uKTsKICAgICAgaWYoCiAgICAgICAgIWJlZm9yZURpcmVjdGlvbnx8IWFmdGVyRGlyZWN0aW9ufHwKICAgICAgICBhbmdsZURpc3RhbmNlKENVVFtiZWZvcmVEaXJlY3Rpb25dLmRlZyxDVVRbYWZ0ZXJEaXJlY3Rpb25dLmRlZyk8ODkuNQogICAgICApZmFpbHVyZXMrKzsKICAgIH0KICB9CiAgcmV0dXJuIGZhaWx1cmVzOwp9JycnCnMsbj1yZS5zdWJuKHInZnVuY3Rpb24gY291bnRGYWlsZWRSb3RhdGlvbnNcKG5vdGVzXClcey4qP1xuXH0nLHJlcGxhY2VtZW50LHMsY291bnQ9MSxmbGFncz1yZS5TKQppZiBuIT0xOiByYWlzZSBSdW50aW1lRXJyb3IoJ3JvdGF0aW9uIGF1ZGl0IGZ1bmN0aW9uIG1pc3NpbmcnKQpwLndyaXRlX3RleHQocyxlbmNvZGluZz0ndXRmLTgnKQo=
+from pathlib import Path
+import re
+p=Path('simbers.html')
+s=p.read_text(encoding='utf-8')
+replacement='''function countFailedRotations(notes){
+  let failures=0;
+  for(const type of [0,1]){
+    const handNotes=notes.filter(note=>note.type===type).slice().sort((a,b)=>
+      a.time-b.time||(a.compoundStep??0)-(b.compoundStep??0)
+    );
+    for(let i=1;i<handNotes.length;i++){
+      const before=handNotes[i-1],after=handNotes[i];
+      const internal=Boolean(
+        before.compoundFlow&&after.compoundFlow&&
+        before.compoundFlow===after.compoundFlow&&
+        before.compoundStartIndex===after.compoundStartIndex
+      );
+      if(internal)continue;
+      const beforeDirection=directionNameFromCode(before.cutDirection);
+      const afterDirection=directionNameFromCode(after.cutDirection);
+      if(!beforeDirection||!afterDirection||angleDistance(CUT[beforeDirection].deg,CUT[afterDirection].deg)<89.5)failures++;
+    }
+  }
+  return failures;
+}
+
+function explicitHandStep'''
+s,n=re.subn(r'function countFailedRotations\(notes\)\{[\s\S]*?\n\}\n\nfunction explicitHandStep',replacement,s,count=1)
+if n!=1:raise RuntimeError('rotation audit function missing')
+p.write_text(s,encoding='utf-8')
