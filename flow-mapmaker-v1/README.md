@@ -6,7 +6,7 @@ Included locally:
 
 - `index.html` — entry point
 - `mapmaker.html` — exact copy of the base mapmaker
-- `launcher.js` — injects multi-beat flow support without changing the base copy
+- `launcher-v2.js` — injects multi-beat flow support without changing the base copy
 - `flow-library-data.js` — 20 flows / 80 v1.5.0 alternatives
 - `flow-library.html` — visual flow browser
 - `simbers-ogg-encoder.js` — local audio encoder dependency
