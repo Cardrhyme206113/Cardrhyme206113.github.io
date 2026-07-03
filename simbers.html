@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Simplified Sabers</title>
+<meta name="simbers-version" content="0.9.0" />
+<title>Simplified Sabers v0.9.0</title>
 <style>
 :root{
   color-scheme:dark;
@@ -123,6 +124,8 @@ h1{
   letter-spacing:-.02em;
   text-transform:uppercase;
 }
+
+.appVersion{margin-left:auto;color:var(--muted);font:700 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:nowrap}
 
 .subtitle{
   margin:0 0 22px;
@@ -473,6 +476,7 @@ body.viewer-open{align-items:flex-start}
         <div class="titleRow">
         <a class="brandMark" href="./simbers-flow-library.html" aria-label="Open the 50-flow library" title="Open flow library"><span></span><span></span></a>
         <h1>Simplified Sabers</h1>
+        <span class="appVersion" title="Simbers version">v0.9.0</span>
       </div>
       <p class="subtitle">Upload a song and create a complete five-difficulty Beat Saber map.</p>
 
@@ -617,9 +621,11 @@ body.viewer-open{align-items:flex-start}
 
 <script type="module">
 import { encodeOggVorbis } from "./simbers-ogg-encoder.js";
-import { SEQUENCE_FLOW_PATTERNS } from "./simbers-flow-library.js";
+import { SEQUENCE_FLOW_PATTERNS } from "./simbers-flow-library.js?v=0.9.0";
 
 "use strict";
+
+const SIMBERS_VERSION="0.9.0";
 
 const $ = id => document.getElementById(id);
 const els = {
@@ -1298,6 +1304,47 @@ function compoundStepPlacement(window,pattern,stepIndex,baseEventIndex){
     time:+(window.start+window.spacing*stepIndex).toFixed(4),
     eventIndex:baseEventIndex+window.span*stepIndex/pattern.steps.length
   };
+}
+
+function validateExplicitFlowTiming(notes){
+  const patternById=new Map(
+    COMPOUND_FLOW_PATTERNS.map(pattern=>[pattern.id,pattern])
+  );
+  const instances=new Map();
+
+  for(const note of notes){
+    if(!note.compoundFlow||note.compoundStartIndex==null)continue;
+    const key=`${note.compoundFlow}|${note.compoundStartIndex}`;
+    if(!instances.has(key))instances.set(key,[]);
+    instances.get(key).push(note);
+  }
+
+  for(const instanceNotes of instances.values()){
+    const pattern=patternById.get(instanceNotes[0].compoundFlow);
+    if(!pattern||!Array.isArray(pattern.stepBeats))continue;
+
+    const timeByStep=new Map();
+    for(const note of instanceNotes){
+      const existing=timeByStep.get(note.compoundStep);
+      if(existing!=null&&Math.abs(existing-note.time)>.00001){
+        throw new Error(`Simbers v${SIMBERS_VERSION}: split timestamp inside ${pattern.name}`);
+      }
+      timeByStep.set(note.compoundStep,note.time);
+    }
+
+    for(let a=0;a<pattern.steps.length;a++){
+      for(let b=a+1;b<pattern.steps.length;b++){
+        const timeA=timeByStep.get(a);
+        const timeB=timeByStep.get(b);
+        if(timeA==null||timeB==null)continue;
+        const sameBeat=pattern.stepBeats[a]===pattern.stepBeats[b];
+        const sameTime=Math.abs(timeA-timeB)<=.00001;
+        if(sameBeat!==sameTime){
+          throw new Error(`Simbers v${SIMBERS_VERSION}: invalid beat grouping in ${pattern.name}`);
+        }
+      }
+    }
+  }
 }
 
 function explicitHandStep(steps,key,fromEnd=false){
@@ -3094,6 +3141,7 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
             flowDifficulty:pattern.difficulty,
             segment,
             compoundFlow:pattern.id,
+            compoundStartIndex:i,
             compoundStep:stepIndex
           });
         }
@@ -3109,6 +3157,7 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
             flowDifficulty:pattern.difficulty,
             segment,
             compoundFlow:pattern.id,
+            compoundStartIndex:i,
             compoundStep:stepIndex
           });
         }
@@ -3223,6 +3272,8 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
     (a,b)=>a.time-b.time||a.type-b.type
   );
 
+  validateExplicitFlowTiming(generatedNotes);
+
   const colorNotes=generatedNotes.map(note=>({
     _time:+note.time.toFixed(4),
     _lineIndex:note.lineIndex,
@@ -3294,6 +3345,7 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
       _customData:{
         _generator:
           "Beat Signature Natural Arc Multi-Difficulty HTML",
+        _simbersVersion:SIMBERS_VERSION,
         _difficultyLabel:config.label,
         _minimumEventGapMs:config.minimumGapMs,
         _arcWindow:[
