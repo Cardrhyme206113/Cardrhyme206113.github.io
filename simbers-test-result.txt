@@ -1,6 +1,6 @@
 SIMBERS_TEST_STATUS=PASS
-TESTED_COMMIT=7a845e947f8eb189eebf97d3f7a4cc8be4360dc6
-UTC=2026-07-03T12:19:23Z
+TESTED_COMMIT=5298562f03897808e25fdce82bfe6372cdf234d8
+UTC=2026-07-03T12:28:10Z
 syntax=success
 install=success
 browser=success
@@ -21,9 +21,9 @@ READY. SELECT A SONG FILE.
 YOUR MAP PREVIEW WILL APPEAR HERE.
 
 ===== SERVER LOG =====
-127.0.0.1 - - [03/Jul/2026 12:19:13] "GET /simbers.html?build=ci HTTP/1.1" 200 -
-127.0.0.1 - - [03/Jul/2026 12:19:13] "GET /simbers-v095.js?v=0.9.5&build=20260703-4 HTTP/1.1" 200 -
-127.0.0.1 - - [03/Jul/2026 12:19:13] "GET /simbers-v095-patch.js?v=0.9.5 HTTP/1.1" 200 -
-127.0.0.1 - - [03/Jul/2026 12:19:13] "GET /simbers-v093.js?v=0.9.5 HTTP/1.1" 200 -
-127.0.0.1 - - [03/Jul/2026 12:19:13] "GET /simbers-flow-library.js?v=0.9.5 HTTP/1.1" 200 -
-127.0.0.1 - - [03/Jul/2026 12:19:14] "GET /simbers-ogg-encoder.js HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:28:00] "GET /simbers.html?build=ci HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:28:00] "GET /simbers-app-v095-b5.js HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:28:00] "GET /simbers-v093.js?v=0.9.5&build=5 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:28:00] "GET /simbers-v095-patch.js?v=0.9.5&build=5 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:28:00] "GET /simbers-flow-library.js?v=0.9.5 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:28:00] "GET /simbers-ogg-encoder.js HTTP/1.1" 200 -
