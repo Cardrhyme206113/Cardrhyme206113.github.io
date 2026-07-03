@@ -1,3 +1,4 @@
+# Trigger the one-time finalized Flow Showcase build on main.
 name: Build Flow Showcase v1.0.0
 
 on:
