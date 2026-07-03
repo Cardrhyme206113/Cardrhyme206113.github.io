@@ -1252,10 +1252,30 @@ function compoundFlowWindow(segments,index,pattern,duration){
   if(total<=0)return null;
 
   const spacing=total/pattern.steps.length;
-  // Do not squeeze dense explicit streams into unreadably tiny gaps.
-  if(spacing<.055)return null;
+  if(!Array.isArray(pattern.stepBeats)&&spacing<.055)return null;
+  const beatTimes=Array.from(
+    {length:span},
+    (_,offset)=>segments[index+offset]?.start ?? start+total*offset/span
+  );
+  return {start,end,total,spacing,span,beatTimes};
+}
 
-  return {start,end,total,spacing,span};
+function compoundStepPlacement(window,pattern,stepIndex,baseEventIndex){
+  if(Array.isArray(pattern.stepBeats)){
+    const beatOffset=clamp(
+      Math.round(pattern.stepBeats[stepIndex]??0),
+      0,
+      window.span-1
+    );
+    return {
+      time:+window.beatTimes[beatOffset].toFixed(4),
+      eventIndex:baseEventIndex+beatOffset
+    };
+  }
+  return {
+    time:+(window.start+window.spacing*stepIndex).toFixed(4),
+    eventIndex:baseEventIndex+window.span*stepIndex/pattern.steps.length
+  };
 }
 
 function explicitHandStep(steps,key,fromEnd=false){
@@ -3015,15 +3035,12 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
         stepIndex++
       ){
         const step=pattern.steps[stepIndex];
-        const time=+(
-          compoundWindow.start+
-          compoundWindow.spacing*stepIndex
-        ).toFixed(4);
-        const eventIndex=
-          i+
-          compoundWindow.span*
-          stepIndex/
-          pattern.steps.length;
+        const {time,eventIndex}=compoundStepPlacement(
+          compoundWindow,
+          pattern,
+          stepIndex,
+          i
+        );
 
         if(step.l){
           generatedNotes.push({
@@ -3060,10 +3077,12 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
       const rightExit=explicitHandStep(pattern.steps,"r",true);
 
       if(leftExit){
-        const lastTime=+(
-          compoundWindow.start+
-          compoundWindow.spacing*leftExit.index
-        ).toFixed(4);
+        const {time:lastTime}=compoundStepPlacement(
+          compoundWindow,
+          pattern,
+          leftExit.index,
+          i
+        );
         previous.left={
           column:leftExit.note[0],
           row:leftExit.note[1],
@@ -3074,10 +3093,12 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
       }
 
       if(rightExit){
-        const lastTime=+(
-          compoundWindow.start+
-          compoundWindow.spacing*rightExit.index
-        ).toFixed(4);
+        const {time:lastTime}=compoundStepPlacement(
+          compoundWindow,
+          pattern,
+          rightExit.index,
+          i
+        );
         previous.right={
           column:rightExit.note[0],
           row:rightExit.note[1],
