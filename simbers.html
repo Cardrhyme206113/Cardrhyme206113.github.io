@@ -619,6 +619,7 @@ body.viewer-open{align-items:flex-start}
 
 <script type="module">
 import { encodeOggVorbis } from "./simbers-ogg-encoder.js";
+import { SEQUENCE_FLOW_PATTERNS } from "./simbers-flow-library.js";
 
 "use strict";
 
@@ -1031,7 +1032,11 @@ function nextTick(){ return new Promise(r=>setTimeout(r,0)); }
 
 
 const FLOW_PATTERNS=[{"id":"double_01","name":"Low Outer Vertical","difficulty":"easy","l":[0,0,"V"],"r":[3,0,"V"]},{"id":"double_02","name":"Mid Outer Vertical","difficulty":"easy","l":[0,1,"V"],"r":[3,1,"V"]},{"id":"double_03","name":"High Outer Vertical","difficulty":"easy","l":[0,2,"V"],"r":[3,2,"V"]},{"id":"double_04","name":"Low Inner Vertical","difficulty":"easy","l":[1,0,"V"],"r":[2,0,"V"]},{"id":"double_05","name":"Mid Inner Horizontal","difficulty":"easy","l":[1,1,"H"],"r":[2,1,"H"]},{"id":"double_06","name":"High Inner Horizontal","difficulty":"easy","l":[1,2,"H"],"r":[2,2,"H"]},{"id":"double_07","name":"Low Outer Inward Diagonal","difficulty":"easy","l":[0,0,"D1"],"r":[3,0,"D2"]},{"id":"double_08","name":"High Outer Diagonal","difficulty":"easy","l":[0,2,"D2"],"r":[3,2,"D1"]},{"id":"double_09","name":"Left Low Right High","difficulty":"easy","l":[0,0,"V"],"r":[3,2,"V"]},{"id":"double_10","name":"Left High Right Low","difficulty":"easy","l":[0,2,"V"],"r":[3,0,"V"]},{"id":"double_11","name":"Wide Mid Horizontal","difficulty":"easy","l":[0,1,"H"],"r":[3,1,"H"]},{"id":"double_12","name":"Mirror Mid Diagonals","difficulty":"easy","l":[0,1,"D2"],"r":[3,1,"D1"]},{"id":"double_13","name":"Rising Outer Diagonal","difficulty":"medium","l":[0,0,"D2"],"r":[3,2,"D2"]},{"id":"double_14","name":"Falling Outer Diagonal","difficulty":"medium","l":[0,2,"D1"],"r":[3,0,"D1"]},{"id":"double_15","name":"Low Inner High Outer","difficulty":"medium","l":[1,0,"D2"],"r":[3,2,"D1"]},{"id":"double_16","name":"High Outer Low Inner","difficulty":"medium","l":[0,2,"D2"],"r":[2,0,"D1"]},{"id":"double_17","name":"Mid Left High Inner","difficulty":"medium","l":[0,1,"H"],"r":[2,2,"V"]},{"id":"double_18","name":"Low Inner Mid Right","difficulty":"medium","l":[1,0,"V"],"r":[3,1,"H"]},{"id":"double_19","name":"Crossed Mid Horizontal","difficulty":"medium","l":[2,1,"H"],"r":[1,1,"H"]},{"id":"double_20","name":"Crossed High Diagonal","difficulty":"medium","l":[2,2,"D1"],"r":[1,2,"D2"]},{"id":"double_21","name":"Crossed Low Diagonal","difficulty":"medium","l":[2,0,"D2"],"r":[1,0,"D1"]},{"id":"double_22","name":"Inner Vertical Split","difficulty":"medium","l":[1,2,"V"],"r":[2,0,"V"]},{"id":"double_23","name":"Inner Reverse Split","difficulty":"medium","l":[1,0,"V"],"r":[2,2,"V"]},{"id":"double_24","name":"Offset Mirror","difficulty":"medium","l":[0,2,"D2"],"r":[2,1,"D1"]},{"id":"double_25","name":"Left Stack Horizontal","difficulty":"hard","l":[1,0,"H"],"r":[1,2,"H"]},{"id":"double_26","name":"Right Stack Horizontal","difficulty":"hard","l":[2,2,"H"],"r":[2,0,"H"]},{"id":"double_27","name":"Tight Cross Diagonals","difficulty":"hard","l":[2,1,"D1"],"r":[1,1,"D2"]},{"id":"double_28","name":"Tight Vertical Cross","difficulty":"hard","l":[1,2,"D1"],"r":[2,0,"D2"]},{"id":"double_29","name":"Reverse Vertical Cross","difficulty":"hard","l":[1,0,"D2"],"r":[2,2,"D1"]},{"id":"double_30","name":"Full Color Crossover","difficulty":"hard","l":[3,2,"D1"],"r":[0,0,"D2"]}];
-const COMPOUND_FLOW_PATTERNS=[{"id":"compound_05","name":"Flow 5","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,2,"down"],"r":[3,2,"down"]},{"l":[0,1,"down"],"r":[3,1,"down"]},{"l":[0,0,"down"],"r":[3,0,"down"]}]},{"id":"compound_06","name":"Flow 6","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,0,"up"],"r":[3,0,"up"]},{"l":[0,1,"up"],"r":[3,1,"up"]},{"l":[0,2,"up"],"r":[3,2,"up"]}]},{"id":"compound_13","name":"Flow 13","difficulty":"hard","beatSpan":2,"steps":[{"l":[1,0,"upLeft"],"r":[2,0,"upRight"]},{"l":[0,1,"upLeft"],"r":[3,1,"upRight"]},{"l":[0,2,"upRight"],"r":[3,2,"upLeft"]},{"l":[1,2,"downRight"],"r":[2,2,"downLeft"]},{"l":[1,1,"downLeft"],"r":[2,1,"downRight"]}]},{"id":"compound_14","name":"Flow 14","difficulty":"medium","beatSpan":1,"steps":[{"l":[1,0,"up"],"r":[2,0,"up"]},{"l":[1,1,"up"],"r":[2,1,"up"]},{"l":[1,2,"up"],"r":[2,2,"up"]}]},{"id":"compound_15","name":"Flow 15","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,0,"upRight"],"r":[3,0,"upLeft"]},{"l":[1,1,"upRight"],"r":[2,1,"upLeft"]}]},{"id":"compound_16","name":"Flow 16","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,2,"downRight"],"r":[3,2,"downLeft"]},{"l":[1,1,"down"],"r":[2,1,"down"]},{"l":[1,0,"down"],"r":[2,0,"down"]}]},{"id":"compound_17","name":"Flow 17","difficulty":"medium","beatSpan":1,"steps":[{"l":[1,2,"downLeft"],"r":[2,2,"downRight"]},{"l":[0,1,"down"],"r":[3,1,"down"]},{"l":[0,0,"down"],"r":[3,0,"down"]}]},{"id":"compound_18","name":"Flow 18","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,0,"upRight"],"r":[3,0,"upLeft"]},{"l":[1,1,"up"],"r":[2,1,"up"]},{"l":[1,2,"up"],"r":[2,2,"up"]}]},{"id":"compound_19","name":"Flow 19","difficulty":"medium","beatSpan":1,"steps":[{"l":[1,0,"upLeft"],"r":[2,0,"upRight"]},{"l":[0,1,"up"],"r":[3,1,"up"]},{"l":[0,2,"up"],"r":[3,2,"up"]}]}];
+
+const COMPOUND_FLOW_PATTERNS=SEQUENCE_FLOW_PATTERNS.map(flow=>({
+  ...flow,
+  beatSpan:flow.spanBeats
+}));
 
 const AXIS_DIRECTIONS={
   V:["up","down"],
@@ -1142,18 +1147,25 @@ function chooseDirections(
   boundaryTargets=null
 ){
   const safePattern=ergonomicPattern(pattern);
-  const leftOptions=candidateDirections(
+  let leftOptions=candidateDirections(
     "left",
     safePattern.l,
     safePattern.r,
     safePattern.l[2]
   );
-  const rightOptions=candidateDirections(
+  let rightOptions=candidateDirections(
     "right",
     safePattern.r,
     safePattern.l,
     safePattern.r[2]
   );
+
+  if(boundaryTargets?.left){
+    leftOptions=[boundaryTargets.left];
+  }
+  if(boundaryTargets?.right){
+    rightOptions=[boundaryTargets.right];
+  }
 
   let best=null;
   for(const leftDirection of leftOptions){
@@ -1248,20 +1260,34 @@ function compoundFlowWindow(segments,index,pattern,duration){
   return {start,end,total,spacing,span};
 }
 
+function explicitHandStep(steps,key,fromEnd=false){
+  if(fromEnd){
+    for(let i=steps.length-1;i>=0;i--){
+      if(steps[i][key])return {note:steps[i][key],index:i};
+    }
+    return null;
+  }
+
+  for(let i=0;i<steps.length;i++){
+    if(steps[i][key])return {note:steps[i][key],index:i};
+  }
+  return null;
+}
+
 function retunePreviousForCompound(
   generatedNotes,
   previous,
-  firstStep,
+  steps,
   startTime
 ){
   const hands=[
-    {key:"left",type:0,step:firstStep.l},
-    {key:"right",type:1,step:firstStep.r}
+    {key:"left",type:0,step:explicitHandStep(steps,"l")},
+    {key:"right",type:1,step:explicitHandStep(steps,"r")}
   ];
 
   for(const hand of hands){
     if(!hand.step)continue;
-    const target=oppositeDirection(hand.step[2]);
+    const target=oppositeDirection(hand.step.note[2]);
 
     for(let i=generatedNotes.length-1;i>=0;i--){
       const note=generatedNotes[i];
@@ -2978,11 +3004,10 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
     }
 
     if(pattern.steps){
-      const firstStep=pattern.steps[0];
       retunePreviousForCompound(
         generatedNotes,
         previous,
-        firstStep,
+        pattern.steps,
         compoundWindow.start
       );
 
@@ -3033,30 +3058,35 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
         }
       }
 
-      const lastStep=pattern.steps[pattern.steps.length-1];
-      const lastTime=+(
-        compoundWindow.start+
-        compoundWindow.spacing*(pattern.steps.length-1)
-      ).toFixed(4);
+      const leftExit=explicitHandStep(pattern.steps,"l",true);
+      const rightExit=explicitHandStep(pattern.steps,"r",true);
 
-      if(lastStep.l){
+      if(leftExit){
+        const lastTime=+(
+          compoundWindow.start+
+          compoundWindow.spacing*leftExit.index
+        ).toFixed(4);
         previous.left={
-          column:lastStep.l[0],
-          row:lastStep.l[1],
-          direction:lastStep.l[2],
+          column:leftExit.note[0],
+          row:leftExit.note[1],
+          direction:leftExit.note[2],
           time:lastTime
         };
-        boundaryTargets.left=oppositeDirection(lastStep.l[2]);
+        boundaryTargets.left=oppositeDirection(leftExit.note[2]);
       }
 
-      if(lastStep.r){
+      if(rightExit){
+        const lastTime=+(
+          compoundWindow.start+
+          compoundWindow.spacing*rightExit.index
+        ).toFixed(4);
         previous.right={
-          column:lastStep.r[0],
-          row:lastStep.r[1],
-          direction:lastStep.r[2],
+          column:rightExit.note[0],
+          row:rightExit.note[1],
+          direction:rightExit.note[2],
           time:lastTime
         };
-        boundaryTargets.right=oppositeDirection(lastStep.r[2]);
+        boundaryTargets.right=oppositeDirection(rightExit.note[2]);
       }
 
       flowCounts.set(
@@ -3225,7 +3255,10 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
         _lightingEventCount:lightingEvents.length,
         _flowWeights:config.weights,
         _flowPatternCount:
-          FLOW_PATTERNS.length+COMPOUND_FLOW_PATTERNS.length
+          FLOW_PATTERNS.length+COMPOUND_FLOW_PATTERNS.length,
+        _compoundFlowPatternCount:COMPOUND_FLOW_PATTERNS.length,
+        _compoundFlowBoundaryRule:
+          "exact reverse cuts immediately before and after explicit flows"
       }
     },
     noteCount:colorNotes.length,
