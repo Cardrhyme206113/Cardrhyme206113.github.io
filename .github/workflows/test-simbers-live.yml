@@ -1,0 +1,88 @@
+name: Test Live Simbers
+
+on:
+  push:
+    branches: [simbers-dev]
+    paths:
+      - .github/workflows/test-simbers-live.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  live-browser-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Chromium
+        run: |
+          npm init -y
+          npm install --save-dev playwright@1.52.0
+          npx playwright install --with-deps chromium
+
+      - name: Test deployed page
+        id: browser
+        continue-on-error: true
+        run: |
+          cat > test-live-simbers.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+          const errors = [];
+          page.on('pageerror', error => errors.push(`pageerror: ${error.stack || error.message}`));
+          page.on('console', message => {
+            if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+          });
+          page.on('requestfailed', request => errors.push(`requestfailed: ${request.url()} :: ${request.failure()?.errorText}`));
+          const url = 'https://cardrhyme206113.github.io/simbers.html?build=20260703-4';
+          const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
+          if (!response?.ok()) errors.push(`HTTP status: ${response?.status()}`);
+          await page.waitForTimeout(12000);
+          const body = await page.locator('body').innerText();
+          console.log('URL:', page.url());
+          console.log('TITLE:', await page.title());
+          console.log('BODY_START:', body.slice(0, 1600));
+          if (body.includes('failed to load')) errors.push(`Visible loader failure: ${body.slice(0, 1600)}`);
+          if (!body.includes('SIMPLIFIED SABERS')) errors.push('Main UI did not render.');
+          if (!body.includes('UPLOAD SONG')) errors.push('Upload control did not render.');
+          if (!body.includes('v0.9.5')) errors.push('Version marker did not render.');
+          await page.screenshot({ path: '/tmp/simbers-live-test.png', fullPage: true });
+          await browser.close();
+          if (errors.length) {
+            console.error(errors.join('\n\n'));
+            process.exit(1);
+          }
+          EOF
+          node test-live-simbers.mjs > /tmp/live-browser.log 2>&1
+          cat /tmp/live-browser.log
+
+      - name: Record live result
+        if: always()
+        env:
+          BROWSER_OUTCOME: ${{ steps.browser.outcome }}
+        run: |
+          {
+            echo "SIMBERS_LIVE_TEST_STATUS=$([ "$BROWSER_OUTCOME" = success ] && echo PASS || echo FAIL)"
+            echo "TESTED_URL=https://cardrhyme206113.github.io/simbers.html?build=20260703-4"
+            echo "UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "browser=$BROWSER_OUTCOME"
+            echo
+            cat /tmp/live-browser.log 2>/dev/null || true
+          } > simbers-live-test-result.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add simbers-live-test-result.txt
+          git commit -m "Record live Simbers test result" || true
+          git push
+          test "$BROWSER_OUTCOME" = success
+
+      - name: Upload screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simbers-live-browser-test
+          path: /tmp/simbers-live-test.png
+          if-no-files-found: ignore
