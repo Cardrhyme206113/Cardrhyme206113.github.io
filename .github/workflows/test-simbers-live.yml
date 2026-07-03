@@ -1,4 +1,4 @@
-# test build 5
+# inspect live html build
 name: Test Live Simbers
 
 on:
@@ -45,6 +45,8 @@ jobs:
           const body = await page.locator('body').innerText();
           console.log('URL:', page.url());
           console.log('TITLE:', await page.title());
+          console.log('DEPLOYMENT_META:', await page.locator('meta[name="simbers-deployment"]').getAttribute('content'));
+          console.log('MODULE_SRC:', await page.locator('script[type="module"]').getAttribute('src'));
           console.log('BODY_START:', body.slice(0, 1600));
           if (body.includes('failed to load')) errors.push(`Visible loader failure: ${body.slice(0, 1600)}`);
           if (!body.includes('SIMPLIFIED SABERS')) errors.push('Main UI did not render.');
