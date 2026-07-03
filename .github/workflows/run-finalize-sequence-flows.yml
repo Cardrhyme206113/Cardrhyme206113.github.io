@@ -1,0 +1,93 @@
+name: Finalize sequence flow library
+
+on:
+  push:
+    paths:
+      - .github/trigger-finalize-sequence-flows.txt
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Integrate complete flow library
+        run: python .github/scripts/finalize_sequence_flows.py
+
+      - name: Validate JavaScript and timing rules
+        shell: bash
+        run: |
+          cp simbers-flow-library.js /tmp/simbers-flow-library.mjs
+          node --check /tmp/simbers-flow-library.mjs
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          html=Path('simbers.html').read_text(encoding='utf-8')
+          library=Path('simbers-flow-library.js').read_text(encoding='utf-8')
+
+          modules=[
+              match.group(1)
+              for match in re.finditer(
+                  r'<script\s+type="module"[^>]*>(.*?)</script>',
+                  html,
+                  re.S,
+              )
+          ]
+          if len(modules)!=1:
+              raise SystemExit(f'Expected one main module, found {len(modules)}')
+          Path('/tmp/simbers-main.mjs').write_text(modules[0],encoding='utf-8')
+
+          ids=re.findall(r'"id":"library_(\d{2})"',library)
+          if ids!=[f'{i:02d}' for i in range(1,20)]:
+              raise SystemExit(f'Unexpected flow IDs: {ids}')
+
+          special={5:1,6:1,13:2,14:1,15:1,16:1,17:1,18:1,19:1}
+          for number,span in special.items():
+              pattern=rf'"id":"library_{number:02d}".*?"spanBeats":{span}'
+              if not re.search(pattern,library,re.S):
+                  raise SystemExit(f'Flow {number} does not span {span} beat(s)')
+
+          required=(
+              'leftOptions=[boundaryTargets.left]',
+              'rightOptions=[boundaryTargets.right]',
+              'retunePreviousForCompound',
+              'explicitHandStep(pattern.steps,"l",true)',
+              'explicitHandStep(pattern.steps,"r",true)',
+              '_compoundFlowPatternCount:COMPOUND_FLOW_PATTERNS.length',
+          )
+          for token in required:
+              if token not in html:
+                  raise SystemExit(f'Missing boundary rule: {token}')
+          PY
+
+          node --check /tmp/simbers-main.mjs
+
+      - name: Remove temporary migration files
+        shell: bash
+        run: |
+          rm -f \
+            .github/trigger-finalize-sequence-flows.txt \
+            .github/scripts/finalize_sequence_flows.py \
+            .github/workflows/run-finalize-sequence-flows.yml \
+            .github/trigger-add-sequence-flows.txt \
+            .github/scripts/add_sequence_flows.py \
+            .github/workflows/run-add-sequence-flows.yml \
+            flow-system-audit.txt \
+            .github/workflows/audit-flow-system.yml \
+            tools/apply-compound-flow-update.py
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Integrate complete explicit flow library"
+          git push
