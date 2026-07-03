@@ -2,7 +2,7 @@ name: Build Flow Showcase v1.0.0
 
 on:
   push:
-    branches: [flow-showcase-v100]
+    branches: [main]
     paths:
       - tools/build_flow_showcase.py
       - .github/workflows/build-flow-showcase-v100.yml
@@ -37,7 +37,7 @@ jobs:
               assert info['_beatsPerMinute']==50.0
               assert len(beatmap['_notes'])==822
           PY
-      - name: Commit finished release branch
+      - name: Commit finished release
         run: |
           rm -f tools/build_flow_showcase.py
           rm -f .github/workflows/build-flow-showcase-v100.yml
