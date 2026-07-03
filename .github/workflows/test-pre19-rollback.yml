@@ -1,0 +1,67 @@
+name: Test Pre-19 Rollback
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate rollback and scripts
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          app=Path('simbers.html').read_text()
+          library=Path('simbers-flow-library.html').read_text()
+          assert 'SEQUENCE_FLOW_PATTERNS' not in app
+          assert 'simbers-v095' not in app
+          assert 'href="./simbers-flow-library.html"' in app
+          match=re.search(r'const FLOW_PATTERNS=(\[[^;]+\]);',app)
+          assert match and len(json.loads(match.group(1)))==30
+          match=re.search(r'const FLOWS=(\[[^;]+\]);',library)
+          assert match and len(json.loads(match.group(1)))==30
+          Path('/tmp/app.js').write_text('\n'.join(re.findall(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>',app)))
+          Path('/tmp/library.js').write_text('\n'.join(re.findall(r'<script(?:\s[^>]*)?>([\s\S]*?)</script>',library)))
+          PY
+          node --check /tmp/app.js
+          node --check /tmp/library.js
+
+      - name: Install Chromium
+        run: |
+          npm init -y >/dev/null 2>&1
+          npm install --save-dev playwright@1.52.0 >/dev/null
+          npx playwright install --with-deps chromium >/dev/null
+
+      - name: Browser smoke test
+        run: |
+          python3 -m http.server 4173 >/tmp/server.log 2>&1 &
+          sleep 2
+          cat > test.mjs <<'EOF'
+          import { chromium } from 'playwright';
+          const browser=await chromium.launch({headless:true});
+          const page=await browser.newPage({viewport:{width:1280,height:800}});
+          const errors=[];
+          page.on('pageerror',e=>errors.push(String(e)));
+          page.on('console',m=>{if(m.type()==='error')errors.push(m.text())});
+          await page.goto('http://127.0.0.1:4173/simbers.html',{waitUntil:'domcontentloaded',timeout:120000});
+          await page.waitForTimeout(3000);
+          const body=await page.locator('body').innerText();
+          if(!body.includes('SIMPLIFIED SABERS'))errors.push('main app missing');
+          if(!body.includes('UPLOAD SONG'))errors.push('upload button missing');
+          await page.locator('a.brandMark').click();
+          await page.waitForLoadState('domcontentloaded');
+          if(await page.locator('.card').count()!==30)errors.push('library does not show 30 flow cards');
+          if(await page.locator('.grid').count()!==30)errors.push('flow grids missing');
+          if(errors.length){console.error(errors.join('\n'));process.exit(1)}
+          await browser.close();
+          EOF
+          node test.mjs
