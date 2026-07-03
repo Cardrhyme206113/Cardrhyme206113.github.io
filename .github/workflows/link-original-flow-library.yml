@@ -1,0 +1,35 @@
+name: Link Original Flow Library
+on:
+  push:
+    branches: [pre19-library]
+    paths: [.github/workflows/link-original-flow-library.yml]
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch logo link
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('simbers.html')
+          s=p.read_text()
+          start=s.index('<div class="brandMark"')
+          open_end=s.index('>',start)
+          close=s.index('</div>',open_end)
+          inner=s[open_end+1:close]
+          link='<a class="brandMark" href="./simbers-flow-library.html" aria-label="Open the original 30-flow library" title="Open flow library">'+inner+'</a>'
+          s=s[:start]+link+s[close+6:]
+          s=s.replace('</style>','.brandMark{cursor:pointer;text-decoration:none}\n</style>',1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          rm .github/workflows/link-original-flow-library.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Link original flow library from Simbers logo"
+          git push
