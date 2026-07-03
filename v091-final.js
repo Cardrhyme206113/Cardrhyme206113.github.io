@@ -1,0 +1,1 @@
+window.__v091.then(s=>{document.body.textContent='';const f=document.createElement('iframe');f.setAttribute('title','Simbers v0.9.1');f.style.cssText='position:fixed;inset:0;width:100%;height:100%;border:0';f.srcdoc=s;document.body.appendChild(f);}).catch(e=>{document.body.textContent='Simbers v0.9.1 failed: '+e.message;});
