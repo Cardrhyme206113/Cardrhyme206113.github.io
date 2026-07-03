@@ -1,4 +1,4 @@
-# rerun after Pages propagation
+# test build 5
 name: Test Live Simbers
 
 on:
@@ -38,7 +38,7 @@ jobs:
             if (message.type() === 'error') errors.push(`console: ${message.text()}`);
           });
           page.on('requestfailed', request => errors.push(`requestfailed: ${request.url()} :: ${request.failure()?.errorText}`));
-          const url = 'https://cardrhyme206113.github.io/simbers.html?build=20260703-4';
+          const url = 'https://cardrhyme206113.github.io/simbers.html?build=20260703-5';
           const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 120000 });
           if (!response?.ok()) errors.push(`HTTP status: ${response?.status()}`);
           await page.waitForTimeout(12000);
@@ -67,7 +67,7 @@ jobs:
         run: |
           {
             echo "SIMBERS_LIVE_TEST_STATUS=$([ "$BROWSER_OUTCOME" = success ] && echo PASS || echo FAIL)"
-            echo "TESTED_URL=https://cardrhyme206113.github.io/simbers.html?build=20260703-4"
+            echo "TESTED_URL=https://cardrhyme206113.github.io/simbers.html?build=20260703-5"
             echo "UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "browser=$BROWSER_OUTCOME"
             echo
