@@ -95,8 +95,8 @@ function compoundEntryMatchesPrevious(previous,steps){\`);
 
     if(pattern?.steps){\`);
 
-  replaceRequired("v0.9.5 axis metadata",'        _newAndDiagonalFlowRarity:
-          config.id==="expertPlus"?"0.5x previous":"0.2x previous"',\`        _newAndDiagonalFlowRarity:
+  replaceRequired("v0.9.5 axis metadata",\`        _newAndDiagonalFlowRarity:
+          config.id==="expertPlus"?"0.5x previous":"0.2x previous"\`,\`        _newAndDiagonalFlowRarity:
           config.id==="expertPlus"?"0.5x previous":"0.2x previous",
         _exclusiveFlowDirectionMode:
           "flows 1-19 use V/H axes wherever playable; essential diagonals remain fixed",
