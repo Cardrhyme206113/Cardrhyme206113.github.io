@@ -45,7 +45,7 @@ jobs:
         run: |
           python3 -m http.server 4173 > /tmp/simbers-server.log 2>&1 &
           sleep 2
-          cat > /tmp/test-simbers.mjs <<'EOF'
+          cat > test-simbers.mjs <<'EOF'
           import { chromium } from 'playwright';
           const browser = await chromium.launch({ headless: true });
           const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -75,7 +75,7 @@ jobs:
             process.exit(1);
           }
           EOF
-          node /tmp/test-simbers.mjs > /tmp/browser.log 2>&1
+          node test-simbers.mjs > /tmp/browser.log 2>&1
           cat /tmp/browser.log
 
       - name: Record result
