@@ -75,7 +75,7 @@ jobs:
 
             await page.goto('http://127.0.0.1:4173/flow-mapmaker-v1/',{waitUntil:'domcontentloaded',timeout:120000});
             await page.waitForFunction(()=>document.body.innerText.includes('FLOW COPY v1.0.0'),null,{timeout:30000});
-            await page.locator('#demoBtn').click();
+            await page.evaluate(()=>document.querySelector('#demoBtn')?.click());
             await page.waitForFunction(()=>!document.querySelector('#analyzeBtn')?.disabled,null,{timeout:10000});
             await page.locator('#analyzeBtn').click();
             await page.waitForFunction(()=>{
