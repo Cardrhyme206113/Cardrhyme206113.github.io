@@ -1,0 +1,199 @@
+name: Solidify V3 UI
+
+on:
+  push:
+    paths:
+      - '.github/workflows/solidify-v3-ui.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pages
+          fetch-depth: 0
+
+      - name: Move V3 UI into HTML
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('V3')
+          html_path = root / 'index.html'
+          encoder_path = root / 'simbers-ogg-encoder.js'
+          muxer_path = root / 'ogg-opus-muxer.js'
+
+          html = html_path.read_text(encoding='utf-8')
+
+          # Remove the reverted subtitle from actual markup.
+          html = html.replace('      <p class="subtitle">Upload a song and create a complete five-difficulty Beat Saber map.</p>\n\n', '')
+
+          # Add the bitrate control as real HTML immediately below the action buttons.
+          actions_block = '''      <div class="actions">
+        <input id="file" class="fileInput" type="file" accept="audio/*">
+        <label class="uploadButton" for="file">Upload Song</label>
+        <button id="analyzeBtn" disabled>Create Map</button>
+        <button id="viewerDownload" type="button">Export ZIP</button>
+        <button id="viewerBack" type="button" title="Clear map" aria-label="Clear map">×</button>
+      </div>
+'''
+          bitrate_html = '''      <div id="simbersBitrateControl" class="simbersBitrateControl">
+        <span class="simbersBitrateLabel">Audio bitrate</span>
+        <input id="audioBitrate" class="simbersBitrateRange" type="range" min="16" max="128" step="16" value="32" aria-label="Audio bitrate">
+        <output id="audioBitrateValue" class="simbersBitrateValue" for="audioBitrate">32 kbps</output>
+      </div>
+'''
+          if 'id="simbersBitrateControl"' not in html:
+              if actions_block not in html:
+                  raise SystemExit('actions block not found')
+              html = html.replace(actions_block, actions_block + '\n' + bitrate_html, 1)
+
+          # Add version information as real markup.
+          version_html = '  <div id="simbersVersionInfo" class="simbersVersionInfo" title="Simplified Sabers v0.9.5 — V3 native encoder build">v0.9.5 · V3</div>\n'
+          if 'id="simbersVersionInfo"' not in html:
+              html = html.replace('<body>\n', '<body>\n' + version_html, 1)
+
+          # Static CSS: no runtime style injection. Compact responsively by viewport height.
+          solid_css = r'''
+
+/* V3 solid UI additions */
+.card{overflow:hidden}
+.simbersVersionInfo{
+  position:fixed;top:10px;right:12px;z-index:99999;
+  padding:5px 8px;border:1px solid rgba(255,255,255,.16);border-radius:4px;
+  background:rgba(14,14,14,.82);color:#9a9a9a;
+  font:700 10px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:.06em;text-transform:uppercase;pointer-events:none;
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
+}
+.simbersBitrateControl{
+  width:100%;display:grid;grid-template-columns:auto minmax(0,1fr) 66px;
+  align-items:center;gap:12px;margin:0 0 18px;padding:10px 12px;
+  border:2px solid var(--border);border-radius:4px;background:#151515
+}
+.simbersBitrateLabel,.simbersBitrateValue{
+  font:700 11px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--muted);white-space:nowrap
+}
+.simbersBitrateValue{
+  height:28px;display:grid;place-items:center;border:1px solid #444;
+  border-radius:3px;background:#0e0e0e;color:#fff
+}
+.simbersBitrateRange{width:100%;height:28px;margin:0;appearance:none;background:transparent;cursor:pointer}
+.simbersBitrateRange::-webkit-slider-runnable-track{height:6px;border:1px solid #444;border-radius:2px;background:#0e0e0e}
+.simbersBitrateRange::-webkit-slider-thumb{appearance:none;width:18px;height:22px;margin-top:-9px;border:2px solid #fff;border-radius:2px;background:var(--primary);box-shadow:0 0 0 1px #000}
+.simbersBitrateRange::-moz-range-track{height:6px;border:1px solid #444;border-radius:2px;background:#0e0e0e}
+.simbersBitrateRange::-moz-range-thumb{width:16px;height:20px;border:2px solid #fff;border-radius:2px;background:var(--primary);box-shadow:0 0 0 1px #000}
+
+@media(max-width:620px){
+  .card{padding:12px 14px 10px}
+  .titleRow{margin-bottom:4px;gap:10px}
+  h1{font-size:clamp(20px,6.4vw,26px)}
+  .actions{margin-bottom:8px;gap:6px}
+  .uploadButton,button{height:36px;min-height:36px;font-size:11px}
+  .simbersBitrateControl{grid-template-columns:auto minmax(0,1fr) 60px;gap:8px;margin-bottom:8px;padding:6px 8px}
+  .simbersBitrateLabel,.simbersBitrateValue{font-size:9px}
+  .simbersBitrateValue{height:24px}
+  .simbersBitrateRange{height:24px}
+  .featureToggles{margin-bottom:8px;gap:6px}
+  .featureToggle{height:36px}
+  .featureIcon svg{width:20px;height:20px}
+  .statusBar{height:30px}
+}
+@media(max-height:760px){
+  .card{padding-top:8px;padding-bottom:8px}
+  .titleRow{margin-bottom:2px}
+  h1{font-size:20px}
+  .brandMark span{height:25px;width:10px}
+  .actions{margin-bottom:5px}
+  .uploadButton,button{height:32px;min-height:32px;font-size:10px}
+  .simbersBitrateControl{margin-bottom:5px;padding:4px 7px}
+  .featureToggles{margin-bottom:5px}
+  .featureToggle{height:31px}
+  .statusBar{height:27px}
+}
+@media(max-height:620px){
+  .titleRow{display:none}
+  .simbersVersionInfo{top:6px;right:8px;padding:4px 6px;font-size:9px}
+  .card{padding:6px 10px}
+  .actions{margin-bottom:4px}
+  .simbersBitrateControl{margin-bottom:4px}
+  .featureToggles{margin-bottom:4px}
+}
+'''
+          if '/* V3 solid UI additions */' not in html:
+              html = html.replace('</style>', solid_css + '\n</style>', 1)
+
+          # Cache-bust the module and expose the static controls to the existing app script.
+          html = html.replace('import { encodeOggVorbis } from "./simbers-ogg-encoder.js";',
+                              'import { encodeOggVorbis } from "./simbers-ogg-encoder.js?v=solid-ui-1";', 1)
+
+          old_els_tail = '  bpmBadge:$("bpmBadge"), beatConfidenceBadge:$("beatConfidenceBadge"), windowBadge:$("windowBadge")\n};'
+          new_els_tail = '  bpmBadge:$("bpmBadge"), beatConfidenceBadge:$("beatConfidenceBadge"), windowBadge:$("windowBadge"),\n  audioBitrate:$("audioBitrate"), audioBitrateValue:$("audioBitrateValue")\n};'
+          if old_els_tail in html:
+              html = html.replace(old_els_tail, new_els_tail, 1)
+
+          bitrate_logic_anchor = 'let sourceBlob = null;'
+          bitrate_logic = '''const AUDIO_BITRATE_KEY="simbers-audio-bitrate-kbps";
+const savedAudioBitrate=Math.max(16,Math.min(128,Number(localStorage.getItem(AUDIO_BITRATE_KEY))||32));
+els.audioBitrate.value=String(Math.round(savedAudioBitrate/16)*16);
+els.audioBitrateValue.textContent=`${els.audioBitrate.value} kbps`;
+els.audioBitrate.addEventListener("input",()=>{
+  const value=Number(els.audioBitrate.value);
+  localStorage.setItem(AUDIO_BITRATE_KEY,String(value));
+  els.audioBitrateValue.textContent=`${value} kbps`;
+});
+
+'''
+          if 'const AUDIO_BITRATE_KEY=' not in html:
+              html = html.replace(bitrate_logic_anchor, bitrate_logic + bitrate_logic_anchor, 1)
+
+          html_path.write_text(html, encoding='utf-8')
+
+          # Encoder becomes encoding-only: no DOM creation and no CSS injection.
+          encoder = encoder_path.read_text(encoding='utf-8')
+          start = encoder.index('const BITRATE_KEY =')
+          end_marker = 'installAdaptiveCompactUi();\n'
+          end = encoder.index(end_marker) + len(end_marker)
+          replacement = '''const BITRATE_KEY = "simbers-audio-bitrate-kbps";
+
+function getSelectedBitrateKbps() {
+  const value = Number(localStorage.getItem(BITRATE_KEY)) || 32;
+  return Math.max(16, Math.min(128, Math.round(value / 16) * 16));
+}
+
+function status(message) {
+  const element = document.getElementById("mapStatus") || document.querySelector(".mapStatus");
+  if (element) element.textContent = message;
+}
+
+'''
+          encoder = encoder[:start] + replacement + encoder[end:]
+          encoder = encoder.replace('async function encodeWasmFallback(audioChannels, sampleRate, options) {\n  status("Native encoder failed — loading local WASM backup…");',
+                                    'async function encodeWasmFallback(audioChannels, sampleRate, options) {\n  const selectedBitrateKbps = getSelectedBitrateKbps();\n  status("Native encoder failed — loading local WASM backup…");')
+          encoder = encoder.replace('  const bitrateKbps = Math.max(16, Math.min(128, Math.round(selectedBitrateKbps / 16) * 16));',
+                                    '  const bitrateKbps = getSelectedBitrateKbps();')
+          encoder_path.write_text(encoder, encoding='utf-8')
+
+          # Muxer becomes muxing-only: remove the injected version badge.
+          muxer = muxer_path.read_text(encoding='utf-8')
+          muxer = re.sub(r'function installVersionMarker\(\) \{.*?\n\}\ninstallVersionMarker\(\);\n\n', '', muxer, count=1, flags=re.S)
+          muxer_path.write_text(muxer, encoding='utf-8')
+
+          # Self-delete this one-shot workflow.
+          Path('.github/workflows/solidify-v3-ui.yml').unlink()
+          PY
+
+      - name: Commit solid V3 UI
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add V3/index.html V3/simbers-ogg-encoder.js V3/ogg-opus-muxer.js .github/workflows/solidify-v3-ui.yml
+          git commit -m "Move V3 UI into solid HTML [skip ci]"
+          git push origin pages
