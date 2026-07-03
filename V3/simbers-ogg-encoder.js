@@ -9,6 +9,56 @@ function status(message) {
   if (element) element.textContent = message;
 }
 
+function installAdaptiveCompactUi() {
+  const run = () => {
+    const card = document.querySelector(".card");
+    const cluster = document.querySelector(".uiCluster");
+    if (!card || !cluster || document.getElementById("simbersAdaptiveUiStyle")) return;
+
+    const style = document.createElement("style");
+    style.id = "simbersAdaptiveUiStyle";
+    style.textContent = `
+      .card{overflow:hidden!important}
+      .uiCluster{transform-origin:top center;transition:transform .12s ease}
+      .uiCluster.compact-1 .titleRow{margin-bottom:5px}.uiCluster.compact-1 h1{font-size:24px}.uiCluster.compact-1 .actions{margin-bottom:10px}.uiCluster.compact-1 .featureToggles{margin-bottom:10px}.uiCluster.compact-1 .simbersBitrateControl{margin-bottom:10px;padding:7px 10px}.uiCluster.compact-1 .uploadButton,.uiCluster.compact-1 button{height:38px;min-height:38px}.uiCluster.compact-1 .featureToggle{height:40px}.uiCluster.compact-1 .statusBar{height:32px}
+      .uiCluster.compact-2 .titleRow{margin-bottom:3px;gap:10px}.uiCluster.compact-2 h1{font-size:21px}.uiCluster.compact-2 .brandMark span{height:26px;width:10px}.uiCluster.compact-2 .actions{margin-bottom:7px;gap:6px}.uiCluster.compact-2 .featureToggles{margin-bottom:7px;gap:6px}.uiCluster.compact-2 .simbersBitrateControl{margin-bottom:7px;padding:5px 8px;gap:8px}.uiCluster.compact-2 .uploadButton,.uiCluster.compact-2 button{height:34px;min-height:34px;font-size:11px}.uiCluster.compact-2 .featureToggle{height:35px}.uiCluster.compact-2 .featureIcon svg{width:19px;height:19px}.uiCluster.compact-2 .statusBar{height:29px}.uiCluster.compact-2 .simbersBitrateValue{height:24px}.uiCluster.compact-2 .simbersBitrateRange{height:24px}
+      .uiCluster.compact-3 .titleRow{margin-bottom:2px}.uiCluster.compact-3 h1{font-size:19px}.uiCluster.compact-3 .actions{margin-bottom:5px}.uiCluster.compact-3 .featureToggles{margin-bottom:5px}.uiCluster.compact-3 .simbersBitrateControl{margin-bottom:5px;padding:4px 7px}.uiCluster.compact-3 .uploadButton,.uiCluster.compact-3 button{height:31px;min-height:31px;font-size:10px}.uiCluster.compact-3 .featureToggle{height:31px}.uiCluster.compact-3 .statusBar{height:27px}
+    `;
+    document.head.appendChild(style);
+
+    const fit = () => {
+      cluster.classList.remove("compact-1", "compact-2", "compact-3");
+      cluster.style.transform = "";
+      cluster.style.width = "";
+
+      const available = Math.max(1, card.clientHeight - 8);
+      const levels = ["compact-1", "compact-2", "compact-3"];
+      for (const level of levels) {
+        if (cluster.scrollHeight <= available) break;
+        cluster.classList.add(level);
+      }
+
+      requestAnimationFrame(() => {
+        const needed = cluster.scrollHeight;
+        if (needed > available) {
+          const scale = Math.max(.72, Math.min(1, available / needed));
+          cluster.style.transform = `scale(${scale})`;
+          cluster.style.width = `${100 / scale}%`;
+        }
+      });
+    };
+
+    new ResizeObserver(fit).observe(card);
+    new MutationObserver(fit).observe(cluster, { childList:true, subtree:true, attributes:true });
+    window.addEventListener("orientationchange", fit);
+    window.addEventListener("resize", fit, { passive:true });
+    requestAnimationFrame(fit);
+    setTimeout(fit, 150);
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run, { once:true });
+  else run();
+}
+
 function installBitrateControl() {
   const run = () => {
     document.querySelector(".subtitle")?.remove();
@@ -47,6 +97,7 @@ function installBitrateControl() {
   else run();
 }
 installBitrateControl();
+installAdaptiveCompactUi();
 
 function resampleChannel(input, sourceRate, targetRate) {
   if (sourceRate === targetRate) return input;
