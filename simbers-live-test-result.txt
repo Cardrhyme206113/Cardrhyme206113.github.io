@@ -1,0 +1,20 @@
+SIMBERS_LIVE_TEST_STATUS=FAIL
+TESTED_URL=https://cardrhyme206113.github.io/simbers.html?build=20260703-5
+UTC=2026-07-03T12:33:59Z
+browser=failure
+
+URL: https://cardrhyme206113.github.io/simbers.html?build=20260703-5
+TITLE: Simplified Sabers v0.9.5
+node:internal/modules/run_main:123
+    triggerUncaughtException(
+    ^
+
+locator.getAttribute: Timeout 30000ms exceeded.
+Call log:
+  - waiting for locator('meta[name="simbers-deployment"]')
+
+    at /home/runner/work/Cardrhyme206113.github.io/Cardrhyme206113.github.io/test-live-simbers.mjs:17:87 {
+  name: 'TimeoutError'
+}
+
+Node.js v22.23.1
