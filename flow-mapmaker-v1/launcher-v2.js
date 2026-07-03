@@ -84,7 +84,10 @@ function chooseSequenceVariant(pattern,previous,segments,startIndex,seed,config)
     const variant=pattern.variants[index];
     const score=sequenceWindowSafe(variant,segments,startIndex,previous,config);
     if(score===null)continue;
-    candidates.push({variant,score:score+(hashString(`${seed}|${pattern.id}|${index}|variant-tie`)%1000)/1000000});
+    candidates.push({
+      variant,
+      score:score+(hashString(`${seed}|${pattern.id}|${index}|variant-tie`)%1000)/1000000
+    });
   }
   candidates.sort((a,b)=>a.score-b.score);
   return candidates[0]?.variant||null;
@@ -99,7 +102,11 @@ function placeSequenceVariant({variant,pattern,segments,startIndex,generatedNote
     for(const [hand,type] of [["left",0],["right",1]]){
       const note=beat[hand];
       if(!note)continue;
-      generatedNotes.push({eventIndex:startIndex+offset,time,lineIndex:note.x,lineLayer:note.y,type,cutDirection:CUT[note.direction].code,flowDifficulty:pattern.difficulty,segment,exclusiveFlowId:pattern.id,exclusiveVariant:variant.name});
+      generatedNotes.push({
+        eventIndex:startIndex+offset,time,lineIndex:note.x,lineLayer:note.y,type,
+        cutDirection:CUT[note.direction].code,flowDifficulty:pattern.difficulty,
+        segment,exclusiveFlowId:pattern.id,exclusiveVariant:variant.name
+      });
       previous[hand]={column:note.x,row:note.y,direction:note.direction,time};
     }
   }
@@ -117,7 +124,10 @@ function placeSequenceVariant({variant,pattern,segments,startIndex,generatedNote
 
   const flowDeclaration=/const FLOW_PATTERNS=\[[\s\S]*?\];/;
   if(!flowDeclaration.test(source))throw new Error("Base FLOW_PATTERNS declaration missing.");
-  source=source.replace(flowDeclaration,match=>match+"\nconst EXCLUSIVE_FLOW_LIBRARY="+JSON.stringify(EXCLUSIVE_FLOW_LIBRARY)+";\nconst SEQUENCE_FLOW_PATTERNS=EXCLUSIVE_FLOW_LIBRARY.flows.map(flow=>({id:flow.id,name:flow.name,sourceName:flow.sourceName,difficulty:flow.difficulty,kind:\"sequence\",added:flow.added,variants:flow.variants}));\n");
+  source=source.replace(flowDeclaration,match=>
+    match+"\nconst EXCLUSIVE_FLOW_LIBRARY="+JSON.stringify(EXCLUSIVE_FLOW_LIBRARY)+";\n"+
+    "const SEQUENCE_FLOW_PATTERNS=EXCLUSIVE_FLOW_LIBRARY.flows.map(flow=>({id:flow.id,name:flow.name,sourceName:flow.sourceName,difficulty:flow.difficulty,kind:\"sequence\",added:flow.added,variants:flow.variants}));\n"
+  );
 
   const oldPool=[
     "    const pool=FLOW_PATTERNS.filter(",
@@ -154,8 +164,23 @@ function placeSequenceVariant({variant,pattern,segments,startIndex,generatedNote
   ].join("\n");
   source=replaceRequired(source,"sequence selection pool",oldPool,newPool);
 
-  const helperSource=[directArrowDifference,wristResetDegrees,sequenceCutTravel,sequenceInternalSafe,firstSequenceNote,sequenceWindowSafe,chooseSequenceVariant,classicFallbackPattern,placeSequenceVariant].map(fn=>fn.toString()).join("\n\n");
-  source=replaceRequired(source,"sequence helper insertion","function buildBeatmap(result,seed,config,lightingEvents,featureOptions){",helperSource+"\n\nfunction buildBeatmap(result,seed,config,lightingEvents,featureOptions){");
+  const helperSource=[
+    directArrowDifference,
+    wristResetDegrees,
+    sequenceCutTravel,
+    sequenceInternalSafe,
+    firstSequenceNote,
+    sequenceWindowSafe,
+    chooseSequenceVariant,
+    classicFallbackPattern,
+    placeSequenceVariant
+  ].map(fn=>fn.toString()).join("\n\n");
+  source=replaceRequired(
+    source,
+    "sequence helper insertion",
+    "function buildBeatmap(result,seed,config,lightingEvents,featureOptions){",
+    helperSource+"\n\nfunction buildBeatmap(result,seed,config,lightingEvents,featureOptions){"
+  );
 
   const buildStart=source.indexOf("function buildBeatmap(result,seed,config,lightingEvents,featureOptions){");
   const loopStart=source.indexOf("  for(let i=0;i<segments.length;i++){",buildStart);
@@ -167,8 +192,8 @@ function placeSequenceVariant({variant,pattern,segments,startIndex,generatedNote
     "    const segment=segments[i];",
     "    const cluster=Number.isFinite(segment.cluster)?segment.cluster:i;",
     "    const assignedPattern=assignments.get(cluster);",
-    "    if(assignedPattern?.kind===\"sequence\"){
-      const variant=chooseSequenceVariant(assignedPattern,previous,segments,i,`${seed}|${config.id}|${cluster}|${i}`,config);",
+    "    if(assignedPattern?.kind===\"sequence\"){",
+    "      const variant=chooseSequenceVariant(assignedPattern,previous,segments,i,`${seed}|${config.id}|${cluster}|${i}`,config);",
     "      if(variant){",
     "        placeSequenceVariant({variant,pattern:assignedPattern,segments,startIndex:i,generatedNotes,previous,config});",
     "        const flowKey=`${assignedPattern.id}|${variant.name}`;",
@@ -193,8 +218,16 @@ function placeSequenceVariant({variant,pattern,segments,startIndex,generatedNote
   source=source.slice(0,loopStart)+newLoop+source.slice(loopEnd);
 
   source=replaceRequired(source,"generator metadata",'"Beat Signature Natural Arc Multi-Difficulty HTML"','"Beat Signature Flow Library Copy v1.0.0"');
-  source=replaceRequired(source,"library metadata","_minimumEventGapMs:config.minimumGapMs,","_minimumEventGapMs:config.minimumGapMs,\n        _exclusiveFlowLibraryVersion:\""+EXCLUSIVE_FLOW_LIBRARY.version+"\",\n        _exclusiveFlowCount:"+EXCLUSIVE_FLOW_LIBRARY.flowCount+",\n        _exclusiveVariantCount:"+EXCLUSIVE_FLOW_LIBRARY.variantCount+",");
-  source=source.replace("</body>",'<div id="flowCopyBadge" style="position:fixed;right:8px;top:8px;z-index:9999;padding:5px 7px;border:1px solid #31557d;border-radius:6px;background:rgba(8,17,29,.86);color:#8fc8ff;font:700 9px ui-monospace,monospace;pointer-events:none">FLOW COPY v'+COPY_VERSION+' · '+EXCLUSIVE_FLOW_LIBRARY.flowCount+' FLOWS</div></body>');
+  source=replaceRequired(
+    source,
+    "library metadata",
+    "_minimumEventGapMs:config.minimumGapMs,",
+    "_minimumEventGapMs:config.minimumGapMs,\n        _exclusiveFlowLibraryVersion:\""+EXCLUSIVE_FLOW_LIBRARY.version+"\",\n        _exclusiveFlowCount:"+EXCLUSIVE_FLOW_LIBRARY.flowCount+",\n        _exclusiveVariantCount:"+EXCLUSIVE_FLOW_LIBRARY.variantCount+","
+  );
+  source=source.replace(
+    "</body>",
+    '<div id="flowCopyBadge" style="position:fixed;right:8px;top:8px;z-index:9999;padding:5px 7px;border:1px solid #31557d;border-radius:6px;background:rgba(8,17,29,.86);color:#8fc8ff;font:700 9px ui-monospace,monospace;pointer-events:none">FLOW COPY v'+COPY_VERSION+' · '+EXCLUSIVE_FLOW_LIBRARY.flowCount+' FLOWS</div></body>'
+  );
 
   document.open();
   document.write(source);
