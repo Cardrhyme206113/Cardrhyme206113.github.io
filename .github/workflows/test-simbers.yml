@@ -13,40 +13,40 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   browser-test:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
       - name: Static syntax checks
+        id: syntax
+        continue-on-error: true
         run: |
           node --check simbers-v093.js
           node --check simbers-v094.js
           node --check simbers-v095.js
           node --check simbers-flow-library.js
 
-      - name: Install Chromium test runtime
+      - name: Install browser runtime
+        id: install
+        continue-on-error: true
         run: |
-          npm init -y >/dev/null 2>&1
-          npm install --save-dev playwright@1.52.0 >/dev/null
-          npx playwright install --with-deps chromium >/dev/null
-
-      - name: Run local site
-        run: |
-          python3 -m http.server 4173 > /tmp/simbers-server.log 2>&1 &
-          echo $! > /tmp/simbers-server.pid
-          sleep 2
-          curl --fail http://127.0.0.1:4173/simbers.html >/dev/null
+          npm init -y
+          npm install --save-dev playwright@1.52.0
+          npx playwright install --with-deps chromium
 
       - name: Browser smoke test
+        id: browser
+        continue-on-error: true
         run: |
+          python3 -m http.server 4173 > /tmp/simbers-server.log 2>&1 &
+          sleep 2
           cat > /tmp/test-simbers.mjs <<'EOF'
           import { chromium } from 'playwright';
-
           const browser = await chromium.launch({ headless: true });
           const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
           const errors = [];
@@ -55,41 +55,63 @@ jobs:
             if (message.type() === 'error') errors.push(`console: ${message.text()}`);
           });
           page.on('requestfailed', request => errors.push(`requestfailed: ${request.url()} :: ${request.failure()?.errorText}`));
-
           const response = await page.goto('http://127.0.0.1:4173/simbers.html?build=ci', {
             waitUntil: 'domcontentloaded',
             timeout: 120000
           });
           if (!response?.ok()) errors.push(`HTTP status: ${response?.status()}`);
-
-          await page.waitForTimeout(8000);
+          await page.waitForTimeout(10000);
           const body = await page.locator('body').innerText();
-          const title = await page.title();
-
-          console.log('TITLE:', title);
-          console.log('BODY_START:', body.slice(0, 1000));
-
-          if (body.includes('failed to load')) errors.push(`Visible loader failure: ${body.slice(0, 1200)}`);
-          if (!body.includes('SIMPLIFIED SABERS')) errors.push('Main Simplified Sabers UI did not render.');
-          if (!body.includes('UPLOAD SONG')) errors.push('Upload Song control did not render.');
-          if (!body.includes('v0.9.5')) errors.push('Visible v0.9.5 marker did not render.');
-
+          console.log('TITLE:', await page.title());
+          console.log('BODY_START:', body.slice(0, 1600));
+          if (body.includes('failed to load')) errors.push(`Visible loader failure: ${body.slice(0, 1600)}`);
+          if (!body.includes('SIMPLIFIED SABERS')) errors.push('Main UI did not render.');
+          if (!body.includes('UPLOAD SONG')) errors.push('Upload control did not render.');
+          if (!body.includes('v0.9.5')) errors.push('Version marker did not render.');
           await page.screenshot({ path: '/tmp/simbers-test.png', fullPage: true });
           await browser.close();
-
           if (errors.length) {
             console.error(errors.join('\n\n'));
             process.exit(1);
           }
           EOF
-          node /tmp/test-simbers.mjs
+          node /tmp/test-simbers.mjs > /tmp/browser.log 2>&1
+          cat /tmp/browser.log
 
-      - name: Upload screenshot and logs
+      - name: Record result
+        if: always()
+        env:
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          INSTALL_OUTCOME: ${{ steps.install.outcome }}
+          BROWSER_OUTCOME: ${{ steps.browser.outcome }}
+        run: |
+          {
+            echo "SIMBERS_TEST_STATUS=$([ "$SYNTAX_OUTCOME" = success ] && [ "$INSTALL_OUTCOME" = success ] && [ "$BROWSER_OUTCOME" = success ] && echo PASS || echo FAIL)"
+            echo "TESTED_COMMIT=$GITHUB_SHA"
+            echo "UTC=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "syntax=$SYNTAX_OUTCOME"
+            echo "install=$INSTALL_OUTCOME"
+            echo "browser=$BROWSER_OUTCOME"
+            echo
+            echo "===== BROWSER LOG ====="
+            cat /tmp/browser.log 2>/dev/null || true
+            echo
+            echo "===== SERVER LOG ====="
+            cat /tmp/simbers-server.log 2>/dev/null || true
+          } > simbers-test-result.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add simbers-test-result.txt
+          git commit -m "Record Simbers browser test result" || true
+          git push
+          test "$SYNTAX_OUTCOME" = success
+          test "$INSTALL_OUTCOME" = success
+          test "$BROWSER_OUTCOME" = success
+
+      - name: Upload screenshot
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: simbers-browser-test
-          path: |
-            /tmp/simbers-test.png
-            /tmp/simbers-server.log
+          path: /tmp/simbers-test.png
           if-no-files-found: ignore
