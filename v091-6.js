@@ -1,0 +1,1 @@
+window.__v091=window.__v091.then(s=>s.replace('      const entryConflict=!compoundEntryMatchesPrevious(previous,pattern.steps);\n      if(lastWasCompound||entryConflict||!compoundWindow){','      const entryConflict=!compoundEntryMatchesPrevious(previous,pattern.steps);\n      if(entryConflict)failedRotations++;\n      if(lastWasCompound||entryConflict||!compoundWindow){'));
