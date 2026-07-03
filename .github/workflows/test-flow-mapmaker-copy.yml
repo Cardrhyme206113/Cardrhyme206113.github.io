@@ -53,42 +53,57 @@ jobs:
             if(!url.includes('ArcViewer-simtest'))errors.push(`requestfailed: ${url} :: ${request.failure()?.errorText}`);
           });
 
-          await page.goto('http://127.0.0.1:4173/flow-mapmaker-v1/',{waitUntil:'domcontentloaded',timeout:120000});
-          await page.waitForFunction(()=>document.body.innerText.includes('FLOW COPY v1.0.0'),null,{timeout:30000});
-          const body=await page.locator('body').innerText();
-          if(!body.includes('SIMPLIFIED SABERS'))errors.push('Mapmaker UI did not render.');
-          if(!body.includes('20 multi-beat flows'))errors.push('Expanded flow count is not shown.');
-          if(!body.includes('20 FLOWS'))errors.push('Flow-copy badge is missing.');
-          if(body.includes('failed to initialize'))errors.push(body.slice(0,1600));
-          if(await page.locator('a.brandMark[href="./flow-library.html"]').count()!==1)errors.push('Copied logo does not link to its flow library.');
+          try{
+            await page.goto('http://127.0.0.1:4173/flow-mapmaker-v1/',{waitUntil:'domcontentloaded',timeout:120000});
+            await page.waitForFunction(()=>document.body.innerText.includes('FLOW COPY v1.0.0'),null,{timeout:30000});
+            const body=await page.locator('body').innerText();
+            console.log('APP_BODY:',body.slice(0,1200));
+            if(!body.includes('SIMPLIFIED SABERS'))errors.push('Mapmaker UI did not render.');
+            if(!body.includes('20 multi-beat flows'))errors.push('Expanded flow count is not shown.');
+            if(!body.includes('20 FLOWS'))errors.push('Flow-copy badge is missing.');
+            if(body.includes('failed to initialize'))errors.push(body.slice(0,1600));
+            if(await page.locator('a.brandMark[href="./flow-library.html"]').count()!==1)errors.push('Copied logo does not link to its flow library.');
 
-          await page.locator('a.brandMark').click();
-          await page.waitForLoadState('domcontentloaded');
-          await page.waitForSelector('.flow',{timeout:30000});
-          const flowCount=await page.locator('.flow').count();
-          const variantCount=await page.locator('.variant').count();
-          if(flowCount!==20)errors.push(`Expected 20 flows, got ${flowCount}.`);
-          if(variantCount!==80)errors.push(`Expected 80 variants, got ${variantCount}.`);
+            await page.locator('a.brandMark').click();
+            await page.waitForLoadState('domcontentloaded');
+            await page.waitForSelector('.flow',{timeout:30000});
+            const flowCount=await page.locator('.flow').count();
+            const variantCount=await page.locator('.variant').count();
+            console.log('LIBRARY_COUNTS:',flowCount,variantCount);
+            if(flowCount!==20)errors.push(`Expected 20 flows, got ${flowCount}.`);
+            if(variantCount!==80)errors.push(`Expected 80 variants, got ${variantCount}.`);
 
-          await page.goto('http://127.0.0.1:4173/flow-mapmaker-v1/',{waitUntil:'domcontentloaded',timeout:120000});
-          await page.waitForFunction(()=>document.body.innerText.includes('FLOW COPY v1.0.0'),null,{timeout:30000});
-          await page.locator('#demoBtn').click();
-          await page.waitForFunction(()=>!document.querySelector('#analyzeBtn')?.disabled,null,{timeout:10000});
-          await page.locator('#analyzeBtn').click();
-          await page.waitForFunction(()=>{
-            const status=document.querySelector('#mapStatus')?.textContent||'';
-            const exportButton=document.querySelector('#viewerDownload');
-            return !exportButton?.disabled && (/Done|Map created|Ready to preview/i.test(status));
-          },null,{timeout:120000});
-          const finalStatus=await page.locator('#mapStatus').innerText();
-          if(/failed|error/i.test(finalStatus))errors.push(`Map generation status: ${finalStatus}`);
-          await page.screenshot({path:'/tmp/flow-mapmaker-copy.png',fullPage:true});
-          await browser.close();
-          if(errors.length){console.error(errors.join('\n\n'));process.exit(1)}
+            await page.goto('http://127.0.0.1:4173/flow-mapmaker-v1/',{waitUntil:'domcontentloaded',timeout:120000});
+            await page.waitForFunction(()=>document.body.innerText.includes('FLOW COPY v1.0.0'),null,{timeout:30000});
+            await page.locator('#demoBtn').click();
+            await page.waitForFunction(()=>!document.querySelector('#analyzeBtn')?.disabled,null,{timeout:10000});
+            await page.locator('#analyzeBtn').click();
+            await page.waitForFunction(()=>{
+              const status=document.querySelector('#mapStatus')?.textContent||'';
+              const exportButton=document.querySelector('#viewerDownload');
+              return !exportButton?.disabled && (/Done|Map created|Ready to preview/i.test(status));
+            },null,{timeout:120000});
+            const finalStatus=await page.locator('#mapStatus').innerText();
+            console.log('FINAL_STATUS:',finalStatus);
+            if(/failed|error/i.test(finalStatus))errors.push(`Map generation status: ${finalStatus}`);
+            await page.screenshot({path:'/tmp/flow-mapmaker-copy.png',fullPage:true});
+          }catch(error){
+            const body=await page.locator('body').innerText().catch(()=>'<unreadable body>');
+            console.error('UNCAUGHT_TEST_ERROR:',error.stack||error);
+            console.error('BODY_AT_FAILURE:',body.slice(0,2400));
+            errors.push(String(error.stack||error));
+          }finally{
+            await browser.close();
+          }
+          if(errors.length){console.error('COLLECTED_ERRORS:\n'+errors.join('\n\n'));process.exit(1)}
           EOF
-          node test-flow-copy.mjs
+          set +e
+          node test-flow-copy.mjs >/tmp/flow-copy-browser.log 2>&1
+          status=$?
+          cat /tmp/flow-copy-browser.log
+          exit $status
 
-      - name: Upload screenshot and server log
+      - name: Upload screenshot and logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -96,4 +111,5 @@ jobs:
           path: |
             /tmp/flow-mapmaker-copy.png
             /tmp/flow-copy-server.log
+            /tmp/flow-copy-browser.log
           if-no-files-found: ignore
