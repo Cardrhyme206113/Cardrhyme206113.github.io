@@ -1,0 +1,49 @@
+name: Build Flow Showcase v1.0.0
+
+on:
+  push:
+    branches: [flow-showcase-v100]
+    paths:
+      - tools/build_flow_showcase.py
+      - .github/workflows/build-flow-showcase-v100.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build map, click track, ZIP, and viewer data
+        run: python3 tools/build_flow_showcase.py
+      - name: Validate generated files
+        run: |
+          node --check flow-showcase-map.js
+          python3 - <<'PY'
+          import json, zipfile
+          from pathlib import Path
+          report=json.loads(Path('flow-showcase/build-report.json').read_text())
+          assert report['version']=='1.0.0'
+          assert report['bpm']==50.0
+          assert report['sections']==80
+          assert report['notes']==822
+          with zipfile.ZipFile('flow-showcase/Flow_Showcase_50BPM.zip') as z:
+              assert set(z.namelist())=={'Info.dat','ExpertPlus.dat','song.ogg','cover.png'}
+              info=json.loads(z.read('Info.dat'))
+              beatmap=json.loads(z.read('ExpertPlus.dat'))
+              assert info['_beatsPerMinute']==50.0
+              assert len(beatmap['_notes'])==822
+          PY
+      - name: Commit finished release branch
+        run: |
+          rm -f tools/build_flow_showcase.py
+          rm -f .github/workflows/build-flow-showcase-v100.yml
+          rm -f flow-showcase-data.js
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Build Flow Showcase v1.0.0"
+          git push
