@@ -1,0 +1,63 @@
+name: Apply Simbers v0.9.3
+
+on:
+  push:
+    paths:
+      - .github/workflows/apply-simbers-v093.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Patch simbers.html
+        run: |
+          base64 -d tools/patch_v093_core.b64 > /tmp/core.py
+          python /tmp/core.py
+          python tools/patch_v093_ui.py
+          base64 -d tools/patch_v093_audit.b64 > /tmp/audit.py
+          python /tmp/audit.py
+          python tools/patch_v093_flow_module.py
+
+      - name: Remove obsolete release files
+        run: |
+          rm -f simbers-flow-library.html simbers-v090.html simbers-v091.html simbers-v092.html
+          rm -f v091-1.js v091-2.js v091-3.js v091-4.js v091-5.js v091-6.js v091-7.js v091-final.js
+          rm -f v092-1.js v092-2.js workflow-v091.b64 pages-refresh-v0.9.0.txt refresh.txt
+          rm -f tools/patch_v091_ui.py tools/patch_v091_logic.b64 tools/run_v091.py tools/workflow-v091.yml
+
+      - name: Validate
+        run: |
+          grep -q 'simbers-version" content="0.9.3' simbers.html
+          grep -q 'turn-style' simbers.html
+          grep -q 'function showFlows' simbers.html
+          grep -q 'countFailedRotations' simbers.html
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path('simbers.html').read_text()
+          m=re.search(r'<script type="module">([\s\S]*?)</script>',text)
+          if not m: raise SystemExit('module script missing')
+          Path('/tmp/simbers.mjs').write_text(m.group(1))
+          for page in ('simbers-flow-library.html','simbers-v090.html','simbers-v091.html','simbers-v092.html'):
+              if Path(page).exists(): raise SystemExit(f'obsolete page remains: {page}')
+          PY
+          node --check /tmp/simbers.mjs
+
+      - name: Commit release and clean patch machinery
+        run: |
+          rm -f .github/workflows/apply-simbers-v093.yml
+          rm -f tools/patch_v093_core.b64 tools/patch_v093_ui.py tools/patch_v093_audit.b64 tools/patch_v093_flow_module.py
+          rm -f tools/patch_v093_core.py tools/patch_v093_audit.py tools/patch_v093_ui.b64 tools/patch_v093_cleanup.py
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Release Simbers v0.9.3"
+          git push
