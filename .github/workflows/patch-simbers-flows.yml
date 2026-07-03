@@ -1,0 +1,105 @@
+name: Patch Simbers 50-flow library
+
+on:
+  push:
+    paths:
+      - .github/workflows/patch-simbers-flows.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            simbers.html
+            .github/workflows/patch-simbers-flows.yml
+
+      - name: Add all flows and strict wrist boundaries
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("simbers.html")
+          text = path.read_text(encoding="utf-8")
+
+          if 'href="./simbers-flow-library.html"' not in text:
+              logo_pattern = re.compile(
+                  r'<div class="brandMark" aria-hidden="true">\s*'
+                  r'<span></span><span></span>\s*</div>'
+              )
+              replacement = (
+                  '<a class="brandMark" href="./simbers-flow-library.html" '
+                  'aria-label="Open the 50-flow library" title="Open flow library">'
+                  '<span></span><span></span></a>'
+              )
+              text, count = logo_pattern.subn(replacement, text, count=1)
+              if count != 1:
+                  raise RuntimeError("Could not make the Simplified Sabers logo clickable.")
+
+          compound = 'const COMPOUND_FLOW_PATTERNS=[{"id":"compound_01","name":"Flow 1","difficulty":"medium","beatSpan":3,"steps":[{"l":[1,0,"down"],"r":[2,0,"down"]},{"l":[0,2,"left"],"r":[3,2,"right"]},{"l":[0,0,"down"],"r":[3,0,"down"]}]},{"id":"compound_02","name":"Flow 2","difficulty":"hard","beatSpan":4,"steps":[{"l":[0,1,"left"],"r":[3,1,"right"]},{"l":[1,1,"right"],"r":[2,1,"left"]},{"l":[0,0,"left"],"r":[3,0,"right"]},{"l":[1,2,"right"],"r":[2,2,"left"]}]},{"id":"compound_03","name":"Flow 3","difficulty":"medium","beatSpan":3,"steps":[{"l":[0,0,"downLeft"],"r":[3,0,"downRight"]},{"l":[1,1,"upRight"],"r":[2,1,"upLeft"]},{"l":[0,1,"down"],"r":[3,1,"down"]}]},{"id":"compound_04","name":"Flow 4","difficulty":"hard","beatSpan":5,"steps":[{"l":[1,1,"right"],"r":[3,1,"right"]},{"l":[0,1,"left"],"r":[2,1,"left"]},{"l":[0,2,"down"],"r":[3,2,"down"]},{"l":[1,0,"up"],"r":[2,0,"up"]},{"l":[0,1,"left"],"r":[3,1,"right"]}]},{"id":"compound_05","name":"Flow 5","difficulty":"hard","beatSpan":1,"steps":[{"l":[0,2,"down"],"r":[3,2,"down"]},{"l":[0,1,"down"],"r":[3,1,"down"]},{"l":[0,0,"down"],"r":[3,0,"down"]}]},{"id":"compound_06","name":"Flow 6","difficulty":"hard","beatSpan":1,"steps":[{"l":[0,0,"up"],"r":[3,0,"up"]},{"l":[0,1,"up"],"r":[3,1,"up"]},{"l":[0,2,"up"],"r":[3,2,"up"]}]},{"id":"compound_07","name":"Flow 7","difficulty":"hard","beatSpan":10,"steps":[{"l":[1,0,"down"],"r":[2,0,"down"]},{"l":[0,2,"left"],"r":[3,2,"right"]},{"r":[2,2,"down"]},{"r":[2,2,"up"]},{"r":[2,2,"down"]},{"r":[2,2,"up"]},{"l":[1,2,"down"]},{"l":[1,2,"up"]},{"l":[1,2,"down"]},{"l":[1,2,"up"]}]},{"id":"compound_08","name":"Flow 8","difficulty":"medium","beatSpan":4,"steps":[{"l":[0,0,"down"],"r":[2,0,"down"]},{"l":[1,0,"up"],"r":[3,0,"up"]},{"l":[1,1,"left"],"r":[3,1,"left"]},{"l":[0,1,"down"],"r":[2,1,"down"]}]},{"id":"compound_09","name":"Flow 9","difficulty":"medium","beatSpan":3,"steps":[{"l":[0,2,"left"],"r":[3,2,"right"]},{"l":[0,1,"right"],"r":[3,1,"left"]},{"l":[0,0,"left"],"r":[3,0,"right"]}]},{"id":"compound_10","name":"Flow 10","difficulty":"medium","beatSpan":3,"steps":[{"l":[1,0,"right"],"r":[2,0,"left"]},{"l":[0,1,"left"],"r":[3,1,"right"]},{"l":[1,2,"right"],"r":[2,2,"left"]}]},{"id":"compound_11","name":"Flow 11","difficulty":"hard","beatSpan":6,"steps":[{"l":[1,0,"down"]},{"l":[0,2,"left"]},{"l":[1,0,"down"]},{"r":[2,0,"down"]},{"r":[3,2,"right"]},{"r":[2,0,"down"]}]},{"id":"compound_12","name":"Flow 12","difficulty":"hard","beatSpan":7,"steps":[{"l":[1,0,"down"],"r":[2,0,"down"]},{"l":[0,2,"left"],"r":[3,2,"right"]},{"l":[1,0,"down"],"r":[2,0,"down"]},{"l":[0,2,"left"],"r":[3,2,"right"]},{"l":[1,0,"down"],"r":[2,0,"down"]},{"l":[0,2,"upLeft"],"r":[3,2,"upRight"]},{"l":[1,1,"downRight"],"r":[2,1,"downLeft"]}]},{"id":"compound_13","name":"Flow 13","difficulty":"hard","beatSpan":2,"steps":[{"l":[1,0,"upLeft"],"r":[2,0,"upRight"]},{"l":[0,1,"upLeft"],"r":[3,1,"upRight"]},{"l":[0,2,"upRight"],"r":[3,2,"upLeft"]},{"l":[1,2,"downRight"],"r":[2,2,"downLeft"]},{"l":[1,1,"downLeft"],"r":[2,1,"downRight"]}]},{"id":"compound_14","name":"Flow 14","difficulty":"hard","beatSpan":1,"steps":[{"l":[1,0,"up"],"r":[2,0,"up"]},{"l":[1,1,"up"],"r":[2,1,"up"]},{"l":[1,2,"up"],"r":[2,2,"up"]}]},{"id":"compound_15","name":"Flow 15","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,0,"upRight"],"r":[3,0,"upLeft"]},{"l":[1,1,"upRight"],"r":[2,1,"upLeft"]}]},{"id":"compound_16","name":"Flow 16","difficulty":"hard","beatSpan":1,"steps":[{"l":[0,2,"downRight"],"r":[3,2,"downLeft"]},{"l":[1,1,"down"],"r":[2,1,"down"]},{"l":[1,0,"down"],"r":[2,0,"down"]}]},{"id":"compound_17","name":"Flow 17","difficulty":"hard","beatSpan":1,"steps":[{"l":[1,2,"downLeft"],"r":[2,2,"downRight"]},{"l":[0,1,"down"],"r":[3,1,"down"]},{"l":[0,0,"down"],"r":[3,0,"down"]}]},{"id":"compound_18","name":"Flow 18","difficulty":"hard","beatSpan":1,"steps":[{"l":[0,0,"upRight"],"r":[3,0,"upLeft"]},{"l":[1,1,"up"],"r":[2,1,"up"]},{"l":[1,2,"up"],"r":[2,2,"up"]}]},{"id":"compound_19","name":"Flow 19","difficulty":"hard","beatSpan":1,"steps":[{"l":[1,0,"upLeft"],"r":[2,0,"upRight"]},{"l":[0,1,"up"],"r":[3,1,"up"]},{"l":[0,2,"up"],"r":[3,2,"up"]}]},{"id":"compound_20","name":"Spiral Switchback","difficulty":"hard","beatSpan":1,"steps":[{"l":[1,0,"upLeft"],"r":[2,2,"downRight"]},{"l":[0,2,"downRight"],"r":[3,0,"upLeft"]},{"l":[0,1,"upLeft"],"r":[3,1,"downRight"]},{"l":[1,2,"downRight"],"r":[2,0,"upLeft"]}]}];\nif(FLOW_PATTERNS.length+COMPOUND_FLOW_PATTERNS.length!==50){\n  throw new Error("Built-in flow library must contain exactly 50 flows.");\n}'
+          array_pattern = re.compile(
+              r'const COMPOUND_FLOW_PATTERNS=.*?;\n\nconst AXIS_DIRECTIONS=',
+              re.S
+          )
+          text, count = array_pattern.subn(
+              compound + '\n\nconst AXIS_DIRECTIONS=',
+              text,
+              count=1
+          )
+          if count != 1:
+              raise RuntimeError("Could not replace the compound-flow library.")
+
+          old_first = '      const firstStep=pattern.steps[0];'
+          new_first = '''      // Explicit directions remain untouched. Each hand uses its first
+                // actual note as the entry boundary, even when the other hand starts later.
+                const firstStep={
+                  l:pattern.steps.map(step=>step.l).find(Boolean)||null,
+                  r:pattern.steps.map(step=>step.r).find(Boolean)||null
+                };'''
+          if old_first in text:
+              text = text.replace(old_first, new_first, 1)
+          elif 'Each hand uses its first' not in text:
+              raise RuntimeError("Could not patch compound entry boundaries.")
+
+          old_last = '      const lastStep=pattern.steps[pattern.steps.length-1];'
+          new_last = '''      // Likewise, exit smoothing targets the final actual note per hand,
+                // not merely the final timeline step (important for one-hand sections).
+                const reversedCompoundSteps=pattern.steps.slice().reverse();
+                const lastStep={
+                  l:reversedCompoundSteps.map(step=>step.l).find(Boolean)||null,
+                  r:reversedCompoundSteps.map(step=>step.r).find(Boolean)||null
+                };'''
+          if old_last in text:
+              text = text.replace(old_last, new_last, 1)
+          elif 'reversedCompoundSteps' not in text:
+              raise RuntimeError("Could not patch compound exit boundaries.")
+
+          text = text.replace(
+              '// A two-beat compound flow owns the intermediate detected event.',
+              '// A multi-beat compound flow owns its intermediate detected events.'
+          )
+
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Commit patched generator
+        shell: bash
+        run: |
+          if git diff --quiet -- simbers.html; then
+            echo "simbers.html is already patched."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add simbers.html
+          git commit -m "Add 50 flows and wrist-safe explicit boundaries"
+          git push
