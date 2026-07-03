@@ -1031,6 +1031,7 @@ function nextTick(){ return new Promise(r=>setTimeout(r,0)); }
 
 
 const FLOW_PATTERNS=[{"id":"double_01","name":"Low Outer Vertical","difficulty":"easy","l":[0,0,"V"],"r":[3,0,"V"]},{"id":"double_02","name":"Mid Outer Vertical","difficulty":"easy","l":[0,1,"V"],"r":[3,1,"V"]},{"id":"double_03","name":"High Outer Vertical","difficulty":"easy","l":[0,2,"V"],"r":[3,2,"V"]},{"id":"double_04","name":"Low Inner Vertical","difficulty":"easy","l":[1,0,"V"],"r":[2,0,"V"]},{"id":"double_05","name":"Mid Inner Horizontal","difficulty":"easy","l":[1,1,"H"],"r":[2,1,"H"]},{"id":"double_06","name":"High Inner Horizontal","difficulty":"easy","l":[1,2,"H"],"r":[2,2,"H"]},{"id":"double_07","name":"Low Outer Inward Diagonal","difficulty":"easy","l":[0,0,"D1"],"r":[3,0,"D2"]},{"id":"double_08","name":"High Outer Diagonal","difficulty":"easy","l":[0,2,"D2"],"r":[3,2,"D1"]},{"id":"double_09","name":"Left Low Right High","difficulty":"easy","l":[0,0,"V"],"r":[3,2,"V"]},{"id":"double_10","name":"Left High Right Low","difficulty":"easy","l":[0,2,"V"],"r":[3,0,"V"]},{"id":"double_11","name":"Wide Mid Horizontal","difficulty":"easy","l":[0,1,"H"],"r":[3,1,"H"]},{"id":"double_12","name":"Mirror Mid Diagonals","difficulty":"easy","l":[0,1,"D2"],"r":[3,1,"D1"]},{"id":"double_13","name":"Rising Outer Diagonal","difficulty":"medium","l":[0,0,"D2"],"r":[3,2,"D2"]},{"id":"double_14","name":"Falling Outer Diagonal","difficulty":"medium","l":[0,2,"D1"],"r":[3,0,"D1"]},{"id":"double_15","name":"Low Inner High Outer","difficulty":"medium","l":[1,0,"D2"],"r":[3,2,"D1"]},{"id":"double_16","name":"High Outer Low Inner","difficulty":"medium","l":[0,2,"D2"],"r":[2,0,"D1"]},{"id":"double_17","name":"Mid Left High Inner","difficulty":"medium","l":[0,1,"H"],"r":[2,2,"V"]},{"id":"double_18","name":"Low Inner Mid Right","difficulty":"medium","l":[1,0,"V"],"r":[3,1,"H"]},{"id":"double_19","name":"Crossed Mid Horizontal","difficulty":"medium","l":[2,1,"H"],"r":[1,1,"H"]},{"id":"double_20","name":"Crossed High Diagonal","difficulty":"medium","l":[2,2,"D1"],"r":[1,2,"D2"]},{"id":"double_21","name":"Crossed Low Diagonal","difficulty":"medium","l":[2,0,"D2"],"r":[1,0,"D1"]},{"id":"double_22","name":"Inner Vertical Split","difficulty":"medium","l":[1,2,"V"],"r":[2,0,"V"]},{"id":"double_23","name":"Inner Reverse Split","difficulty":"medium","l":[1,0,"V"],"r":[2,2,"V"]},{"id":"double_24","name":"Offset Mirror","difficulty":"medium","l":[0,2,"D2"],"r":[2,1,"D1"]},{"id":"double_25","name":"Left Stack Horizontal","difficulty":"hard","l":[1,0,"H"],"r":[1,2,"H"]},{"id":"double_26","name":"Right Stack Horizontal","difficulty":"hard","l":[2,2,"H"],"r":[2,0,"H"]},{"id":"double_27","name":"Tight Cross Diagonals","difficulty":"hard","l":[2,1,"D1"],"r":[1,1,"D2"]},{"id":"double_28","name":"Tight Vertical Cross","difficulty":"hard","l":[1,2,"D1"],"r":[2,0,"D2"]},{"id":"double_29","name":"Reverse Vertical Cross","difficulty":"hard","l":[1,0,"D2"],"r":[2,2,"D1"]},{"id":"double_30","name":"Full Color Crossover","difficulty":"hard","l":[3,2,"D1"],"r":[0,0,"D2"]}];
+const COMPOUND_FLOW_PATTERNS=[{"id":"compound_05","name":"Flow 5","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,2,"down"],"r":[3,2,"down"]},{"l":[0,1,"down"],"r":[3,1,"down"]},{"l":[0,0,"down"],"r":[3,0,"down"]}]},{"id":"compound_06","name":"Flow 6","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,0,"up"],"r":[3,0,"up"]},{"l":[0,1,"up"],"r":[3,1,"up"]},{"l":[0,2,"up"],"r":[3,2,"up"]}]},{"id":"compound_13","name":"Flow 13","difficulty":"hard","beatSpan":2,"steps":[{"l":[1,0,"upLeft"],"r":[2,0,"upRight"]},{"l":[0,1,"upLeft"],"r":[3,1,"upRight"]},{"l":[0,2,"upRight"],"r":[3,2,"upLeft"]},{"l":[1,2,"downRight"],"r":[2,2,"downLeft"]},{"l":[1,1,"downLeft"],"r":[2,1,"downRight"]}]},{"id":"compound_14","name":"Flow 14","difficulty":"medium","beatSpan":1,"steps":[{"l":[1,0,"up"],"r":[2,0,"up"]},{"l":[1,1,"up"],"r":[2,1,"up"]},{"l":[1,2,"up"],"r":[2,2,"up"]}]},{"id":"compound_15","name":"Flow 15","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,0,"upRight"],"r":[3,0,"upLeft"]},{"l":[1,1,"upRight"],"r":[2,1,"upLeft"]}]},{"id":"compound_16","name":"Flow 16","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,2,"downRight"],"r":[3,2,"downLeft"]},{"l":[1,1,"down"],"r":[2,1,"down"]},{"l":[1,0,"down"],"r":[2,0,"down"]}]},{"id":"compound_17","name":"Flow 17","difficulty":"medium","beatSpan":1,"steps":[{"l":[1,2,"downLeft"],"r":[2,2,"downRight"]},{"l":[0,1,"down"],"r":[3,1,"down"]},{"l":[0,0,"down"],"r":[3,0,"down"]}]},{"id":"compound_18","name":"Flow 18","difficulty":"medium","beatSpan":1,"steps":[{"l":[0,0,"upRight"],"r":[3,0,"upLeft"]},{"l":[1,1,"up"],"r":[2,1,"up"]},{"l":[1,2,"up"],"r":[2,2,"up"]}]},{"id":"compound_19","name":"Flow 19","difficulty":"medium","beatSpan":1,"steps":[{"l":[1,0,"upLeft"],"r":[2,0,"upRight"]},{"l":[0,1,"up"],"r":[3,1,"up"]},{"l":[0,2,"up"],"r":[3,2,"up"]}]}];
 
 const AXIS_DIRECTIONS={
   V:["up","down"],
@@ -1133,17 +1134,145 @@ function pairComfortPenalty(leftNote,rightNote,leftDir,rightDir){
   if(separation<=1&&(Math.abs(l.dx)>.7||Math.abs(r.dx)>.7))score+=5;
   return score;
 }
-function chooseDirections(pattern,previous,eventSeed,time){
+function chooseDirections(
+  pattern,
+  previous,
+  eventSeed,
+  time,
+  boundaryTargets=null
+){
   const safePattern=ergonomicPattern(pattern);
-  const leftOptions=candidateDirections("left",safePattern.l,safePattern.r,safePattern.l[2]);
-  const rightOptions=candidateDirections("right",safePattern.r,safePattern.l,safePattern.r[2]);
+  const leftOptions=candidateDirections(
+    "left",
+    safePattern.l,
+    safePattern.r,
+    safePattern.l[2]
+  );
+  const rightOptions=candidateDirections(
+    "right",
+    safePattern.r,
+    safePattern.l,
+    safePattern.r[2]
+  );
+
   let best=null;
-  for(const leftDirection of leftOptions)for(const rightDirection of rightOptions){
-    let score=parityPenalty(previous.left,leftDirection,time)+parityPenalty(previous.right,rightDirection,time)+handComfortPenalty("left",safePattern.l,leftDirection)+handComfortPenalty("right",safePattern.r,rightDirection)+travelPenalty(previous.left,safePattern.l,leftDirection)+travelPenalty(previous.right,safePattern.r,rightDirection)+pairComfortPenalty(safePattern.l,safePattern.r,leftDirection,rightDirection);
-    score+=(hashString(`${eventSeed}|${leftDirection}|${rightDirection}`)%1000)/1e6;
-    if(!best||score<best.score)best={pattern:safePattern,leftDirection,rightDirection,score};
+  for(const leftDirection of leftOptions){
+    for(const rightDirection of rightOptions){
+      let score=
+        parityPenalty(previous.left,leftDirection,time)+
+        parityPenalty(previous.right,rightDirection,time)+
+        handComfortPenalty("left",safePattern.l,leftDirection)+
+        handComfortPenalty("right",safePattern.r,rightDirection)+
+        travelPenalty(previous.left,safePattern.l,leftDirection)+
+        travelPenalty(previous.right,safePattern.r,rightDirection)+
+        pairComfortPenalty(
+          safePattern.l,
+          safePattern.r,
+          leftDirection,
+          rightDirection
+        )+
+        boundaryTargetPenalty(
+          boundaryTargets?.left,
+          leftDirection
+        )+
+        boundaryTargetPenalty(
+          boundaryTargets?.right,
+          rightDirection
+        );
+
+      score+=(
+        hashString(
+          `${eventSeed}|${leftDirection}|${rightDirection}`
+        )%1000
+      )/1e6;
+
+      if(!best||score<best.score){
+        best={
+          pattern:safePattern,
+          leftDirection,
+          rightDirection,
+          score
+        };
+      }
+    }
   }
   return best;
+}
+
+const OPPOSITE_DIRECTION={
+  up:"down",
+  down:"up",
+  left:"right",
+  right:"left",
+  upLeft:"downRight",
+  upRight:"downLeft",
+  downLeft:"upRight",
+  downRight:"upLeft"
+};
+
+function oppositeDirection(direction){
+  return OPPOSITE_DIRECTION[direction]||"down";
+}
+
+function boundaryTargetPenalty(target,direction){
+  if(!target)return 0;
+  const error=angleDistance(CUT[target].deg,CUT[direction].deg);
+  return direction===target?-8:18+error/4;
+}
+
+function normalFallbackForCompound(pattern,seed,config,cluster,index){
+  const pool=FLOW_PATTERNS.filter(
+    candidate=>candidate.difficulty===pattern.difficulty
+  );
+  return pool[
+    hashString(
+      `${seed}|${config.id}|${cluster}|${index}|compound-fallback`
+    )%pool.length
+  ];
+}
+
+function compoundFlowWindow(segments,index,pattern,duration){
+  const span=Math.max(1,pattern.beatSpan||1);
+  const endSegment=segments[index+span];
+  if(!endSegment)return null;
+
+  const start=segments[index].start;
+  const end=Math.min(duration-.02,endSegment.start);
+  const total=end-start;
+  if(total<=0)return null;
+
+  const spacing=total/pattern.steps.length;
+  // Do not squeeze dense explicit streams into unreadably tiny gaps.
+  if(spacing<.055)return null;
+
+  return {start,end,total,spacing,span};
+}
+
+function retunePreviousForCompound(
+  generatedNotes,
+  previous,
+  firstStep,
+  startTime
+){
+  const hands=[
+    {key:"left",type:0,step:firstStep.l},
+    {key:"right",type:1,step:firstStep.r}
+  ];
+
+  for(const hand of hands){
+    if(!hand.step)continue;
+    const target=oppositeDirection(hand.step[2]);
+
+    for(let i=generatedNotes.length-1;i>=0;i--){
+      const note=generatedNotes[i];
+      if(note.type!==hand.type||note.time>=startTime-.0001)continue;
+      if(note.compoundFlow)break;
+
+      note.cutDirection=CUT[target].code;
+      if(previous[hand.key])previous[hand.key].direction=target;
+      break;
+    }
+  }
 }
 
 const DIFFICULTY_CONFIGS=[
@@ -1417,7 +1546,7 @@ function signatureAssignments(segments,seed,config){
     assignedEventCounts[bestTier]+=item.count;
     processedEvents=nextProcessed;
 
-    const pool=FLOW_PATTERNS.filter(
+    const pool=[...FLOW_PATTERNS,...COMPOUND_FLOW_PATTERNS].filter(
       pattern=>pattern.difficulty===bestTier
     );
     const chosen=pool[
@@ -2814,22 +2943,145 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
     hard:0
   };
 
+  let lastWasCompound=false;
+  let boundaryTargets={left:null,right:null};
+
   for(let i=0;i<segments.length;i++){
     const segment=segments[i];
     const cluster=Number.isFinite(segment.cluster)
       ?segment.cluster
       :i;
-    const pattern=assignments.get(cluster);
-    const time=+segment.start.toFixed(4);
+    const assignedPattern=assignments.get(cluster);
+    let pattern=assignedPattern;
+    let compoundWindow=null;
 
+    if(pattern?.steps){
+      compoundWindow=compoundFlowWindow(
+        segments,
+        i,
+        pattern,
+        result.duration
+      );
+
+      // Keep explicit streams separated by at least one ordinary flow so the
+      // exit reversal from one stream can become the entry reversal of the next.
+      if(lastWasCompound||!compoundWindow){
+        pattern=normalFallbackForCompound(
+          assignedPattern,
+          seed,
+          config,
+          cluster,
+          i
+        );
+        compoundWindow=null;
+      }
+    }
+
+    if(pattern.steps){
+      const firstStep=pattern.steps[0];
+      retunePreviousForCompound(
+        generatedNotes,
+        previous,
+        firstStep,
+        compoundWindow.start
+      );
+
+      for(
+        let stepIndex=0;
+        stepIndex<pattern.steps.length;
+        stepIndex++
+      ){
+        const step=pattern.steps[stepIndex];
+        const time=+(
+          compoundWindow.start+
+          compoundWindow.spacing*stepIndex
+        ).toFixed(4);
+        const eventIndex=
+          i+
+          compoundWindow.span*
+          stepIndex/
+          pattern.steps.length;
+
+        if(step.l){
+          generatedNotes.push({
+            eventIndex,
+            time,
+            lineIndex:step.l[0],
+            lineLayer:step.l[1],
+            type:0,
+            cutDirection:CUT[step.l[2]].code,
+            flowDifficulty:pattern.difficulty,
+            segment,
+            compoundFlow:pattern.id,
+            compoundStep:stepIndex
+          });
+        }
+
+        if(step.r){
+          generatedNotes.push({
+            eventIndex,
+            time,
+            lineIndex:step.r[0],
+            lineLayer:step.r[1],
+            type:1,
+            cutDirection:CUT[step.r[2]].code,
+            flowDifficulty:pattern.difficulty,
+            segment,
+            compoundFlow:pattern.id,
+            compoundStep:stepIndex
+          });
+        }
+      }
+
+      const lastStep=pattern.steps[pattern.steps.length-1];
+      const lastTime=+(
+        compoundWindow.start+
+        compoundWindow.spacing*(pattern.steps.length-1)
+      ).toFixed(4);
+
+      if(lastStep.l){
+        previous.left={
+          column:lastStep.l[0],
+          row:lastStep.l[1],
+          direction:lastStep.l[2],
+          time:lastTime
+        };
+        boundaryTargets.left=oppositeDirection(lastStep.l[2]);
+      }
+
+      if(lastStep.r){
+        previous.right={
+          column:lastStep.r[0],
+          row:lastStep.r[1],
+          direction:lastStep.r[2],
+          time:lastTime
+        };
+        boundaryTargets.right=oppositeDirection(lastStep.r[2]);
+      }
+
+      flowCounts.set(
+        pattern.id,
+        (flowCounts.get(pattern.id)||0)+1
+      );
+      flowTierCounts[pattern.difficulty]++;
+      lastWasCompound=true;
+
+      // A two-beat compound flow owns the intermediate detected event.
+      i+=compoundWindow.span-1;
+      continue;
+    }
+
+    const time=+segment.start.toFixed(4);
     const chosen=chooseDirections(
       pattern,
       previous,
       `${seed}|${config.id}|${cluster}|${i}`,
-      time
+      time,
+      boundaryTargets
     );
-    const safePattern=chosen.pattern;
+    boundaryTargets={left:null,right:null};
 
+    const safePattern=chosen.pattern;
     generatedNotes.push({
       eventIndex:i,
       time,
@@ -2869,6 +3121,7 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
       (flowCounts.get(pattern.id)||0)+1
     );
     flowTierCounts[pattern.difficulty]++;
+    lastWasCompound=false;
   }
 
   generatedNotes.sort(
@@ -2971,7 +3224,8 @@ function buildBeatmap(result,seed,config,lightingEvents,featureOptions){
           "Info 2.0 + V2 events + DefaultEnvironment",
         _lightingEventCount:lightingEvents.length,
         _flowWeights:config.weights,
-        _flowPatternCount:FLOW_PATTERNS.length
+        _flowPatternCount:
+          FLOW_PATTERNS.length+COMPOUND_FLOW_PATTERNS.length
       }
     },
     noteCount:colorNotes.length,
