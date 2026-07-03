@@ -1,7 +1,7 @@
 window.__v091=window.__v091.then(s=>{s=s.replaceAll('0.9.1','0.9.2');s=s.replace(`    const chosen=chooseDirections(
       pattern,
       previous,
-      \`${seed}|${config.id}|${cluster}|${i}\`,
+      \`\${seed}|\${config.id}|\${cluster}|\${i}\`,
       time,
       boundaryTargets
     );`,`    const expectedLeftDirection=previous.left
@@ -13,7 +13,7 @@ window.__v091=window.__v091.then(s=>{s=s.replaceAll('0.9.1','0.9.2');s=s.replace
     const chosen=chooseDirections(
       pattern,
       previous,
-      \`${seed}|${config.id}|${cluster}|${i}\`,
+      \`\${seed}|\${config.id}|\${cluster}|\${i}\`,
       time,
       boundaryTargets
     );
