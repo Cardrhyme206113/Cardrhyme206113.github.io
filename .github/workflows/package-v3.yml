@@ -1,0 +1,22 @@
+name: Package V3 Folder
+on:
+  push:
+    branches: [v3-native-opus]
+    paths:
+      - .github/workflows/package-v3.yml
+      - V3/**
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create ZIP
+        run: zip -r V3-mapmaker-native-opus.zip V3
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V3-mapmaker-native-opus
+          path: V3-mapmaker-native-opus.zip
+          retention-days: 7
