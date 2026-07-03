@@ -74,7 +74,7 @@ async function encodeNative(audioChannels, sampleRate, options, bitrate) {
   const targetRate = 48000;
   const channels = audioChannels.slice(0, 2).map(channel => resampleChannel(channel, sampleRate, targetRate));
   if (!channels.length) throw new Error("No audio channels were provided.");
-  const config = { codec:"opus", sampleRate:targetRate, numberOfChannels:channels.length, bitrate, bitrateMode:"variable" };
+  const config = { codec:"opus", sampleRate:targetRate, numberOfChannels:channels.length, bitrate, bitrateMode:"constant" };
   const support = await AudioEncoder.isConfigSupported(config);
   if (!support.supported) throw new Error("Native Opus configuration is unsupported.");
 
@@ -116,6 +116,7 @@ async function encodeWasmFallback(audioChannels, sampleRate, options) {
   if (typeof fallback.encodeOggVorbis !== "function") throw new Error("Local WASM backup did not expose encodeOggVorbis().");
   const result = await fallback.encodeOggVorbis(audioChannels, sampleRate, {
     ...options,
+    bitrate: selectedBitrateKbps * 1000,
     vbrQuality: Math.max(-1, Math.min(10, (selectedBitrateKbps - 16) / 11.2))
   });
   status(`Local WASM backup encoder used (${selectedBitrateKbps} kbps target).`);
@@ -123,8 +124,7 @@ async function encodeWasmFallback(audioChannels, sampleRate, options) {
 }
 
 export async function encodeOggVorbis(audioChannels, sampleRate, options = {}) {
-  const bitrateKbps = Math.max(16, Math.min(128, Math.round((options.bitrate ? options.bitrate / 1000 : selectedBitrateKbps) / 16) * 16));
-  selectedBitrateKbps = bitrateKbps;
+  const bitrateKbps = Math.max(16, Math.min(128, Math.round(selectedBitrateKbps / 16) * 16));
   const bitrate = bitrateKbps * 1000;
   try {
     status(`Encoding audio natively at ${bitrateKbps} kbps…`);
