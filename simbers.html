@@ -1102,12 +1102,31 @@ function candidateDirections(hand,note,other,preferredAxis){
   candidates.sort((a,b)=>(preferred.has(a)?0:1)-(preferred.has(b)?0:1));
   return candidates.length?candidates:["down"];
 }
+function parityFilteredOptions(options,previous,boundaryTarget){
+  if(boundaryTarget)return [boundaryTarget];
+  if(!previous)return options;
+  const target=oppositeDirection(previous.direction);
+  if(options.includes(target))return [target];
+  const ranked=options
+    .filter(direction=>direction!==previous.direction)
+    .sort((a,b)=>
+      angleDistance(CUT[a].deg,CUT[target].deg)-
+      angleDistance(CUT[b].deg,CUT[target].deg)
+    );
+  return ranked.length?[ranked[0]]:[target];
+}
 function parityPenalty(previous,direction,time){
   const d=CUT[direction];
   if(!previous)return d.dy<-.15?0:(Math.abs(d.dx)>.9?2.2:1.2);
-  const dt=Math.max(.05,time-previous.time),expected=(CUT[previous.direction].deg+180)%360,error=angleDistance(d.deg,expected);
-  let score=error/30;if(direction===previous.direction)score+=7;
-  if(dt<.34&&error>90)score+=12;else if(dt<.55&&error>135)score+=7;
+  if(direction===previous.direction)return 1000000000;
+  const dt=Math.max(.05,time-previous.time);
+  const expected=(CUT[previous.direction].deg+180)%360;
+  const error=angleDistance(d.deg,expected);
+  let score=error/5;
+  if(error>90)score+=250;
+  else if(error>45)score+=45;
+  else if(error>22.5)score+=12;
+  if(dt<.55&&error>45)score+=80;
   return score;
 }
 function handComfortPenalty(hand,note,direction){
@@ -1157,13 +1176,16 @@ function chooseDirections(
     safePattern.l,
     safePattern.r[2]
   );
-
-  if(boundaryTargets?.left){
-    leftOptions=[boundaryTargets.left];
-  }
-  if(boundaryTargets?.right){
-    rightOptions=[boundaryTargets.right];
-  }
+  leftOptions=parityFilteredOptions(
+    leftOptions,
+    previous.left,
+    boundaryTargets?.left
+  );
+  rightOptions=parityFilteredOptions(
+    rightOptions,
+    previous.right,
+    boundaryTargets?.right
+  );
 
   let best=null;
   for(const leftDirection of leftOptions){
