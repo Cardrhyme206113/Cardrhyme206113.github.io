@@ -1,0 +1,38 @@
+name: Apply compound flow update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - tools/apply-compound-flow-update.py
+      - .github/workflows/apply-compound-flow-update.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Patch flow library
+        run: python tools/apply-compound-flow-update.py
+      - name: Commit updated HTML
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add simbers.html
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add compound Beat Saber flows"
+            git push
+          fi
