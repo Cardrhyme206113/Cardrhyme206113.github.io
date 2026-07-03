@@ -1,0 +1,19 @@
+SIMBERS_LIVE_TEST_STATUS=FAIL
+TESTED_URL=https://cardrhyme206113.github.io/simbers.html?build=20260703-4
+UTC=2026-07-03T12:22:40Z
+browser=failure
+
+URL: https://cardrhyme206113.github.io/simbers.html?build=20260703-4
+TITLE: Simplified Sabers v0.9.5
+BODY_START: Simbers v0.9.5 failed to load.
+
+SyntaxError: Invalid or unexpected token
+console: SyntaxError: Invalid or unexpected token
+
+Visible loader failure: Simbers v0.9.5 failed to load.
+
+SyntaxError: Invalid or unexpected token
+
+Main UI did not render.
+
+Upload control did not render.
