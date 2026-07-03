@@ -1,0 +1,411 @@
+name: Fix Simbers simultaneous flows and parity
+
+on:
+  push:
+    paths:
+      - .github/workflows/fix-simbers-single-beat-parity.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          filter: blob:none
+          sparse-checkout: |
+            simbers.html
+            simbers-flow-library.js
+            simbers-flow-library.html
+            .github/workflows/fix-simbers-single-beat-parity.yml
+
+      - name: Patch timing and wrist parity
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_once(text, old, new, label):
+              if old not in text:
+                  if new in text:
+                      return text
+                  raise RuntimeError(f"Missing patch target: {label}")
+              return text.replace(old, new, 1)
+
+          # Add exact detected-beat placement metadata to the explicit flow module.
+          js_path = Path("simbers-flow-library.js")
+          js = js_path.read_text(encoding="utf-8")
+          timing_specs = {
+              "library_05": "[0,0,0]",
+              "library_06": "[0,0,0]",
+              "library_13": "[0,0,0,1,1]",
+              "library_14": "[0,0,0]",
+              "library_15": "[0,0]",
+              "library_16": "[0,0,0]",
+              "library_17": "[0,0,0]",
+              "library_18": "[0,0,0]",
+              "library_19": "[0,0,0]",
+          }
+          for flow_id, beats in timing_specs.items():
+              pattern = rf'("id":"{flow_id}".*?"spanBeats":\d+)(,"steps":)'
+              if re.search(rf'"id":"{flow_id}".*?"stepBeats":', js):
+                  continue
+              js, count = re.subn(pattern, rf'\1,"stepBeats":{beats}\2', js, count=1)
+              if count != 1:
+                  raise RuntimeError(f"Could not add timing metadata to {flow_id}")
+          js = js.replace(
+              "// Explicit cut directions are preserved. spanBeats controls sequence duration.",
+              "// Explicit cut directions are preserved. spanBeats controls occupied detected beats.\n// stepBeats assigns each step to an exact detected-beat offset."
+          )
+          js_path.write_text(js, encoding="utf-8")
+
+          path = Path("simbers.html")
+          text = path.read_text(encoding="utf-8")
+
+          old_candidate = '''function candidateDirections(hand,note,other,preferredAxis){
+            let candidates=Object.keys(CUT).filter(d=>!directionHasWindupConflict(note,other,d));
+            if(Math.abs(other[0]-note[0])<=1)candidates=candidates.filter(d=>Math.abs(CUT[d].dx)<.95);
+            const preferred=new Set(AXIS_DIRECTIONS[preferredAxis]||[]);
+            candidates.sort((a,b)=>(preferred.has(a)?0:1)-(preferred.has(b)?0:1));
+            return candidates.length?candidates:["down"];
+          }'''
+          new_candidate = old_candidate + '''
+          function parityFilteredOptions(options,previous,boundaryTarget){
+            if(boundaryTarget)return [boundaryTarget];
+            if(!previous)return options;
+
+            const target=oppositeDirection(previous.direction);
+            if(options.includes(target))return [target];
+
+            const ranked=options
+              .filter(direction=>direction!==previous.direction)
+              .sort((a,b)=>
+                angleDistance(CUT[a].deg,CUT[target].deg)-
+                angleDistance(CUT[b].deg,CUT[target].deg)
+              );
+
+            // Never repeat the same cut. If geometry removed the exact opposite,
+            // use the nearest legal reversal instead of sacrificing wrist parity.
+            return ranked.length?[ranked[0]]:[target];
+          }'''
+          text = replace_once(text, old_candidate, new_candidate, "strict parity options")
+
+          parity_pattern = re.compile(r'function parityPenalty\(previous,direction,time\)\{.*?\n\}', re.S)
+          new_parity = '''function parityPenalty(previous,direction,time){
+            const d=CUT[direction];
+            if(!previous)return d.dy<-.15?0:(Math.abs(d.dx)>.9?2.2:1.2);
+            if(direction===previous.direction)return 1e9;
+
+            const dt=Math.max(.05,time-previous.time);
+            const expected=(CUT[previous.direction].deg+180)%360;
+            const error=angleDistance(d.deg,expected);
+            let score=error/5;
+            if(error>90)score+=250;
+            else if(error>45)score+=45;
+            else if(error>22.5)score+=12;
+            if(dt<.55&&error>45)score+=80;
+            return score;
+          }'''
+          text, count = parity_pattern.subn(new_parity, text, count=1)
+          if count != 1:
+              raise RuntimeError("Could not replace parityPenalty")
+
+          old_boundary_options = '''  if(boundaryTargets?.left){
+            leftOptions=[boundaryTargets.left];
+          }
+          if(boundaryTargets?.right){
+            rightOptions=[boundaryTargets.right];
+          }'''
+          new_boundary_options = '''  leftOptions=parityFilteredOptions(
+            leftOptions,
+            previous.left,
+            boundaryTargets?.left
+          );
+          rightOptions=parityFilteredOptions(
+            rightOptions,
+            previous.right,
+            boundaryTargets?.right
+          );'''
+          text = replace_once(text, old_boundary_options, new_boundary_options, "chooseDirections parity filtering")
+
+          window_pattern = re.compile(
+              r'function compoundFlowWindow\(segments,index,pattern,duration\)\{.*?\n\}\n\nfunction explicitHandStep',
+              re.S
+          )
+          new_window = '''function compoundFlowWindow(segments,index,pattern,duration){
+            const span=Math.max(1,pattern.beatSpan||1);
+            const endSegment=segments[index+span];
+            if(!endSegment)return null;
+
+            const start=segments[index].start;
+            const end=Math.min(duration-.02,endSegment.start);
+            const total=end-start;
+            if(total<=0)return null;
+
+            const spacing=total/pattern.steps.length;
+            if(!Array.isArray(pattern.stepBeats)&&spacing<.055)return null;
+
+            const beatTimes=Array.from(
+              {length:span},
+              (_,offset)=>segments[index+offset]?.start ?? start+total*offset/span
+            );
+            return {start,end,total,spacing,span,beatTimes};
+          }
+
+          function compoundStepPlacement(window,pattern,stepIndex,baseEventIndex){
+            if(Array.isArray(pattern.stepBeats)){
+              const beatOffset=clamp(
+                Math.round(pattern.stepBeats[stepIndex]??0),
+                0,
+                window.span-1
+              );
+              return {
+                time:+window.beatTimes[beatOffset].toFixed(4),
+                eventIndex:baseEventIndex+beatOffset
+              };
+            }
+
+            return {
+              time:+(window.start+window.spacing*stepIndex).toFixed(4),
+              eventIndex:
+                baseEventIndex+
+                window.span*stepIndex/pattern.steps.length
+            };
+          }
+
+          function explicitHandStep'''
+          text, count = window_pattern.subn(new_window, text, count=1)
+          if count != 1:
+              raise RuntimeError("Could not patch compound timing")
+
+          marker = '''function retunePreviousForCompound(
+            generatedNotes,
+            previous,
+            steps,
+            startTime
+          ){'''
+          helper = '''function compoundEntryMatchesPrevious(previous,steps){
+            const hands=[
+              {key:"left",step:explicitHandStep(steps,"l")},
+              {key:"right",step:explicitHandStep(steps,"r")}
+            ];
+            for(const hand of hands){
+              if(!hand.step)continue;
+              const target=oppositeDirection(hand.step.note[2]);
+              if(!previous[hand.key]||previous[hand.key].direction!==target){
+                return false;
+              }
+            }
+            return true;
+          }
+
+          ''' + marker
+          text = replace_once(text, marker, helper, "compound bridge compatibility")
+
+          old_time = '''        const step=pattern.steps[stepIndex];
+                  const time=+(
+                    compoundWindow.start+
+                    compoundWindow.spacing*stepIndex
+                  ).toFixed(4);
+                  const eventIndex=
+                    i+
+                    compoundWindow.span*
+                    stepIndex/
+                    pattern.steps.length;'''
+          new_time = '''        const step=pattern.steps[stepIndex];
+                  const placement=compoundStepPlacement(
+                    compoundWindow,
+                    pattern,
+                    stepIndex,
+                    i
+                  );
+                  const {time,eventIndex}=placement;'''
+          text = replace_once(text, old_time, new_time, "compound step placement")
+
+          old_left_exit = '''        const lastTime=+(
+                    compoundWindow.start+
+                    compoundWindow.spacing*leftExit.index
+                  ).toFixed(4);'''
+          new_left_exit = '''        const {time:lastTime}=compoundStepPlacement(
+                    compoundWindow,
+                    pattern,
+                    leftExit.index,
+                    i
+                  );'''
+          text = replace_once(text, old_left_exit, new_left_exit, "left exit timing")
+
+          old_right_exit = '''        const lastTime=+(
+                    compoundWindow.start+
+                    compoundWindow.spacing*rightExit.index
+                  ).toFixed(4);'''
+          new_right_exit = '''        const {time:lastTime}=compoundStepPlacement(
+                    compoundWindow,
+                    pattern,
+                    rightExit.index,
+                    i
+                  );'''
+          text = replace_once(text, old_right_exit, new_right_exit, "right exit timing")
+
+          text = replace_once(
+              text,
+              '  let lastWasCompound=false;\n  let boundaryTargets={left:null,right:null};',
+              '  let lastWasCompound=false;\n  let lastNormalBridgesCompound=false;\n  let boundaryTargets={left:null,right:null};',
+              "bridge state"
+          )
+
+          old_guard = '''      // Keep explicit streams separated by at least one ordinary flow so the
+                // exit reversal from one stream can become the entry reversal of the next.
+                if(lastWasCompound||!compoundWindow){'''
+          new_guard = '''      // Direct chaining is forbidden. If the previous ordinary note is already
+                // the exit reversal for another explicit flow, only allow this flow when
+                // that same note is also the exact entry reversal for both hands.
+                const bridgeConflict=
+                  lastNormalBridgesCompound &&
+                  !compoundEntryMatchesPrevious(previous,pattern.steps);
+                if(lastWasCompound||bridgeConflict||!compoundWindow){'''
+          text = replace_once(text, old_guard, new_guard, "compound chaining guard")
+
+          text = replace_once(
+              text,
+              '      flowTierCounts[pattern.difficulty]++;\n      lastWasCompound=true;',
+              '      flowTierCounts[pattern.difficulty]++;\n      lastWasCompound=true;\n      lastNormalBridgesCompound=false;',
+              "compound bridge reset"
+          )
+
+          text = replace_once(
+              text,
+              '''    const chosen=chooseDirections(
+              pattern,
+              previous,
+              `${seed}|${config.id}|${cluster}|${i}`,
+              time,
+              boundaryTargets
+            );
+            boundaryTargets={left:null,right:null};''',
+              '''    const usedBoundaryBridge=Boolean(
+              boundaryTargets.left||boundaryTargets.right
+            );
+            const chosen=chooseDirections(
+              pattern,
+              previous,
+              `${seed}|${config.id}|${cluster}|${i}`,
+              time,
+              boundaryTargets
+            );
+            boundaryTargets={left:null,right:null};''',
+              "boundary bridge capture"
+          )
+
+          text = replace_once(
+              text,
+              '    flowTierCounts[pattern.difficulty]++;\n    lastWasCompound=false;',
+              '    flowTierCounts[pattern.difficulty]++;\n    lastWasCompound=false;\n    lastNormalBridgesCompound=usedBoundaryBridge;',
+              "normal bridge state"
+          )
+
+          text = text.replace(
+              '// A two-beat compound flow owns the intermediate detected event.',
+              '// A multi-beat compound flow owns its intermediate detected events.'
+          )
+          path.write_text(text, encoding="utf-8")
+
+          # Keep the visual library honest about exact simultaneous timestamps.
+          html_path = Path("simbers-flow-library.html")
+          page = html_path.read_text(encoding="utf-8")
+          html_specs = {
+              "compound_05": "[0,0,0]",
+              "compound_06": "[0,0,0]",
+              "compound_13": "[0,0,0,1,1]",
+              "compound_14": "[0,0,0]",
+              "compound_15": "[0,0]",
+              "compound_16": "[0,0,0]",
+              "compound_17": "[0,0,0]",
+              "compound_18": "[0,0,0]",
+              "compound_19": "[0,0,0]",
+          }
+          for flow_id, beats in html_specs.items():
+              if re.search(rf'"id":"{flow_id}".*?"stepBeats":', page):
+                  continue
+              page, count = re.subn(
+                  rf'("id":"{flow_id}".*?"beatSpan":\d+)(,"steps":)',
+                  rf'\1,"stepBeats":{beats}\2',
+                  page,
+                  count=1
+              )
+              if count != 1:
+                  raise RuntimeError(f"Could not update visual timing for {flow_id}")
+
+          render_pattern = re.compile(
+              r'function beatHtml\(step,index,total,span\)\{.*?\n\}\nfunction render\(filter="all"\)\{.*?\n\}',
+              re.S
+          )
+          new_render = '''function beatGroupHtml(group,label){
+            let cells="";
+            for(let i=0;i<12;i++)cells+='<span class="cell"></span>';
+            const notes=group.flatMap(step=>[
+              noteHtml(step.l,"left"),
+              noteHtml(step.r,"right")
+            ]).join("");
+            return `<div class="beat"><div class="beatLabel">${label}</div><div class="miniGrid">${cells}${notes}</div></div>`;
+          }
+          function flowBeatGroups(flow){
+            if(!Array.isArray(flow.stepBeats)){
+              return flow.steps.map((step,index)=>({
+                beat:index,
+                steps:[step],
+                label:flow.steps.length===1?"Pattern":`Note ${index+1}/${flow.steps.length}`
+              }));
+            }
+            const groups=new Map();
+            flow.steps.forEach((step,index)=>{
+              const beat=flow.stepBeats[index]??0;
+              if(!groups.has(beat))groups.set(beat,[]);
+              groups.get(beat).push(step);
+            });
+            return [...groups.entries()].map(([beat,steps])=>({
+              beat,
+              steps,
+              label:`Beat ${beat+1} · same timestamp`
+            }));
+          }
+          function render(filter="all"){
+            grid.innerHTML=FLOWS.filter(f=>filter==="all"||f.difficulty===filter).map(f=>{
+              const groups=flowBeatGroups(f);
+              const timing=Array.isArray(f.stepBeats)
+                ?(groups.length===1
+                  ?`${f.steps.length} note rows at one exact timestamp`
+                  :`${f.steps.length} note rows on ${groups.length} exact beat timestamps`)
+                :(f.steps.length===1
+                  ?"single detected event"
+                  :`${f.steps.length} notes across ${f.beatSpan} beat${f.beatSpan===1?"":"s"}`);
+              return `<article class="card" data-difficulty="${f.difficulty}">
+                <div class="cardHead"><div><h2>#${f.index} · ${f.name}</h2>
+                <div class="meta">${f.source} · ${timing}</div></div>
+                <span class="badge ${f.difficulty}">${f.difficulty}</span></div>
+                <div class="timeline">${groups.map(group=>beatGroupHtml(group.steps,group.label)).join("")}</div>
+              </article>`;
+            }).join("");
+          }'''
+          page, count = render_pattern.subn(new_render, page, count=1)
+          if count != 1:
+              raise RuntimeError("Could not patch flow library rendering")
+          html_path.write_text(page, encoding="utf-8")
+          PY
+
+      - name: Commit fixes
+        shell: bash
+        run: |
+          if git diff --quiet -- simbers.html simbers-flow-library.js simbers-flow-library.html; then
+            echo "Already fixed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add simbers.html simbers-flow-library.js simbers-flow-library.html
+          git commit -m "Fix simultaneous flows and enforce wrist parity"
+          git push
