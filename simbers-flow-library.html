@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Simplified Sabers — Original Flow Library</title>
+<style>
+:root{--bg:#101010;--panel:#1c1c1c;--panel2:#171717;--line:#353535;--text:#f4f4f4;--muted:#999;--red:#ef334f;--blue:#1689ff;--accent:#0b82ff}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+body{padding:18px}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:14px;margin:-18px -18px 18px;padding:16px 18px;background:rgba(16,16,16,.96);border-bottom:1px solid var(--line);backdrop-filter:blur(10px)}
+.back{display:inline-grid;place-items:center;width:42px;height:42px;border:1px solid var(--line);border-radius:9px;color:#fff;text-decoration:none;font-size:24px;background:#1b1b1b}
+.brand{display:flex;align-items:center;gap:10px}
+.mark{display:flex;gap:5px;transform:skew(-12deg)}
+.mark i{display:block;width:10px;height:34px;border-radius:2px}
+.mark i:first-child{background:#ff174d}.mark i:last-child{background:#1689ff}
+h1{font-size:20px;margin:0}.subtitle{color:var(--muted);font-size:12px;margin-top:2px}
+.filters{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.filters button{border:1px solid var(--line);background:#1b1b1b;color:#ddd;padding:8px 11px;border-radius:7px;font-weight:700;cursor:pointer}
+.filters button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.summary{margin:0 auto 14px;max-width:1500px;color:var(--muted);font-size:13px}
+.library{max-width:1500px;margin:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.22)}
+.cardHead{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.card h2{font-size:14px;line-height:1.2;margin:0}.id{color:#777;font:700 10px ui-monospace,monospace;margin-top:3px}
+.badge{font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;padding:4px 6px;border-radius:999px;border:1px solid currentColor}
+.badge.easy{color:#7dffac}.badge.medium{color:#ffd96b}.badge.hard{color:#ff8596}
+.grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:5px;aspect-ratio:4/3;background:#0c0c0c;border:1px solid #414141;border-radius:8px;padding:6px}
+.cell{position:relative;border:1px solid #282828;border-radius:4px;background:#151515}
+.note{position:absolute;inset:10%;display:grid;place-items:center;border-radius:7px;border:2px solid rgba(255,255,255,.2);box-shadow:inset 0 0 0 2px rgba(0,0,0,.16),0 3px 8px rgba(0,0,0,.45);font-size:24px;font-weight:900;color:#fff;text-shadow:0 2px 2px rgba(0,0,0,.55)}
+.note.left{background:linear-gradient(145deg,#ff3859,#a9001f)}.note.right{background:linear-gradient(145deg,#35a4ff,#005bbd)}
+.axisLabel{margin-top:9px;color:#aaa;font:11px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.axisLabel b{color:#eee}
+.legend{max-width:1500px;margin:0 auto 16px;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:#aaa;font-size:12px}
+.legend strong{color:#fff}
+@media(max-width:650px){body{padding:10px}header{margin:-10px -10px 12px;padding:10px}.filters{display:none}.library{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.card{padding:8px}.card h2{font-size:11px}.note{font-size:18px}}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="./simbers.html" aria-label="Back to Simplified Sabers">←</a>
+  <div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i></span><div><h1>Original Flow Library</h1><div class="subtitle">The 30 built-in flows from before the custom 19-flow expansion</div></div></div>
+  <div class="filters" aria-label="Difficulty filters">
+    <button class="active" data-filter="all">All</button>
+    <button data-filter="easy">Easy</button>
+    <button data-filter="medium">Medium</button>
+    <button data-filter="hard">Hard</button>
+  </div>
+</header>
+<div class="legend"><strong>Axis symbols:</strong> ↕ chooses up or down · ↔ chooses left or right · ↖↘ and ↗↙ choose either direction on that diagonal axis. Red is left saber; blue is right saber.</div>
+<div class="summary" id="summary"></div>
+<main class="library" id="library"></main>
+<script>
+const FLOWS=[{"id":"double_01","name":"Low Outer Vertical","difficulty":"easy","l":[0,0,"V"],"r":[3,0,"V"]},{"id":"double_02","name":"Mid Outer Vertical","difficulty":"easy","l":[0,1,"V"],"r":[3,1,"V"]},{"id":"double_03","name":"High Outer Vertical","difficulty":"easy","l":[0,2,"V"],"r":[3,2,"V"]},{"id":"double_04","name":"Low Inner Vertical","difficulty":"easy","l":[1,0,"V"],"r":[2,0,"V"]},{"id":"double_05","name":"Mid Inner Horizontal","difficulty":"easy","l":[1,1,"H"],"r":[2,1,"H"]},{"id":"double_06","name":"High Inner Horizontal","difficulty":"easy","l":[1,2,"H"],"r":[2,2,"H"]},{"id":"double_07","name":"Low Outer Inward Diagonal","difficulty":"easy","l":[0,0,"D1"],"r":[3,0,"D2"]},{"id":"double_08","name":"High Outer Diagonal","difficulty":"easy","l":[0,2,"D2"],"r":[3,2,"D1"]},{"id":"double_09","name":"Left Low Right High","difficulty":"easy","l":[0,0,"V"],"r":[3,2,"V"]},{"id":"double_10","name":"Left High Right Low","difficulty":"easy","l":[0,2,"V"],"r":[3,0,"V"]},{"id":"double_11","name":"Wide Mid Horizontal","difficulty":"easy","l":[0,1,"H"],"r":[3,1,"H"]},{"id":"double_12","name":"Mirror Mid Diagonals","difficulty":"easy","l":[0,1,"D2"],"r":[3,1,"D1"]},{"id":"double_13","name":"Rising Outer Diagonal","difficulty":"medium","l":[0,0,"D2"],"r":[3,2,"D2"]},{"id":"double_14","name":"Falling Outer Diagonal","difficulty":"medium","l":[0,2,"D1"],"r":[3,0,"D1"]},{"id":"double_15","name":"Low Inner High Outer","difficulty":"medium","l":[1,0,"D2"],"r":[3,2,"D1"]},{"id":"double_16","name":"High Outer Low Inner","difficulty":"medium","l":[0,2,"D2"],"r":[2,0,"D1"]},{"id":"double_17","name":"Mid Left High Inner","difficulty":"medium","l":[0,1,"H"],"r":[2,2,"V"]},{"id":"double_18","name":"Low Inner Mid Right","difficulty":"medium","l":[1,0,"V"],"r":[3,1,"H"]},{"id":"double_19","name":"Crossed Mid Horizontal","difficulty":"medium","l":[2,1,"H"],"r":[1,1,"H"]},{"id":"double_20","name":"Crossed High Diagonal","difficulty":"medium","l":[2,2,"D1"],"r":[1,2,"D2"]},{"id":"double_21","name":"Crossed Low Diagonal","difficulty":"medium","l":[2,0,"D2"],"r":[1,0,"D1"]},{"id":"double_22","name":"Inner Vertical Split","difficulty":"medium","l":[1,2,"V"],"r":[2,0,"V"]},{"id":"double_23","name":"Inner Reverse Split","difficulty":"medium","l":[1,0,"V"],"r":[2,2,"V"]},{"id":"double_24","name":"Offset Mirror","difficulty":"medium","l":[0,2,"D2"],"r":[2,1,"D1"]},{"id":"double_25","name":"Left Stack Horizontal","difficulty":"hard","l":[1,0,"H"],"r":[1,2,"H"]},{"id":"double_26","name":"Right Stack Horizontal","difficulty":"hard","l":[2,2,"H"],"r":[2,0,"H"]},{"id":"double_27","name":"Tight Cross Diagonals","difficulty":"hard","l":[2,1,"D1"],"r":[1,1,"D2"]},{"id":"double_28","name":"Tight Vertical Cross","difficulty":"hard","l":[1,2,"D1"],"r":[2,0,"D2"]},{"id":"double_29","name":"Reverse Vertical Cross","difficulty":"hard","l":[1,0,"D2"],"r":[2,2,"D1"]},{"id":"double_30","name":"Full Color Crossover","difficulty":"hard","l":[3,2,"D1"],"r":[0,0,"D2"]}];
+const SYMBOLS={V:"↕",H:"↔",D1:"↖↘",D2:"↗↙"};
+const NAMES={V:"up / down",H:"left / right",D1:"up-left / down-right",D2:"up-right / down-left"};
+const library=document.getElementById("library");
+const summary=document.getElementById("summary");
+function noteMarkup(note,hand){
+  if(!note)return "";
+  const [x,y,axis]=note;
+  return `<div class="note ${hand}" style="grid-column:${x+1};grid-row:${3-y}">${SYMBOLS[axis]||axis}</div>`;
+}
+function cardMarkup(flow,index){
+  return `<article class="card" data-difficulty="${flow.difficulty}">
+    <div class="cardHead"><div><h2>${index+1}. ${flow.name}</h2><div class="id">${flow.id}</div></div><span class="badge ${flow.difficulty}">${flow.difficulty}</span></div>
+    <div class="grid">
+      ${Array.from({length:12},()=>'<div class="cell"></div>').join("")}
+      ${noteMarkup(flow.l,"left")}
+      ${noteMarkup(flow.r,"right")}
+    </div>
+    <div class="axisLabel"><b>Left:</b> (${flow.l[0]},${flow.l[1]}) ${NAMES[flow.l[2]]}<br><b>Right:</b> (${flow.r[0]},${flow.r[1]}) ${NAMES[flow.r[2]]}</div>
+  </article>`;
+}
+function render(filter="all"){
+  const visible=filter==="all"?FLOWS:FLOWS.filter(flow=>flow.difficulty===filter);
+  library.innerHTML=visible.map(flow=>cardMarkup(flow,FLOWS.indexOf(flow))).join("");
+  const counts=Object.fromEntries(["easy","medium","hard"].map(level=>[level,FLOWS.filter(flow=>flow.difficulty===level).length]));
+  summary.textContent=`${visible.length} shown · ${FLOWS.length} total · Easy ${counts.easy} · Medium ${counts.medium} · Hard ${counts.hard}`;
+}
+document.querySelectorAll("[data-filter]").forEach(button=>button.addEventListener("click",()=>{
+  document.querySelectorAll("[data-filter]").forEach(item=>item.classList.toggle("active",item===button));
+  render(button.dataset.filter);
+}));
+render();
+</script>
+</body>
+</html>
