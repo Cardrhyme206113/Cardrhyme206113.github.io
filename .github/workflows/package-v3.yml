@@ -5,6 +5,11 @@ on:
     paths:
       - .github/workflows/package-v3.yml
       - V3/**
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/package-v3.yml
+      - V3/**
   workflow_dispatch:
 permissions:
   contents: read
