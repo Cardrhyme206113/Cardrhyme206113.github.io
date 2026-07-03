@@ -6,7 +6,24 @@
 <meta name="simbers-version" content="0.9.3">
 <meta http-equiv="cache-control" content="no-store">
 <title>Simplified Sabers v0.9.3</title>
-<style>html,body{width:100%;height:100%;margin:0;background:#121212;color:#aaa;font:14px system-ui,sans-serif}body{display:grid;place-items:center}.loading{opacity:.8}</style>
+<style>html,body{width:100%;height:100%;margin:0;background:#121212;color:#aaa;font:14px system-ui,sans-serif}body{display:grid;place-items:center}.loading{opacity:.8}.error{max-width:900px;padding:24px;color:#ff8293;white-space:pre-wrap}</style>
 </head>
-<body><div class="loading">Loading Simplified Sabers v0.9.3…</div><script type="module" src="./simbers-v093.js?v=0.9.3"></script></body>
+<body><div class="loading">Loading Simplified Sabers v0.9.3…</div>
+<script type="module">
+const VERSION="0.9.3";
+const RUNTIME_URL="https://raw.githubusercontent.com/Cardrhyme206113/Cardrhyme206113.github.io/9ae18a23e9ebef7fa74368cb0f242bc500e6713b/simbers-v093.js";
+const FLOW_URL="https://raw.githubusercontent.com/Cardrhyme206113/Cardrhyme206113.github.io/9ae18a23e9ebef7fa74368cb0f242bc500e6713b/simbers-flow-library.js";
+try{
+  const response=await fetch(`${RUNTIME_URL}?v=${VERSION}`,{cache:"no-store"});
+  if(!response.ok)throw new Error(`Runtime fetch failed (${response.status})`);
+  let runtime=await response.text();
+  runtime=runtime.replace("./simbers-flow-library.js",FLOW_URL);
+  const runtimeUrl=URL.createObjectURL(new Blob([runtime],{type:"text/javascript"}));
+  await import(runtimeUrl);
+}catch(error){
+  console.error(error);
+  document.body.innerHTML=`<pre class="error">Simbers v${VERSION} failed to load.\n\n${String(error.stack||error)}</pre>`;
+}
+</script>
+</body>
 </html>
