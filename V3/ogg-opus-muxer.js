@@ -1,6 +1,37 @@
 // Minimal Ogg Opus muxer. No third-party dependencies.
 const textEncoder = new TextEncoder();
 
+function installVersionMarker() {
+  const run = () => {
+    if (document.getElementById("simbersVersionInfo")) return;
+    const marker = document.createElement("div");
+    marker.id = "simbersVersionInfo";
+    marker.textContent = "v0.9.5 · V3";
+    marker.title = "Simplified Sabers v0.9.5 — V3 native encoder build";
+    Object.assign(marker.style, {
+      position: "fixed",
+      top: "10px",
+      right: "12px",
+      zIndex: "99999",
+      padding: "5px 8px",
+      border: "1px solid rgba(255,255,255,.16)",
+      borderRadius: "4px",
+      background: "rgba(14,14,14,.82)",
+      color: "#9a9a9a",
+      font: "700 10px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace",
+      letterSpacing: ".06em",
+      textTransform: "uppercase",
+      pointerEvents: "none",
+      backdropFilter: "blur(8px)",
+      WebkitBackdropFilter: "blur(8px)"
+    });
+    document.body.appendChild(marker);
+  };
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", run, { once:true });
+  else run();
+}
+installVersionMarker();
+
 function concat(parts) {
   const size = parts.reduce((n, p) => n + p.length, 0);
   const out = new Uint8Array(size);
