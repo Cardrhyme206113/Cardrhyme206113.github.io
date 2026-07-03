@@ -1,1 +1,0 @@
-window.__v091=window.__v091.then(s=>{s=s.replace('        _simbersVersion:SIMBERS_VERSION,','        _simbersVersion:SIMBERS_VERSION,\n        _failedRotations:failedRotations,\n        _rotationPolicy:"exact reverse or reject flow",');s=s.replace('    noteCount:colorNotes.length,','    failedRotations,\n    noteCount:colorNotes.length,');return s;});
