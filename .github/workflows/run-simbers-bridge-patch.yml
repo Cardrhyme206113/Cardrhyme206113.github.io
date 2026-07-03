@@ -1,4 +1,4 @@
-name: Run Simbers compound bridge patch
+name: Run Simbers library timing patch
 
 on:
   push:
@@ -16,10 +16,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - run: python tools/patch_simbers_compound_bridges.py
+      - run: python tools/patch_simbers_library_timing.py
       - run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add simbers.html
-          git diff --cached --quiet || git commit -m "Prevent incompatible compound flow bridges"
+          git add simbers-flow-library.html
+          git diff --cached --quiet || git commit -m "Show exact simultaneous flow timestamps"
           git push
