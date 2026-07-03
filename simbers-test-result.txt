@@ -1,26 +1,29 @@
-SIMBERS_TEST_STATUS=FAIL
-TESTED_COMMIT=a2613fe46038cc93c37c3332effdf899b350cf10
-UTC=2026-07-03T12:13:43Z
+SIMBERS_TEST_STATUS=PASS
+TESTED_COMMIT=6739c01a4f144195614d275cdb85ed6daded56c6
+UTC=2026-07-03T12:16:19Z
 syntax=success
 install=success
-browser=failure
+browser=success
 
 ===== BROWSER LOG =====
 TITLE: Simplified Sabers v0.9.5
-BODY_START: Simbers v0.9.5 failed to load.
+BODY_START: Failed rotations: 0
+SIMPLIFIED SABERS
+v0.9.5
 
-SyntaxError: Invalid or unexpected token
-console: SyntaxError: Invalid or unexpected token
+Upload a song and create a complete five-difficulty Beat Saber map.
 
-Visible loader failure: Simbers v0.9.5 failed to load.
-
-SyntaxError: Invalid or unexpected token
-
-Main UI did not render.
-
-Upload control did not render.
+UPLOAD SONG
+CREATE MAP
+EXPORT ZIP
+×
+READY. SELECT A SONG FILE.
+YOUR MAP PREVIEW WILL APPEAR HERE.
 
 ===== SERVER LOG =====
-127.0.0.1 - - [03/Jul/2026 12:13:32] "GET /simbers.html?build=ci HTTP/1.1" 200 -
-127.0.0.1 - - [03/Jul/2026 12:13:32] "GET /simbers-v095.js?v=0.9.5&build=20260703-3 HTTP/1.1" 200 -
-127.0.0.1 - - [03/Jul/2026 12:13:32] "GET /simbers-v094.js?v=0.9.5 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:16:09] "GET /simbers.html?build=ci HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:16:09] "GET /simbers-v095.js?v=0.9.5&build=20260703-3 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:16:09] "GET /simbers-v093.js?v=0.9.5 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:16:09] "GET /simbers-v095-patch.js?v=0.9.5 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:16:09] "GET /simbers-flow-library.js?v=0.9.5 HTTP/1.1" 200 -
+127.0.0.1 - - [03/Jul/2026 12:16:09] "GET /simbers-ogg-encoder.js HTTP/1.1" 200 -
