@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CORS Test</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    body { max-width: 760px; margin: 0 auto; padding: 24px; background:#0b0d10; color:#f3f5f7; }
+    h1 { margin:0 0 8px; font-size:1.6rem; }
+    p { color:#aeb7c2; line-height:1.45; }
+    .row { display:flex; gap:10px; }
+    input { flex:1; min-width:0; padding:12px; border:1px solid #303844; border-radius:10px; background:#151a20; color:inherit; }
+    button { padding:12px 16px; border:0; border-radius:10px; font-weight:700; cursor:pointer; }
+    pre { white-space:pre-wrap; word-break:break-word; min-height:130px; padding:14px; border-radius:12px; background:#151a20; border:1px solid #303844; }
+    .presets { display:flex; flex-wrap:wrap; gap:8px; margin:12px 0; }
+    .presets button { background:#222a34; color:#fff; }
+    .ok { color:#78e08f; } .bad { color:#ff7675; }
+  </style>
+</head>
+<body>
+  <h1>Browser CORS test</h1>
+  <p>This uses normal browser <code>fetch()</code>. A successful response means JavaScript can read the bytes. A CORS failure usually appears as <code>TypeError: Failed to fetch</code>.</p>
+
+  <div class="row">
+    <input id="url" value="https://www.youtube.com/watch?v=dQw4w9WgXcQ" spellcheck="false" />
+    <button id="run">Test</button>
+  </div>
+
+  <div class="presets">
+    <button data-url="https://www.youtube.com/watch?v=dQw4w9WgXcQ">YouTube page</button>
+    <button data-url="https://www.google.com/robots.txt">Google robots.txt</button>
+    <button data-url="https://httpbin.org/get">Known CORS-enabled URL</button>
+  </div>
+
+  <pre id="out">Ready.</pre>
+
+  <script>
+    const input = document.querySelector('#url');
+    const out = document.querySelector('#out');
+    document.querySelectorAll('[data-url]').forEach(b => b.onclick = () => input.value = b.dataset.url);
+
+    document.querySelector('#run').onclick = async () => {
+      const url = input.value.trim();
+      out.className = '';
+      out.textContent = `Fetching:\n${url}\n\nPlease wait…`;
+      const started = performance.now();
+      try {
+        const res = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store' });
+        const buf = await res.arrayBuffer();
+        const ms = Math.round(performance.now() - started);
+        out.className = res.ok ? 'ok' : 'bad';
+        out.textContent = [
+          'FETCH COMPLETED — JavaScript could read the response',
+          `HTTP status: ${res.status} ${res.statusText}`,
+          `Response type: ${res.type}`,
+          `Content-Type: ${res.headers.get('content-type') || '(hidden/missing)'}`,
+          `Readable bytes: ${buf.byteLength.toLocaleString()}`,
+          `Time: ${ms} ms`,
+          '',
+          res.ok ? 'CORS access is allowed for this URL.' : 'The response was readable, but HTTP status was not successful.'
+        ].join('\n');
+      } catch (err) {
+        const ms = Math.round(performance.now() - started);
+        out.className = 'bad';
+        out.textContent = [
+          'FETCH BLOCKED OR FAILED',
+          `${err.name}: ${err.message}`,
+          `Time: ${ms} ms`,
+          '',
+          'Open DevTools → Console/Network for the exact browser reason.',
+          'For cross-origin URLs, the usual cause is a missing Access-Control-Allow-Origin header.'
+        ].join('\n');
+      }
+    };
+  </script>
+</body>
+</html>
