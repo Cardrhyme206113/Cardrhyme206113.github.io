@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Camera Test</title>
+  <style>
+    body{
+      margin:0;
+      background:#111;
+      color:#eee;
+      font:14px system-ui;
+      padding:16px;
+    }
+    video{
+      width:100%;
+      max-height:60vh;
+      background:#000;
+      border-radius:10px;
+      margin-bottom:12px;
+    }
+    button{
+      display:block;
+      width:100%;
+      padding:12px;
+      margin:6px 0;
+      background:#222;
+      color:#fff;
+      border:1px solid #444;
+      border-radius:8px;
+      text-align:left;
+    }
+    pre{
+      white-space:pre-wrap;
+      word-break:break-all;
+      color:#aaa;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Camera Enumerator</h2>
+
+<video id="video" autoplay playsinline muted></video>
+
+<div id="cams"></div>
+<pre id="info"></pre>
+
+<script>
+const video = document.getElementById("video");
+const camsDiv = document.getElementById("cams");
+const info = document.getElementById("info");
+
+let currentStream;
+
+async function stopCamera() {
+  if (currentStream) {
+    currentStream.getTracks().forEach(t => t.stop());
+    currentStream = null;
+  }
+}
+
+async function openCamera(deviceId) {
+  await stopCamera();
+
+  try {
+    currentStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        deviceId: deviceId ? { exact: deviceId } : undefined,
+        width: { ideal: 3840 },
+        height: { ideal: 2160 },
+        frameRate: { ideal: 60 }
+      },
+      audio: false
+    });
+
+    video.srcObject = currentStream;
+
+    const track = currentStream.getVideoTracks()[0];
+
+    info.textContent =
+      "Active camera:\n" +
+      JSON.stringify(track.getSettings(), null, 2) +
+      "\n\nCapabilities:\n" +
+      JSON.stringify(track.getCapabilities?.() ?? {}, null, 2);
+
+  } catch (e) {
+    info.textContent = e.stack || e;
+  }
+}
+
+async function enumerate() {
+  // Permission first so labels become visible
+  const permissionStream =
+    await navigator.mediaDevices.getUserMedia({ video: true });
+
+  permissionStream.getTracks().forEach(t => t.stop());
+
+  const devices = await navigator.mediaDevices.enumerateDevices();
+
+  const cameras = devices.filter(d => d.kind === "videoinput");
+
+  camsDiv.innerHTML = "";
+
+  cameras.forEach((cam, i) => {
+    const button = document.createElement("button");
+
+    button.textContent =
+      `${i}: ${cam.label || "Unnamed camera"}\n${cam.deviceId}`;
+
+    button.onclick = () => openCamera(cam.deviceId);
+
+    camsDiv.appendChild(button);
+  });
+
+  info.textContent =
+    `Found ${cameras.length} camera device(s).\n\n` +
+    cameras.map((x, i) =>
+      `${i}: ${x.label}\n${x.deviceId}`
+    ).join("\n\n");
+}
+
+enumerate().catch(e => {
+  info.textContent = e.stack || e;
+});
+</script>
+
+</body>
+</html>
