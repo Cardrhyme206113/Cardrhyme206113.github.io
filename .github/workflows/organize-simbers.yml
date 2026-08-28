@@ -1,0 +1,40 @@
+name: Organize Simbers
+
+on:
+  push:
+    branches: [pages]
+    paths:
+      - '.simbers-upload-ready'
+
+permissions:
+  contents: write
+
+jobs:
+  organize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pages
+          fetch-depth: 0
+      - name: Organize Simbers builds
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p simbers
+
+          if [ -f simbers.html ]; then git mv simbers.html simbers/simbers1.html; fi
+          if [ -f simbers2.html ]; then git mv simbers2.html simbers/simbers2.html; fi
+          if [ -f simbers3.html ]; then git mv simbers3.html simbers/simbers3.html; fi
+
+          cat .simbers-upload/part-* | base64 -d | gzip -d > simbers/simbers4.html
+          cp simbers/simbers4.html simbers/index.html
+
+          rm -rf .simbers-upload .simbers-upload-ready
+          rm -f .github/workflows/organize-simbers.yml
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Organize Simbers builds under /simbers'
+          git push origin pages
