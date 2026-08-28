@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,user-scalable=no">
+<title>ArcViewer Cubemap Capture</title>
+<style>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#101116;font-family:system-ui,sans-serif;color:#fff}
+#unity-canvas{position:fixed;inset:0;width:100%;height:100%;background:#101116}
+#loading{position:fixed;inset:0;display:grid;place-items:center;background:#101116;z-index:20;font-size:14px}
+#panel{position:fixed;z-index:30;left:10px;right:10px;bottom:10px;background:rgba(18,20,26,.88);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.16);border-radius:14px;padding:10px;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+#head{display:flex;align-items:center;gap:8px}
+#head strong{font-size:14px;flex:1}
+button,select{background:#242832;color:#fff;border:1px solid rgba(255,255,255,.16);border-radius:9px;padding:9px 11px;font-size:13px}
+button:active{transform:translateY(1px)}
+#faces{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.face.done{border-color:#39d98a;background:#15352a}
+#row{display:flex;gap:6px;margin-top:8px}
+#row button{flex:1}
+#status{font-size:11px;opacity:.75;margin-top:6px;white-space:pre-wrap}
+#help{font-size:11px;line-height:1.35;opacity:.85;margin-top:7px}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<canvas id="unity-canvas"></canvas>
+<div id="loading">Loading ArcViewer WebGL…</div>
+
+<div id="panel">
+  <div id="head">
+    <strong>ArcViewer Cubemap Capture</strong>
+    <select id="size">
+      <option value="512">512²</option>
+      <option value="768">768²</option>
+      <option value="1024" selected>1024²</option>
+      <option value="1536">1536²</option>
+    </select>
+    <button id="hide">−</button>
+  </div>
+  <div id="content">
+    <div id="faces">
+      <button class="face" data-face="front">Capture FRONT</button>
+      <button class="face" data-face="right">Capture RIGHT</button>
+      <button class="face" data-face="back">Capture BACK</button>
+      <button class="face" data-face="left">Capture LEFT</button>
+      <button class="face" data-face="up">Capture UP</button>
+      <button class="face" data-face="down">Capture DOWN</button>
+    </div>
+    <div id="row">
+      <button id="export">Export 6 PNGs + cross</button>
+      <button id="reset">Reset faces</button>
+    </div>
+    <div id="help">
+      Set ArcViewer freecam FOV to <b>90°</b>, put the camera at one fixed point, then rotate only the view.
+      Capture in the named directions. Do not move between faces. For lighting, use the supplied empty test map:
+      OFF = beats 0–4, BLUE = 4–8, RED = 8–12, SPLIT = 12–16.
+    </div>
+    <div id="status">Waiting for ArcViewer…</div>
+  </div>
+</div>
+
+<script src="https://allpoland.github.io/ArcViewer/TemplateData/Scripts/oggdecode.js"></script>
+<script src="https://allpoland.github.io/ArcViewer/Build/ArcViewer.loader.js"></script>
+<script>
+const canvas=document.getElementById("unity-canvas");
+const statusEl=document.getElementById("status");
+const loading=document.getElementById("loading");
+let gameInstance=null;
+let captures={};
+
+createUnityInstance(canvas,{
+  dataUrl:"https://allpoland.github.io/ArcViewer/Build/ArcViewer.data",
+  frameworkUrl:"https://allpoland.github.io/ArcViewer/Build/ArcViewer.framework.js",
+  codeUrl:"https://allpoland.github.io/ArcViewer/Build/ArcViewer.wasm",
+  streamingAssetsUrl:"https://allpoland.github.io/ArcViewer/StreamingAssets",
+  companyName:"AllPolanDev",
+  productName:"ArcViewer",
+  productVersion:"0.8.1"
+},p=>{
+  loading.textContent=`Loading ArcViewer ${Math.round(p*100)}%…`;
+}).then(instance=>{
+  gameInstance=instance;
+  loading.classList.add("hidden");
+  statusEl.textContent="Ready. Load the supplied empty lighting-test map in ArcViewer.";
+}).catch(err=>{
+  loading.textContent="ArcViewer failed to load: "+err;
+});
+
+function squareCanvasFromUnity(size){
+  const out=document.createElement("canvas");
+  out.width=out.height=size;
+  const g=out.getContext("2d");
+  const sw=canvas.width,sh=canvas.height;
+  const side=Math.min(sw,sh);
+  const sx=(sw-side)/2,sy=(sh-side)/2;
+  g.drawImage(canvas,sx,sy,side,side,0,0,size,size);
+  return out;
+}
+
+async function captureFace(face){
+  const size=+document.getElementById("size").value;
+  await new Promise(requestAnimationFrame);
+  const c=squareCanvasFromUnity(size);
+  const blob=await new Promise(r=>c.toBlob(r,"image/png"));
+  captures[face]={blob,canvas:c};
+  const b=document.querySelector(`[data-face="${face}"]`);
+  b.classList.add("done");
+  b.textContent=`✓ ${face.toUpperCase()}`;
+  statusEl.textContent=`Captured ${face} (${size}×${size}). ${Object.keys(captures).length}/6 faces.`;
+}
+document.querySelectorAll(".face").forEach(b=>b.onclick=()=>captureFace(b.dataset.face));
+
+document.getElementById("reset").onclick=()=>{
+  captures={};
+  document.querySelectorAll(".face").forEach(b=>{
+    b.classList.remove("done");
+    b.textContent="Capture "+b.dataset.face.toUpperCase();
+  });
+  statusEl.textContent="Faces reset.";
+};
+
+function makeCross(){
+  const order=["front","right","back","left","up","down"];
+  if(order.some(f=>!captures[f]))throw Error("Capture all six faces first.");
+  const s=captures.front.canvas.width;
+  const c=document.createElement("canvas");
+  c.width=s*4;c.height=s*3;
+  const g=c.getContext("2d");
+  const xy={up:[1,0],left:[0,1],front:[1,1],right:[2,1],back:[3,1],down:[1,2]};
+  for(const [f,[x,y]] of Object.entries(xy))g.drawImage(captures[f].canvas,x*s,y*s);
+  return c;
+}
+
+function crc32(bytes){
+  let c=0xffffffff;
+  for(const b of bytes){
+    c^=b;
+    for(let k=0;k<8;k++)c=(c>>>1)^((c&1)?0xedb88320:0);
+  }
+  return (c^0xffffffff)>>>0;
+}
+function u16(n){return [n&255,(n>>>8)&255]}
+function u32(n){return [n&255,(n>>>8)&255,(n>>>16)&255,(n>>>24)&255]}
+async function zipStore(files){
+  const enc=new TextEncoder(),parts=[],central=[];let off=0;
+  for(const f of files){
+    const name=enc.encode(f.name),data=new Uint8Array(await f.blob.arrayBuffer());
+    const crc=crc32(data);
+    const local=new Uint8Array([
+      0x50,0x4b,0x03,0x04,...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),
+      ...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0),...name
+    ]);
+    parts.push(local,data);
+    const cd=new Uint8Array([
+      0x50,0x4b,0x01,0x02,...u16(20),...u16(20),...u16(0),...u16(0),...u16(0),...u16(0),
+      ...u32(crc),...u32(data.length),...u32(data.length),...u16(name.length),...u16(0),...u16(0),
+      ...u16(0),...u16(0),...u32(0),...u32(off),...name
+    ]);
+    central.push(cd);
+    off+=local.length+data.length;
+  }
+  const csize=central.reduce((n,a)=>n+a.length,0);
+  const end=new Uint8Array([
+    0x50,0x4b,0x05,0x06,...u16(0),...u16(0),...u16(files.length),...u16(files.length),
+    ...u32(csize),...u32(off),...u16(0)
+  ]);
+  return new Blob([...parts,...central,end],{type:"application/zip"});
+}
+
+document.getElementById("export").onclick=async()=>{
+  try{
+    const names=["front","right","back","left","up","down"];
+    if(names.some(f=>!captures[f]))throw Error("Capture all six faces first.");
+    const cross=makeCross();
+    const crossBlob=await new Promise(r=>cross.toBlob(r,"image/png"));
+    const files=names.map(f=>({name:`${f}.png`,blob:captures[f].blob}));
+    files.push({name:"cubemap-cross.png",blob:crossBlob});
+    files.push({name:"README.txt",blob:new Blob([
+`ArcViewer cubemap capture
+Expected FOV: 90 degrees.
+Faces: front/right/back/left/up/down.
+Cross layout:
+    UP
+LEFT FRONT RIGHT BACK
+    DOWN
+`
+    ],{type:"text/plain"})});
+    const zip=await zipStore(files);
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(zip);
+    a.download="ArcViewer-cubemap.zip";
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),30000);
+    statusEl.textContent="Exported ArcViewer-cubemap.zip";
+  }catch(e){statusEl.textContent=e.message||String(e)}
+};
+
+document.getElementById("hide").onclick=()=>{
+  const c=document.getElementById("content"),h=document.getElementById("hide");
+  c.classList.toggle("hidden");
+  h.textContent=c.classList.contains("hidden")?"+":"−";
+};
+</script>
+</body>
+</html>
