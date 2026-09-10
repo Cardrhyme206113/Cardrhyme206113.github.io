@@ -1,0 +1,16 @@
+/data/buckets/*
+  Cache-Control: public, max-age=31536000, immutable
+/covers/*
+  Cache-Control: public, max-age=31536000, immutable
+/data/index/*
+  Cache-Control: public, max-age=0, must-revalidate
+/data/catalog.*
+  Cache-Control: public, max-age=0, must-revalidate
+/data/crypto.json
+  Cache-Control: public, max-age=0, must-revalidate
+/index.html
+  Cache-Control: public, max-age=0, must-revalidate
+/reader-static-adapter.js
+  Cache-Control: public, max-age=0, must-revalidate
+/reader-image-enhance.js
+  Cache-Control: public, max-age=0, must-revalidate
