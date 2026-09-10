@@ -21,6 +21,51 @@
   let corruptCatalogFingerprint = 'catalog';
   const staticBase = new URL('./', document.baseURI || location.href);
   window.__READER_STATIC_BASE__ = staticBase.pathname;
+
+  // Multi-repository storage routing. The viewer shell stays tiny; metadata,
+  // covers, indexes and bucket packs are fetched from reader-storage-a/b/c.
+  const rawStorage = window.__READER_STORAGE__ || {};
+  const storageRoots = (Array.isArray(rawStorage.roots) && rawStorage.roots.length ? rawStorage.roots : ['./'])
+    .map(x => new URL(String(x || './'), staticBase));
+  const metadataRoot = new URL(String(
+    rawStorage.metadataRoot || rawStorage.metadata_root || rawStorage.roots?.[0] || './'
+  ), staticBase);
+  const splitAfterBucket = Number.isFinite(Number(
+    rawStorage.splitAfterBucket ?? rawStorage.split_after_bucket
+  )) ? Number(rawStorage.splitAfterBucket ?? rawStorage.split_after_bucket) : null;
+  const bucketBoundaries = Array.isArray(rawStorage.bucketBoundaries ?? rawStorage.bucket_boundaries)
+    ? (rawStorage.bucketBoundaries ?? rawStorage.bucket_boundaries).map(Number).filter(Number.isFinite)
+    : [];
+  const storageRevision = String(rawStorage.revision || '');
+
+  function bucketNumber(idx,bucketDir=''){
+    const n=Number(idx?.bucket);
+    if(Number.isInteger(n) && n>=0)return n;
+    const m=/^b(\d{4,})/.exec(String(bucketDir||''));
+    return m?Number(m[1]):0;
+  }
+
+  function storageRootForBucket(bucket){
+    if(storageRoots.length<=1)return storageRoots[0] || metadataRoot;
+    const b=Number(bucket);
+    if(bucketBoundaries.length===storageRoots.length-1){
+      let i=0;
+      while(i<bucketBoundaries.length && b>bucketBoundaries[i])i++;
+      return storageRoots[i] || storageRoots[0] || metadataRoot;
+    }
+    if(splitAfterBucket!==null){
+      return storageRoots[b>splitAfterBucket?1:0] || storageRoots[0] || metadataRoot;
+    }
+    return storageRoots[0] || metadataRoot;
+  }
+
+  function storageURL(rel,{bucket=null,mutable=false}={}){
+    const clean=String(rel||'').replace(/^\.\//,'');
+    const root=bucket===null ? metadataRoot : storageRootForBucket(bucket);
+    const u=new URL(clean,root);
+    if(mutable && storageRevision)u.searchParams.set('rsv',storageRevision);
+    return u.href;
+  }
   // v18 static media does not rely on a service worker.  Older reader-static
   // builds did; unregister only that legacy worker so a stale controller cannot
   // keep intercepting /api/res/ after an upgrade.
@@ -171,7 +216,7 @@
   }
   async function loadCryptoConfig(){
     if(!cryptoConfigPromise)cryptoConfigPromise=(async()=>{
-      const r=await nativeFetch('./data/crypto.json',{cache:'no-cache'});
+      const r=await nativeFetch(storageURL('data/crypto.json',{mutable:true}),{cache:'no-cache'});
       if(r.status===404)return {encrypted:false};
       if(!r.ok)throw new Error(`reader-static crypto config HTTP ${r.status}`);
       const c=await r.json();return c&&c.encrypted?c:{encrypted:false};
@@ -222,7 +267,7 @@
     if(!catalogPromise){
       catalogPromise=(async()=>{
         const cfg=await loadCryptoConfig();
-        const r=await nativeFetch(cfg.encrypted?'./data/catalog.rse':'./data/catalog.json',{cache:'no-cache'});
+        const r=await nativeFetch(storageURL(cfg.encrypted?'data/catalog.rse':'data/catalog.json',{mutable:true}),{cache:'no-cache'});
         if(!r.ok) throw new Error(`reader-static catalog HTTP ${r.status}`);
         let c=cfg.encrypted?await decodeProtectedJSON(r):await r.json();
         if(c?.__readerCorruptCipher)c=syntheticCatalog(c.__readerCorruptCipher);
@@ -269,7 +314,7 @@
           return idx;
         }
         const cfg=await loadCryptoConfig(),ext=cfg.encrypted?'.rse':'.json';
-        const r=await nativeFetch(`./data/index/${kind}/${encodeURIComponent(String(id))}${ext}`,{cache:'no-cache'});
+        const r=await nativeFetch(storageURL(`data/index/${kind}/${encodeURIComponent(String(id))}${ext}`,{mutable:true}),{cache:'no-cache'});
         if(!r.ok) throw new Error(`reader-static ${key} index HTTP ${r.status}`);
         let idx=cfg.encrypted?await decodeProtectedJSON(r):await r.json();
         if(idx?.__readerCorruptCipher)idx=syntheticIndex(kind,String(id),idx.__readerCorruptCipher);
@@ -311,7 +356,7 @@
     if(blockCache.has(key)){const v=blockCache.get(key);touchCache(key,v);return v;}
     const promise=(async()=>{
       const bucket=idx.bucket_dir||`b${String(idx.bucket).padStart(4,'0')}`; const pack=String(part).padStart(3,'0')+'.pack';
-      const url=`./data/buckets/${bucket}/${pack}`; const end=off+clen-1;
+      const bnum=bucketNumber(idx,bucket); const url=storageURL(`data/buckets/${bucket}/${pack}`,{bucket:bnum}); const end=off+clen-1;
       const r=await nativeFetch(url,{headers:{Range:`bytes=${off}-${end}`},cache:'force-cache'});
       if(!r.ok) throw new Error(`Pack HTTP ${r.status}: ${url}`);
       let b=new Uint8Array(await r.arrayBuffer());
@@ -382,7 +427,7 @@
   }
 
   window.mockCoverURL=id=>corruptMode?corruptCoverURL(String(id??'')):placeholderCover(String(id??''));
-  loadCatalog().then(c=>{window.mockCoverURL=function(id){const k=String(id??'');if(corruptMode)return c.coverById.get(k)||c.wnById.get(k)?.cover||corruptCoverURL(k);return c.coverById.get(k)||c.wnById.get(k)?.cover||placeholderCover(c.volumeById.get(k)?.title||c.wnById.get(k)?.name||k);};}).catch(console.error);
+  loadCatalog().then(c=>{window.mockCoverURL=function(id){const k=String(id??'');if(corruptMode)return c.coverById.get(k)||c.wnById.get(k)?.cover||corruptCoverURL(k);const rel=c.coverById.get(k)||c.wnById.get(k)?.cover||null;return rel?storageURL(String(rel),{}):placeholderCover(c.volumeById.get(k)?.title||c.wnById.get(k)?.name||k);};}).catch(console.error);
 
 
 
@@ -390,7 +435,7 @@
     const c=catalogRef,k=String(id??'');
     const rel=c?.coverById?.get(k)||c?.wnById?.get(k)?.cover||null;
     if(corruptMode)return rel||corruptCoverURL(k);
-    return rel?new URL(String(rel).replace(/^\.\//,''),staticBase).href:placeholderCover(c?.volumeById?.get(k)?.title||c?.wnById?.get(k)?.name||k);
+    return rel?storageURL(String(rel),{}):placeholderCover(c?.volumeById?.get(k)?.title||c?.wnById?.get(k)?.name||k);
   }
   window.__readerStaticCoverURL=coverPathFor;
 

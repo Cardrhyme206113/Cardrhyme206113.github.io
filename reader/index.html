@@ -451,7 +451,7 @@ body.imageZoomActive .readerProgress{
  </div>
 </div>
 <header class="topbar">
-  <div class="brand"><img class="brandMark" src="/reader-mark.svg" alt=""><span>Reader</span></div>
+  <div class="brand"><img class="brandMark" src="./reader-mark.svg" alt=""><span>Reader</span></div>
 
   <button id="backBtn" class="topIcon hidden" aria-label="Back" title="Back">
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -665,7 +665,7 @@ body.imageZoomActive .readerProgress{
 
 <div id="bookLoader" class="bookLoader" role="status" aria-live="polite" aria-hidden="true">
  <div class="loaderPanel">
-  <div class="loaderBrand"><img class="loaderBook" src="/reader-mark.svg" alt=""><b>Reader</b></div>
+  <div class="loaderBrand"><img class="loaderBook" src="./reader-mark.svg" alt=""><b>Reader</b></div>
   <div id="loaderTitle" class="loaderTitle">Opening book</div>
   <div id="loaderStatus" class="loaderStatus">Preparing volume…</div>
   <div class="loaderRow"><div class="loaderTrack"><i id="loaderBar"></i></div><span id="loaderPct">0%</span></div>
@@ -709,6 +709,7 @@ body.imageZoomActive .readerProgress{
  <section class="settingsGroup"><div id="settingsReaderTitle" class="settingsGroupTitle">Reader</div><div class="toggleRow"><span id="selectionLabel">Allow text selection</span><button id="selectionToggle" class="switch" aria-label="Allow text selection"><i></i></button></div><div class="toggleRow"><span id="swipeAnimationLabel">Swipe page animation</span><button id="swipeAnimationToggle" class="switch" aria-label="Swipe page animation"><i></i></button></div><div id="hideUiRow" class="toggleRow desktopOnly" hidden><span class="toggleLabel"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12s3.2-5 9-5 9 5 9 5-3.2 5-9 5-9-5-9-5Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.7"/></svg><span id="hideUiLabel">Hide reader controls</span></span><button id="hideUiToggle" class="switch" aria-label="Hide reader controls"><i></i></button></div><div class="settingsActions"><button id="fullscreenBtn" class="btn">Fullscreen</button><button id="resetSettingsBtn" class="btn">Reset appearance</button></div><div class="hint">Text selection is off by default to avoid accidental mobile selection menus. On mobile, center tap toggles the interface and horizontal swipes turn pages. Swipe page animation is optional and off by default. On desktop, reader controls stay visible unless you enable Hide reader controls; use the mouse wheel, arrows, PageUp/PageDown, or the navigation buttons to turn pages. On illustrations, double-tap toggles image zoom. EPUB text colors are normalized by default, and you can choose your own reading text color or restore the theme color. OLED can independently dim text and media. All reading and appearance settings, including layout, are shared between light novels and web novels on this device.</div></section>
 </div>
 
+<script src="./reader-storage-config.js"></script>
 <script src="./reader-static-adapter.js"></script><!-- deterministic wrong-key corruption view is implemented in the static adapter -->
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
