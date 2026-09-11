@@ -8,8 +8,8 @@ window.__READER_STORAGE__ = Object.freeze({
     "https://raw.githubusercontent.com/Cardrhyme206113/reader-storage-c/main/"
   ],
   "bucketBoundaries": [
-    82,
+    78,
     163
   ],
-  "revision": "8b38306945c5bf6c"
+  "revision": "hq-20260911-2348-card"
 });
