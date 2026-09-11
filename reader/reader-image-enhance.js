@@ -7,8 +7,10 @@
  *     Medium = exactly 60% blend strength of High
  *   Anime4K: Auto / All / Off
  *     Auto = source pixels >= 80% of 1,048,576 px
- *   Anime4K preset: Higher-end B (soft restore)
- *   Anime4K processed raster: capped to <=2x source dimensions
+ *   Anime4K profile: Simplified (default) / Sophisticated (legacy Higher-end B)
+ *   Simplified uses ANIME4KJS_SIMPLE_M_2X and pre-caps its input so the
+ *   Anime4K render stays at or below a 3840px long edge.
+ *   Final processed raster is capped to <=2x source dimensions and <=3840px long edge
  *
  * Stored bytes are never modified. Processing is transient/display-only.
  */
@@ -17,18 +19,24 @@
 
 const ANIME_STORAGE_KEY='reader-image-anime4k-mode';
 const DENOISE_STORAGE_KEY='reader-image-denoise-mode';
+const PROFILE_STORAGE_KEY='reader-image-anime4k-profile';
 
 const VALID_ANIME_MODES=new Set(['auto','all','off']);
 const VALID_DENOISE_MODES=new Set(['off','medium','high']);
+const VALID_PROFILES=new Set(['simplified','sophisticated']);
 
 const PIXEL_BUDGET=1048576;
 const AUTO_THRESHOLD=Math.ceil(PIXEL_BUDGET*0.80); // 838,861
 const HIGH_DENOISE=Object.freeze({radius:4,spatial:3,range:0.10,passes:2,strength:1.0});
 const MEDIUM_DENOISE=Object.freeze({...HIGH_DENOISE,strength:0.60});
 
-const ANIME4K_PROFILE='ANIME4K_HIGHEREND_MODE_B';
+const ANIME4K_PROFILES=Object.freeze({
+  simplified:Object.freeze({exportName:'ANIME4KJS_SIMPLE_M_2X',nativeScale:2}),
+  sophisticated:Object.freeze({exportName:'ANIME4K_HIGHEREND_MODE_B',nativeScale:4})
+});
 const ANIME4K_CDN='https://cdn.jsdelivr.net/npm/anime4k.js@1.1.3/+esm';
 const MAX_ANIME_SCALE=2;
+const MAX_LONG_EDGE=3840;
 const CACHE_LIMIT=96;
 
 const generatedURLs=new Set();
@@ -39,15 +47,21 @@ let processingGeneration=0;
 
 function getAnimeMode(){
   try{
-    const v=localStorage.getItem(ANIME_STORAGE_KEY)||'auto';
-    return VALID_ANIME_MODES.has(v)?v:'auto';
-  }catch(_){return 'auto'}
+    const v=localStorage.getItem(ANIME_STORAGE_KEY)||'all';
+    return VALID_ANIME_MODES.has(v)?v:'all';
+  }catch(_){return 'all'}
 }
 function getDenoiseMode(){
   try{
-    const v=localStorage.getItem(DENOISE_STORAGE_KEY)||'high';
-    return VALID_DENOISE_MODES.has(v)?v:'high';
-  }catch(_){return 'high'}
+    const v=localStorage.getItem(DENOISE_STORAGE_KEY)||'medium';
+    return VALID_DENOISE_MODES.has(v)?v:'medium';
+  }catch(_){return 'medium'}
+}
+function getProfileMode(){
+  try{
+    const v=localStorage.getItem(PROFILE_STORAGE_KEY)||'simplified';
+    return VALID_PROFILES.has(v)?v:'simplified';
+  }catch(_){return 'simplified'}
 }
 function invalidateAndReprocess(){
   processingGeneration++;
@@ -55,13 +69,18 @@ function invalidateAndReprocess(){
   reprocessVisible();
 }
 function setAnimeMode(v){
-  if(!VALID_ANIME_MODES.has(v))v='auto';
+  if(!VALID_ANIME_MODES.has(v))v='all';
   try{localStorage.setItem(ANIME_STORAGE_KEY,v)}catch(_){}
   invalidateAndReprocess();
 }
 function setDenoiseMode(v){
-  if(!VALID_DENOISE_MODES.has(v))v='high';
+  if(!VALID_DENOISE_MODES.has(v))v='medium';
   try{localStorage.setItem(DENOISE_STORAGE_KEY,v)}catch(_){}
+  invalidateAndReprocess();
+}
+function setProfileMode(v){
+  if(!VALID_PROFILES.has(v))v='simplified';
+  try{localStorage.setItem(PROFILE_STORAGE_KEY,v)}catch(_){}
   invalidateAndReprocess();
 }
 
@@ -205,25 +224,48 @@ async function getAnime4K(){
   return anime4kModulePromise;
 }
 
-async function runAnime4K(source,sourceW,sourceH){
+async function runAnime4K(source,sourceW,sourceH,profileMode){
   const A=await getAnime4K();
-  const profile=A[ANIME4K_PROFILE];
-  if(!profile)throw new Error(`Anime4K profile not exported: ${ANIME4K_PROFILE}`);
+  const spec=ANIME4K_PROFILES[profileMode]||ANIME4K_PROFILES.simplified;
+  const profile=A[spec.exportName];
+  if(!profile)throw new Error(`Anime4K profile not exported: ${spec.exportName}`);
+
+  let animeSource=source;
+  let prepared=null;
+
+  // Performance profile: keep the actual 2x Anime4K render at <=3840px long edge,
+  // rather than rendering a huge intermediate and shrinking it afterwards.
+  if(profileMode==='simplified'){
+    const sourceLong=Math.max(source.width||sourceW,source.height||sourceH);
+    const inputLong=Math.floor(MAX_LONG_EDGE/spec.nativeScale);
+    if(sourceLong>inputLong){
+      const scale=inputLong/sourceLong;
+      prepared=document.createElement('canvas');
+      prepared.width=Math.max(1,Math.round((source.width||sourceW)*scale));
+      prepared.height=Math.max(1,Math.round((source.height||sourceH)*scale));
+      const pctx=prepared.getContext('2d',{alpha:true});
+      pctx.imageSmoothingEnabled=true;
+      pctx.imageSmoothingQuality='high';
+      pctx.drawImage(source,0,0,prepared.width,prepared.height);
+      animeSource=prepared;
+    }
+  }
 
   const raw=document.createElement('canvas');
   const upscaler=new A.ImageUpscaler(profile);
-  upscaler.attachSource(source,raw);
+  upscaler.attachSource(animeSource,raw);
   upscaler.upscale();
 
   const maxW=Math.max(1,Math.round(sourceW*MAX_ANIME_SCALE));
   const maxH=Math.max(1,Math.round(sourceH*MAX_ANIME_SCALE));
+  const longScale=MAX_LONG_EDGE/Math.max(1,raw.width,raw.height);
+  const scale=Math.min(maxW/raw.width,maxH/raw.height,longScale,1);
 
-  if(raw.width<=maxW && raw.height<=maxH){
+  if(scale>=0.9999){
     try{upscaler.detachSource?.()}catch(_){}
     return raw;
   }
 
-  const scale=Math.min(maxW/raw.width,maxH/raw.height,1);
   const out=document.createElement('canvas');
   out.width=Math.max(1,Math.round(raw.width*scale));
   out.height=Math.max(1,Math.round(raw.height*scale));
@@ -276,8 +318,8 @@ function cachePut(key,promise){
   }
 }
 
-async function buildProcessed(src,animeMode,denoiseMode){
-  const key=`${animeMode}|${denoiseMode}|${src}`;
+async function buildProcessed(src,animeMode,denoiseMode,profileMode){
+  const key=`${animeMode}|${denoiseMode}|${profileMode}|${src}`;
   if(cache.has(key))return cache.get(key);
 
   const promise=(async()=>{
@@ -303,7 +345,7 @@ async function buildProcessed(src,animeMode,denoiseMode){
           bitmap=await createImageBitmap(denoised);
           animeSource=bitmap;
         }
-        result=await runAnime4K(animeSource,sourceW,sourceH);
+        result=await runAnime4K(animeSource,sourceW,sourceH,profileMode);
         animeApplied=true;
       }catch(err){
         console.warn('[reader-image] Anime4K unavailable',err);
@@ -342,8 +384,9 @@ async function processImage(img){
 
   const animeMode=getAnimeMode();
   const denoiseMode=getDenoiseMode();
+  const profileMode=getProfileMode();
   const generation=processingGeneration;
-  const stamp=`${animeMode}|${denoiseMode}|${src}`;
+  const stamp=`${animeMode}|${denoiseMode}|${profileMode}|${src}`;
 
   if(img.dataset.readerEnhanceStamp===stamp&&img.dataset.readerEnhanced==='1')return;
 
@@ -351,7 +394,7 @@ async function processImage(img){
   img.dataset.readerEnhanceSource=src;
 
   try{
-    const processed=await buildProcessed(src,animeMode,denoiseMode);
+    const processed=await buildProcessed(src,animeMode,denoiseMode,profileMode);
     if(generation!==processingGeneration||!img.isConnected)return;
 
     const live=img.currentSrc||img.src||'';
@@ -361,6 +404,7 @@ async function processImage(img){
     img.dataset.readerEnhanced='1';
     img.dataset.readerAnime4k=processed.animeApplied?'1':'0';
     img.dataset.readerDenoise=processed.denoiseMode;
+    img.dataset.readerAnimeProfile=profileMode;
     img.dataset.readerSourcePixels=String(processed.sourcePixels);
     img.src=processed.url;
   }catch(err){
@@ -412,6 +456,12 @@ function installSettingsUI(){
       ])}
     </div>
     <div class="setting two">
+      <label>Profile</label>
+      ${segMarkup('readerAnime4kProfile','anime-profile',[
+        ['simplified','Simplified'],['sophisticated','Sophisticated']
+      ])}
+    </div>
+    <div class="setting two">
       <label>Denoise</label>
       ${segMarkup('readerDenoiseMode','denoise-mode',[
         ['off','Off'],['medium','Medium'],['high','High']
@@ -437,6 +487,9 @@ function installSettingsUI(){
   section.querySelectorAll('[data-anime-mode]').forEach(btn=>{
     btn.addEventListener('click',()=>setAnimeMode(btn.dataset.animeMode));
   });
+  section.querySelectorAll('[data-anime-profile]').forEach(btn=>{
+    btn.addEventListener('click',()=>setProfileMode(btn.dataset.animeProfile));
+  });
   section.querySelectorAll('[data-denoise-mode]').forEach(btn=>{
     btn.addEventListener('click',()=>setDenoiseMode(btn.dataset.denoiseMode));
   });
@@ -445,6 +498,7 @@ function installSettingsUI(){
     try{
       localStorage.removeItem(ANIME_STORAGE_KEY);
       localStorage.removeItem(DENOISE_STORAGE_KEY);
+      localStorage.removeItem(PROFILE_STORAGE_KEY);
     }catch(_){}
     invalidateAndReprocess();
   });
@@ -455,9 +509,15 @@ function installSettingsUI(){
 function refreshSettingsUI(){
   const anime=getAnimeMode();
   const denoise=getDenoiseMode();
+  const profile=getProfileMode();
 
   document.querySelectorAll('[data-anime-mode]').forEach(btn=>{
     const on=btn.dataset.animeMode===anime;
+    btn.classList.toggle('on',on);
+    btn.setAttribute('aria-pressed',on?'true':'false');
+  });
+  document.querySelectorAll('[data-anime-profile]').forEach(btn=>{
+    const on=btn.dataset.animeProfile===profile;
     btn.classList.toggle('on',on);
     btn.setAttribute('aria-pressed',on?'true':'false');
   });
@@ -498,7 +558,7 @@ function boot(){
   scan(document);
   console.info(
     `[reader-image] denoise=${getDenoiseMode()} · Anime4K=${getAnimeMode()} · `+
-    `profile=${ANIME4K_PROFILE} · max=${MAX_ANIME_SCALE}x · threshold=${AUTO_THRESHOLD}px`
+    `profile=${getProfileMode()} · max=${MAX_ANIME_SCALE}x/${MAX_LONG_EDGE}px · threshold=${AUTO_THRESHOLD}px`
   );
 }
 
@@ -518,16 +578,19 @@ window.ReaderImageEnhance={
   get mode(){return getAnimeMode()},
   get animeMode(){return getAnimeMode()},
   get denoiseMode(){return getDenoiseMode()},
+  get profileMode(){return getProfileMode()},
   setMode:setAnimeMode,
   setAnimeMode,
   setDenoiseMode,
+  setProfileMode,
   constants:{
     pixelBudget:PIXEL_BUDGET,
     autoThreshold:AUTO_THRESHOLD,
     denoiseHigh:HIGH_DENOISE,
     denoiseMedium:MEDIUM_DENOISE,
-    profile:ANIME4K_PROFILE,
-    maxAnimeScale:MAX_ANIME_SCALE
+    profiles:ANIME4K_PROFILES,
+    maxAnimeScale:MAX_ANIME_SCALE,
+    maxLongEdge:MAX_LONG_EDGE
   }
 };
 })();
