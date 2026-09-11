@@ -63,7 +63,7 @@
     const clean=String(rel||'').replace(/^\.\//,'');
     const root=bucket===null ? metadataRoot : storageRootForBucket(bucket);
     const u=new URL(clean,root);
-    if(mutable && storageRevision)u.searchParams.set('rsv',storageRevision);
+    if(storageRevision)u.searchParams.set('rsv',storageRevision);
     return u.href;
   }
   // v18 static media does not rely on a service worker.  Older reader-static
@@ -87,7 +87,7 @@
   function requestReaderPassword(){
     // Temporary client-side auto-unlock. This keyword is intentionally shipped
     // with the viewer and therefore must not be treated as server-side access control.
-    return Promise.resolve('cardrhyme');
+    return Promise.resolve('card');
   }
 
   function escXml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));}
