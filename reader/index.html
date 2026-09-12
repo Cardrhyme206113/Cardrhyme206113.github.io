@@ -572,7 +572,7 @@ body:not(.reader-active){padding-left:var(--rail)}
 
 /* ---------- Sayfa künyesi ---------- */
 .viewHead{
-  display:block;margin:0;padding:0 0 26px;border-bottom:.5px solid color-mix(in srgb,var(--text) 78%,transparent);
+  display:block;margin:0;padding:0 0 26px;border-bottom:2px solid var(--text);
 }
 .viewKicker{
   font-family:var(--ae-mono);font-size:9px;letter-spacing:.24em;text-transform:uppercase;
@@ -662,7 +662,7 @@ body:not(.reader-active){padding-left:var(--rail)}
   position:relative;isolation:isolate;
   display:grid;grid-template-columns:92px minmax(0,1fr) auto;
   gap:26px;align-items:center;padding:24px 26px;margin:0;
-  border:0;border-top:.5px solid color-mix(in srgb,var(--text) 78%,transparent);border-bottom:var(--hair);border-radius:0;
+  border:0;border-top:2px solid var(--text);border-bottom:var(--hair);border-radius:0;
   background:transparent;box-shadow:none;overflow:hidden;
 }
 .continueCard::before{
@@ -728,7 +728,7 @@ body:not(.reader-active){padding-left:var(--rail)}
 }
 .catalogHead{
   display:flex;align-items:flex-end;gap:14px;margin:66px 0 26px;
-  padding-bottom:12px;border-bottom:.5px solid color-mix(in srgb,var(--text) 78%,transparent);
+  padding-bottom:12px;border-bottom:2px solid var(--text);
 }
 .seeAll{
   font-family:var(--ae-mono);font-size:9px;letter-spacing:.13em;text-transform:uppercase;white-space:nowrap;
@@ -898,7 +898,7 @@ body:not(.reader-active){padding-left:var(--rail)}
   position:relative;display:grid;
   grid-template-columns:216px minmax(0,1fr);gap:44px;align-items:end;
   margin:0 0 52px;padding:0 0 34px;
-  border:0;border-bottom:.5px solid color-mix(in srgb,var(--text) 78%,transparent);border-radius:0;
+  border:0;border-bottom:2px solid var(--text);border-radius:0;
   background:transparent;box-shadow:none;min-height:0;overflow:visible;isolation:isolate;
 }
 .seriesHeroBg{
@@ -1012,7 +1012,7 @@ body:not(.reader-active){padding-left:var(--rail)}
 .advancedResults{padding:0 0 0 clamp(20px,3vw,40px);min-width:0}
 .advResultsTop{
   display:flex;align-items:flex-end;gap:14px;padding-bottom:12px;margin-bottom:18px;
-  border-bottom:.5px solid color-mix(in srgb,var(--text) 78%,transparent);
+  border-bottom:2px solid var(--text);
 }
 .advResultsTop h2{font-family:var(--ae-display);font-size:24px;font-weight:600;letter-spacing:-.028em;margin:0}
 .advResultsCount{
@@ -1104,7 +1104,7 @@ body:not(.reader-active){padding-left:var(--rail)}
 .drawer,.settings{border-radius:0;border:0;background:var(--surface);box-shadow:var(--shadowLg)}
 .drawer{border-right:var(--hair)}
 .settings{border-left:var(--hair)}
-.drawerHead,.settingsHead{padding-bottom:14px;border-bottom:.5px solid color-mix(in srgb,var(--text) 78%,transparent)}
+.drawerHead,.settingsHead{padding-bottom:14px;border-bottom:2px solid var(--text)}
 .panelHeadRow{display:flex;align-items:center;gap:12px}
 .drawerHead h3,.settingsHead h3,.panelHeadText b,.drawerHead b,.settingsHead b{
   font-family:var(--ae-display);font-size:19px;line-height:1.22;font-weight:600;
@@ -3261,7 +3261,7 @@ body.reader-active #settings.settingsPage.readerPopup .settingsHead{
   margin:0 -15px 3px!important;
   padding:9px 14px!important;
   background:color-mix(in srgb,var(--surface) 94%,transparent)!important;
-  border-bottom:.5px solid color-mix(in srgb,var(--text) 78%,transparent)!important;
+  border-bottom:2px solid var(--text)!important;
   backdrop-filter:blur(16px)!important;
   -webkit-backdrop-filter:blur(16px)!important;
 }
@@ -3657,279 +3657,6 @@ body.reader-active #themeQuickBtn{
   #continueSection::before{top:-145px;width:170vw;height:540px;filter:blur(30px)}
 }
 </style>
-<style id="reader-noimg-style">
-/* ?noimg only: text-first, zero-cover layout. */
-html.reader-noimg .cover,
-html.reader-noimg .heroCoverWrap,
-html.reader-noimg .continueCard>img,
-html.reader-noimg .advResultCover,
-html.reader-noimg #readerView img,
-html.reader-noimg picture,
-html.reader-noimg video,
-html.reader-noimg #seriesHeroBg{display:none!important;background-image:none!important}
-
-html.reader-noimg body:not(.reader-active) .view{
-  max-width:1280px!important;
-  padding-left:clamp(28px,5vw,78px)!important;
-  padding-right:clamp(28px,5vw,78px)!important;
-  padding-bottom:140px!important;
-}
-html.reader-noimg #libraryView .viewHead,
-html.reader-noimg #seriesView .viewHead,
-html.reader-noimg #advancedSearchView .viewHead{
-  margin-bottom:34px!important;
-}
-html.reader-noimg .catalogHead{margin-top:82px!important;margin-bottom:32px!important}
-html.reader-noimg .discoverySection{margin-bottom:64px!important}
-html.reader-noimg .discoveryHead{margin-bottom:22px!important}
-
-/* Library cards become roomy editorial text cards instead of collapsed cover cards. */
-html.reader-noimg #library.cardGrid,
-html.reader-noimg #library.virtualLibrary .libraryVirtualChunk.cardGrid{
-  grid-template-columns:repeat(auto-fit,minmax(260px,1fr))!important;
-  gap:22px!important;
-}
-html.reader-noimg #library .card,
-html.reader-noimg #library.virtualLibrary .card,
-html.reader-noimg .discoveryShelf .card{
-  min-height:142px!important;
-  padding:24px 24px 22px!important;
-  border:1px solid var(--line)!important;
-  border-top:.5px solid color-mix(in srgb,var(--text) 78%,transparent)!important;
-  background:color-mix(in srgb,var(--surface) 94%,var(--accentSoft) 6%)!important;
-  box-shadow:none!important;
-  display:flex!important;
-  flex-direction:column!important;
-  justify-content:flex-start!important;
-}
-html.reader-noimg .card:hover{
-  background:color-mix(in srgb,var(--surface) 88%,var(--accentSoft) 12%)!important;
-}
-html.reader-noimg .cardTitle{
-  margin:0 0 18px!important;
-  font-family:var(--ae-display,inherit)!important;
-  font-size:clamp(18px,1.65vw,24px)!important;
-  line-height:1.16!important;
-  letter-spacing:-.025em!important;
-}
-html.reader-noimg .cardMeta{margin-top:auto!important;padding-top:4px!important;gap:14px!important}
-html.reader-noimg .cardLatest{margin-top:10px!important}
-html.reader-noimg .cardProgress{margin-top:14px!important}
-html.reader-noimg .discoveryShelf{
-  grid-auto-columns:minmax(270px,34vw)!important;
-  gap:20px!important;
-  padding-bottom:10px!important;
-}
-
-/* Continue reading becomes a full-width reading strip with more breathing room. */
-html.reader-noimg #continueSection{margin-top:20px!important;margin-bottom:78px!important}
-html.reader-noimg .continueCard{
-  grid-template-columns:minmax(0,1fr) auto!important;
-  gap:32px!important;
-  padding:30px 32px!important;
-  min-height:150px!important;
-}
-html.reader-noimg .continueText h3{
-  font-size:clamp(22px,2.6vw,34px)!important;
-  margin-bottom:14px!important;
-}
-html.reader-noimg .continueText p{margin-bottom:20px!important}
-html.reader-noimg .continuePager{margin-top:12px!important}
-
-/* Series page no longer reserves a cover-shaped visual column. */
-html.reader-noimg .seriesHero{
-  grid-template-columns:minmax(0,1fr)!important;
-  min-height:0!important;
-  padding:38px 42px!important;
-  margin-bottom:48px!important;
-}
-html.reader-noimg .seriesInfo{max-width:900px!important}
-html.reader-noimg .seriesHero h1{font-size:clamp(30px,4.5vw,48px)!important;margin-bottom:16px!important}
-html.reader-noimg .seriesDescription{max-width:78ch!important;line-height:1.72!important;margin-bottom:18px!important}
-html.reader-noimg #volumeGrid.cardGrid{
-  grid-template-columns:repeat(auto-fit,minmax(280px,1fr))!important;
-  gap:22px!important;
-}
-html.reader-noimg #volumeGrid .card{padding:24px!important;border:1px solid var(--line)!important}
-
-/* Search results use their entire width for text. */
-html.reader-noimg .advancedResultCard{
-  grid-template-columns:minmax(0,1fr)!important;
-  padding:26px 28px!important;
-  row-gap:0!important;
-}
-html.reader-noimg .advancedResultsGrid{gap:18px!important}
-
-/* Reader remains prose-only; there is no image-page visual state in noimg mode. */
-html.reader-noimg .readerStage.imageMode,
-html.reader-noimg .readerStage.imageMode #scrollHost{background:var(--paper)!important}
-
-@media(max-width:700px){
-  html.reader-noimg body:not(.reader-active) .view{
-    padding-left:20px!important;
-    padding-right:20px!important;
-    padding-bottom:86px!important;
-  }
-  html.reader-noimg #libraryView .viewHead,
-  html.reader-noimg #seriesView .viewHead,
-  html.reader-noimg #advancedSearchView .viewHead{
-    margin-bottom:24px!important;
-  }
-  html.reader-noimg .catalogHead{margin-top:44px!important;margin-bottom:18px!important}
-  html.reader-noimg .discoverySection{margin-bottom:36px!important}
-  html.reader-noimg .discoveryHead{margin-bottom:12px!important}
-
-  html.reader-noimg #library.cardGrid,
-  html.reader-noimg #library.virtualLibrary .libraryVirtualChunk.cardGrid{
-    grid-template-columns:1fr!important;
-    gap:12px!important;
-  }
-  html.reader-noimg #library .card,
-  html.reader-noimg #library.virtualLibrary .card{
-    min-height:104px!important;
-    padding:15px 16px 14px!important;
-  }
-
-  html.reader-noimg .discoveryShelf{
-    gap:12px!important;
-    padding:0 0 4px!important;
-  }
-  html.reader-noimg .discoveryShelf > .card{
-    flex:0 0 min(58vw,218px)!important;
-    width:min(58vw,218px)!important;
-    height:156px!important;
-    min-height:156px!important;
-    padding:14px 14px 12px!important;
-  }
-  html.reader-noimg .discoveryShelf .cardTitle{
-    font-size:17px!important;
-    line-height:1.14!important;
-    margin-bottom:8px!important;
-  }
-  html.reader-noimg .discoveryShelf .cardMeta{
-    font-size:8px!important;
-    line-height:1.42!important;
-    gap:6px!important;
-  }
-
-  html.reader-noimg #continueSection{
-    margin-top:12px!important;
-    margin-bottom:44px!important;
-  }
-  html.reader-noimg #continueSection .discoveryHead{
-    gap:8px!important;
-  }
-  html.reader-noimg #continueSection .continuePager{
-    justify-self:end!important;
-    margin-left:auto!important;
-  }
-  html.reader-noimg .continueCard{
-    padding:17px 0 19px!important;
-    gap:12px!important;
-    min-height:112px!important;
-  }
-  html.reader-noimg .continueText h3{
-    font-size:21px!important;
-    margin-bottom:8px!important;
-  }
-  html.reader-noimg .continueText p{margin-bottom:10px!important}
-
-  html.reader-noimg .seriesHero{padding:24px 18px!important;margin-bottom:32px!important}
-  html.reader-noimg #volumeGrid.cardGrid{grid-template-columns:1fr!important}
-}
-</style>
-<style id="continue-title-fit">
-/* Global: never truncate Continue Reading titles. */
-.continueText{
-  min-width:0;
-  max-width:100%;
-}
-.continueText h3{
-  display:block;
-  max-width:100%;
-  white-space:normal;
-  overflow:visible;
-  text-overflow:clip;
-  overflow-wrap:anywhere;
-  word-break:normal;
-  text-wrap:balance;
-  -webkit-line-clamp:unset;
-  -webkit-box-orient:initial;
-}
-</style>
-
-
-<style id="mobile-continue-ambient-width-fix">
-@media(max-width:860px){
-  #continueSection::before{
-    width:100vw!important;
-    max-width:100vw!important;
-  }
-}
-</style>
-<script id="mobile-scrollx-sanity">
-(()=>{
-  const reset=()=>{
-    if(innerWidth<=860 && !document.body.classList.contains('reader-active') && scrollX){
-      scrollTo(0,scrollY);
-    }
-  };
-  addEventListener('pageshow',reset,{passive:true});
-  requestAnimationFrame(reset);
-})();
-</script>
-<style id="mobile-dock-visual-viewport-fix">
-:root{
-  --mobile-vv-top:0px;
-  --mobile-vv-height:100dvh;
-}
-@media(max-width:860px){
-  body:not(.reader-active){
-    padding-bottom:calc(var(--dock) + env(safe-area-inset-bottom) + 8px)!important;
-  }
-  body:not(.reader-active) .topbar{
-    /* Anchor the whole dock to the bottom of the *visual* viewport.
-       Android Chrome can keep layout-viewport bottom behind its browser UI. */
-    inset:auto 0 auto 0!important;
-    top:calc(
-      var(--mobile-vv-top) +
-      var(--mobile-vv-height) -
-      var(--dock) -
-      env(safe-area-inset-bottom)
-    )!important;
-    bottom:auto!important;
-    height:calc(var(--dock) + env(safe-area-inset-bottom))!important;
-    max-height:calc(var(--dock) + env(safe-area-inset-bottom))!important;
-    box-sizing:border-box!important;
-  }
-}
-</style>
-<script id="mobile-dock-visual-viewport-runtime">
-(()=>{
-  const root=document.documentElement;
-  let raf=0;
-  const sync=()=>{
-    raf=0;
-    const vv=window.visualViewport;
-    if(vv){
-      root.style.setProperty('--mobile-vv-top',Math.max(0,Math.round(vv.offsetTop))+'px');
-      root.style.setProperty('--mobile-vv-height',Math.max(1,Math.round(vv.height))+'px');
-    }else{
-      root.style.setProperty('--mobile-vv-top','0px');
-      root.style.setProperty('--mobile-vv-height',Math.max(1,window.innerHeight)+'px');
-    }
-  };
-  const queue=()=>{
-    if(raf)return;
-    raf=requestAnimationFrame(sync);
-  };
-  sync();
-  addEventListener('resize',queue,{passive:true});
-  addEventListener('orientationchange',queue,{passive:true});
-  window.visualViewport?.addEventListener('resize',queue,{passive:true});
-  window.visualViewport?.addEventListener('scroll',queue,{passive:true});
-})();
-</script>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -4220,10 +3947,7 @@ html.reader-noimg .readerStage.imageMode #scrollHost{background:var(--paper)!imp
 <aside id="drawer" class="drawer" aria-modal="true" role="dialog"><div class="drawerHead"><div class="panelHeadRow"><div class="panelHeadText"><h3 id="drawerTitle"></h3><p id="drawerAuthor"></p></div><button id="drawerClose" class="panelClose" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6.5 6.5 11 11m0-11-11 11" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button></div><div id="drawerContentsLabel" class="drawerSectionLabel">Contents</div></div><div id="toc" class="toc"></div></aside>
 
 <script src="./reader-storage-config.js"></script>
-<script>
-(()=>{const p=new URLSearchParams(location.search);window.__READER_NOIMG__=p.has('noimg');if(window.__READER_NOIMG__)document.documentElement.classList.add('reader-noimg')})();
-</script>
-<script src="./reader-static-adapter.js?v=20260912-noimg2"></script>
+<script src="./reader-static-adapter.js"></script>
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
 const mobileReaderDefaults=matchMedia('(max-width:640px)').matches;
@@ -4535,7 +4259,7 @@ function getSavedProgress(){
   const x=migrateSharedProgress(BOOK.id);
   if(!x)return{section:0,fraction:0,anchor:null,updated:0};
 
-  const section=readerSectionFromStored(x.section);
+  const section=Math.max(0,Math.min(BOOK.sections.length-1,+x.section||0));
   const fraction=Math.max(0,Math.min(1,+x.fraction||0));
 
   // Word indices are only meaningful in the exact text language that created
@@ -4562,7 +4286,7 @@ function getSavedProgress(){
   if(!raw&&uiLanguage==='en')raw=storage.get(legacyProgressKey(BOOK.id));
   const x=JSON.parse(raw||'null');
   if(!x||!Number.isFinite(+x.section))throw 0;
-  const section=readerSectionFromStored(x.section);
+  const section=Math.max(0,Math.min(BOOK.sections.length-1,+x.section||0));
   const fraction=Number.isFinite(+x.fraction)?Math.max(0,Math.min(1,+x.fraction||0)):0;
   let anchor=null;
   if(!crossLanguage&&x.anchor&&Number.isFinite(+x.anchor.index))anchor={index:Math.max(0,+x.anchor.index||0),word:String(x.anchor.word||'').slice(0,80)};
@@ -4654,7 +4378,7 @@ function showBookLoader(kind='epub'){state.loading=true;const l=$('#bookLoader')
 async function hideBookLoader(){setLoaderProgress(100,uiLanguage==='tr'?'Hazır':'Ready');await wait(80);const l=$('#bookLoader');l.classList.remove('open');l.setAttribute('aria-hidden','true');state.loading=false}
 
 function resourceURLFor(bookId,path,lang=''){const base=`/api/res/${bookId}/${String(path).split('/').map(encodeURIComponent).join('/')}`;return lang?base+`?lang=${encodeURIComponent(lang)}`:base}
-function coverURLFor(bookId){if(window.__READER_NOIMG__)return 'data:,';return window.__READER_STATIC__&&window.__readerStaticCoverURL?window.__readerStaticCoverURL(bookId):`/api/cover/${encodeURIComponent(bookId)}`}
+function coverURLFor(bookId){return window.__READER_STATIC__&&window.__readerStaticCoverURL?window.__readerStaticCoverURL(bookId):`/api/cover/${encodeURIComponent(bookId)}`}
 function memberResolve(base,href){href=String(href||'').trim();if(!href)return null;if(/^(?:data:|blob:|https?:|mailto:|tel:)/i.test(href))return null;const hashAt=href.indexOf('#'),frag=hashAt>=0?href.slice(hashAt+1):'',clean=hashAt>=0?href.slice(0,hashAt):href;if(!clean)return{member:base,fragment:frag};try{const dir=base.includes('/')?base.slice(0,base.lastIndexOf('/')+1):'';const u=new URL(clean,'http://reader.invalid/'+dir);return{member:decodeURIComponent(u.pathname.replace(/^\//,'')),fragment:frag}}catch(_){return null}}
 function rewriteSrcset(value,bookId,base){return String(value||'').split(',').map(part=>{const bits=part.trim().split(/\s+/);const r=memberResolve(base,bits[0]);if(r)bits[0]=resourceURLFor(bookId,r.member);return bits.join(' ')}).join(', ')}
 function normalizeXhtmlForHtmlParser(raw){
@@ -4666,7 +4390,7 @@ function normalizeXhtmlForHtmlParser(raw){
  const re=new RegExp(`<(${nonVoid})(\\s[^<>]*?)?\\s*/\\s*>`,'gi');
  return String(raw??'').replace(re,(m,tag,attrs='')=>`<${tag}${attrs||''}></${tag}>`)
 }
-function sanitizeSectionHTML(raw,bookId,base){const doc=new DOMParser().parseFromString(normalizeXhtmlForHtmlParser(raw),'text/html'),root=doc.body||doc.documentElement;if(window.__READER_NOIMG__)root.querySelectorAll('img,picture,source,video,svg image').forEach(x=>x.remove());root.querySelectorAll('script,style,link,meta,iframe,object,embed').forEach(x=>x.remove());root.querySelectorAll('*').forEach(el=>{[...el.attributes].forEach(a=>{if(/^on/i.test(a.name))el.removeAttribute(a.name)});if(el.hasAttribute('style'))el.removeAttribute('style')});root.querySelectorAll('img[src],source[src],video[poster]').forEach(el=>{const attr=el.hasAttribute('src')?'src':'poster',r=memberResolve(base,el.getAttribute(attr));if(r){const u=resourceURLFor(bookId,r.member);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-'+attr,u);el.removeAttribute(attr)}else el.setAttribute(attr,u)}});root.querySelectorAll('[srcset]').forEach(el=>{const u=rewriteSrcset(el.getAttribute('srcset'),bookId,base);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-srcset',u);el.removeAttribute('srcset')}else el.setAttribute('srcset',u)});root.querySelectorAll('a[href]').forEach(a=>{const h=a.getAttribute('href');if(/^(?:https?:|mailto:|tel:)/i.test(h||'')){a.target='_blank';a.rel='noopener';return}const r=memberResolve(base,h);if(r){a.dataset.readerMember=r.member;a.dataset.readerFragment=r.fragment||'';a.setAttribute('href','#')}});root.querySelectorAll('image').forEach(el=>{for(const attr of ['href','xlink:href'])if(el.hasAttribute(attr)){const r=memberResolve(base,el.getAttribute(attr));if(r){const u=resourceURLFor(bookId,r.member);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-href',u);el.removeAttribute('href');el.removeAttribute('xlink:href')}else el.setAttribute(attr,u)}}});return root.innerHTML}
+function sanitizeSectionHTML(raw,bookId,base){const doc=new DOMParser().parseFromString(normalizeXhtmlForHtmlParser(raw),'text/html'),root=doc.body||doc.documentElement;root.querySelectorAll('script,style,link,meta,iframe,object,embed').forEach(x=>x.remove());root.querySelectorAll('*').forEach(el=>{[...el.attributes].forEach(a=>{if(/^on/i.test(a.name))el.removeAttribute(a.name)});if(el.hasAttribute('style'))el.removeAttribute('style')});root.querySelectorAll('img[src],source[src],video[poster]').forEach(el=>{const attr=el.hasAttribute('src')?'src':'poster',r=memberResolve(base,el.getAttribute(attr));if(r){const u=resourceURLFor(bookId,r.member);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-'+attr,u);el.removeAttribute(attr)}else el.setAttribute(attr,u)}});root.querySelectorAll('[srcset]').forEach(el=>{const u=rewriteSrcset(el.getAttribute('srcset'),bookId,base);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-srcset',u);el.removeAttribute('srcset')}else el.setAttribute('srcset',u)});root.querySelectorAll('a[href]').forEach(a=>{const h=a.getAttribute('href');if(/^(?:https?:|mailto:|tel:)/i.test(h||'')){a.target='_blank';a.rel='noopener';return}const r=memberResolve(base,h);if(r){a.dataset.readerMember=r.member;a.dataset.readerFragment=r.fragment||'';a.setAttribute('href','#')}});root.querySelectorAll('image').forEach(el=>{for(const attr of ['href','xlink:href'])if(el.hasAttribute(attr)){const r=memberResolve(base,el.getAttribute(attr));if(r){const u=resourceURLFor(bookId,r.member);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-href',u);el.removeAttribute('href');el.removeAttribute('xlink:href')}else el.setAttribute(attr,u)}}});return root.innerHTML}
 function webNovelLoadingHTML(){return `<div class="wnAvailability"><h2>${esc(t('loadingChapter'))}</h2></div>`}
 function webNovelUnavailableHTML(){return `<div class="wnAvailability"><h2>${esc(t('contentNotAvailable'))}</h2><p>${esc(t('contentNotAvailableDetail'))}</p></div>`}
 function webNovelTextHTML(text){
@@ -4711,11 +4435,7 @@ async function hydrateBookSections(meta){
   setLoaderProgress(82,t('preparingChapters'));
   return sections
  }
- const spine=(meta.spine||[]).map((s,originalIndex)=>({path:s.path,title:s.title||'',imageOnly:!!s.image_only,html:'',originalIndex}));
- let sections=window.__READER_NOIMG__?spine.filter(s=>!s.imageOnly):spine;
- if(window.__READER_NOIMG__&&!sections.length){
-  sections=[{path:'__noimg_empty__',title:uiLanguage==='tr'?'Metin sayfası yok':'No text pages',imageOnly:false,html:`<div class="wnAvailability"><h2>${uiLanguage==='tr'?'Bu ciltte metin sayfası yok':'No text pages in this volume'}</h2></div>`,originalIndex:0,noFetch:true}]
- }
+ const sections=(meta.spine||[]).map(s=>({path:s.path,title:s.title||'',imageOnly:!!s.image_only,html:''}));
  const bookLang=(uiLanguage==='tr'&&meta.translated)?'tr':'';
  let done=0,next=0;
  const workers=Math.min(6,Math.max(1,sections.length));
@@ -4723,7 +4443,6 @@ async function hydrateBookSections(meta){
   while(true){
    const i=next++;if(i>=sections.length)return;
    const sec=sections[i];
-   if(sec.noFetch){done++;setLoaderProgress(26+done/Math.max(1,sections.length)*56,t('loadingBook',{done,total:sections.length}));continue}
    try{
     const r=await fetch(resourceURLFor(meta.id,sec.path,bookLang));
     if(!r.ok)throw new Error(`HTTP ${r.status}`);
@@ -5104,17 +4823,6 @@ $$('.shelfArrow').forEach(b=>b.onclick=()=>{const shelf=$('#'+b.dataset.shelf+'S
 $('#librarySort').onchange=e=>{state.librarySort=e.target.value;storage.set(sourceSortKey(),state.librarySort);renderLibrary()};
 $('#volumeSort').onchange=e=>{state.volumeSort=e.target.value;storage.set('reader-volume-sort',state.volumeSort);renderVolumes()};
 function current(){return BOOK?.sections?.[state.section]||{imageOnly:false,html:'',title:''}}
-function readerSectionFromStored(rawSection){
-  const raw=Math.max(0,+rawSection||0);
-  if(!BOOK?.sections?.length)return 0;
-  if(!window.__READER_NOIMG__)return Math.max(0,Math.min(BOOK.sections.length-1,raw));
-  const hasOriginal=BOOK.sections.some(s=>Number.isFinite(+s.originalIndex));
-  if(!hasOriginal)return Math.max(0,Math.min(BOOK.sections.length-1,raw));
-  const exact=BOOK.sections.findIndex(s=>+s.originalIndex===raw);
-  if(exact>=0)return exact;
-  const next=BOOK.sections.findIndex(s=>+s.originalIndex>raw);
-  return next>=0?next:BOOK.sections.length-1;
-}
 function currentSectionFraction(){
   if(current().imageOnly)return .5;
   const anchored=sectionFractionFromAnchor(currentWordAnchor());
@@ -5290,7 +4998,6 @@ function analyzeBwMedia(img){
   }
 }
 function prepareBookMedia(root=document){
-  if(window.__READER_NOIMG__)return;
   if(window.__READER_STATIC__&&window.__readerStaticHydrateMedia)window.__readerStaticHydrateMedia(root);
   root.querySelectorAll?.('#proseContent img,#imageStage img,.sectionGhost img,.swipePreview img').forEach(img=>analyzeBwMedia(img));
 }
@@ -5519,7 +5226,6 @@ function setImageInsets(){
   st.style.inset=`${ins.top}px 8px ${ins.bottom}px 8px`
 }
 function guardReaderImage(img,sec,bookId){
- if(window.__READER_NOIMG__){img?.remove?.();return}
  if(!img||img.dataset.readerGuard==='1')return;
  img.dataset.readerGuard='1';
  const looksLikeFrontMatter=!window.__READER_STATIC__&&(state.section===0||/\bcover\b|front(?:matter)?|title[ _-]*page/i.test(`${sec?.title||''} ${sec?.path||''}`));
@@ -6278,7 +5984,7 @@ function saveReadingProgress(){
   const fraction=currentSectionFraction();
   const global=globalFraction();
   storage.set(progressKey(BOOK.id),JSON.stringify({
-    section:Number.isFinite(+current().originalIndex)?+current().originalIndex:state.section,
+    section:state.section,
     fraction,
     anchor,
     anchorLanguage:(BOOK.contentLanguage||'en').toLowerCase(),
@@ -7304,6 +7010,6 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
 })();
 </script>
 
-<script src="./reader-image-enhance.js?v=20260912-noimg2"></script>
+<script src="./reader-image-enhance.js?v=20260912-cover-dwell2"></script>
 </body>
 </html>
