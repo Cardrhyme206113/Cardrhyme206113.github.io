@@ -3658,6 +3658,7 @@ body.reader-active #themeQuickBtn{
 }
 </style>
 <style id="reader-noimg-style">
+/* ?noimg only: text-first, zero-cover layout. */
 html.reader-noimg .cover,
 html.reader-noimg .heroCoverWrap,
 html.reader-noimg .continueCard>img,
@@ -3666,12 +3667,125 @@ html.reader-noimg #readerView img,
 html.reader-noimg picture,
 html.reader-noimg video,
 html.reader-noimg #seriesHeroBg{display:none!important;background-image:none!important}
-html.reader-noimg .cardTitle{margin-top:0!important}
-html.reader-noimg .continueCard{grid-template-columns:minmax(0,1fr) auto!important}
-html.reader-noimg .seriesHero{grid-template-columns:minmax(0,1fr)!important;min-height:0!important}
-html.reader-noimg .advancedResultCard{grid-template-columns:minmax(0,1fr)!important}
+
+html.reader-noimg body:not(.reader-active) .view{
+  max-width:1280px!important;
+  padding-left:clamp(28px,5vw,78px)!important;
+  padding-right:clamp(28px,5vw,78px)!important;
+  padding-bottom:140px!important;
+}
+html.reader-noimg #libraryView .viewHead,
+html.reader-noimg #seriesView .viewHead,
+html.reader-noimg #advancedSearchView .viewHead{
+  margin-bottom:34px!important;
+}
+html.reader-noimg .catalogHead{margin-top:82px!important;margin-bottom:32px!important}
+html.reader-noimg .discoverySection{margin-bottom:64px!important}
+html.reader-noimg .discoveryHead{margin-bottom:22px!important}
+
+/* Library cards become roomy editorial text cards instead of collapsed cover cards. */
+html.reader-noimg #library.cardGrid,
+html.reader-noimg #library.virtualLibrary .libraryVirtualChunk.cardGrid{
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr))!important;
+  gap:22px!important;
+}
+html.reader-noimg #library .card,
+html.reader-noimg #library.virtualLibrary .card,
+html.reader-noimg .discoveryShelf .card{
+  min-height:142px!important;
+  padding:24px 24px 22px!important;
+  border:1px solid var(--line)!important;
+  border-top:2px solid var(--text)!important;
+  background:color-mix(in srgb,var(--surface) 94%,var(--accentSoft) 6%)!important;
+  box-shadow:none!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:flex-start!important;
+}
+html.reader-noimg .card:hover{
+  background:color-mix(in srgb,var(--surface) 88%,var(--accentSoft) 12%)!important;
+}
+html.reader-noimg .cardTitle{
+  margin:0 0 18px!important;
+  font-family:var(--ae-display,inherit)!important;
+  font-size:clamp(18px,1.65vw,24px)!important;
+  line-height:1.16!important;
+  letter-spacing:-.025em!important;
+}
+html.reader-noimg .cardMeta{margin-top:auto!important;padding-top:4px!important;gap:14px!important}
+html.reader-noimg .cardLatest{margin-top:10px!important}
+html.reader-noimg .cardProgress{margin-top:14px!important}
+html.reader-noimg .discoveryShelf{
+  grid-auto-columns:minmax(270px,34vw)!important;
+  gap:20px!important;
+  padding-bottom:10px!important;
+}
+
+/* Continue reading becomes a full-width reading strip with more breathing room. */
+html.reader-noimg #continueSection{margin-top:20px!important;margin-bottom:78px!important}
+html.reader-noimg .continueCard{
+  grid-template-columns:minmax(0,1fr) auto!important;
+  gap:32px!important;
+  padding:30px 32px!important;
+  min-height:150px!important;
+}
+html.reader-noimg .continueText h3{
+  font-size:clamp(22px,2.6vw,34px)!important;
+  margin-bottom:14px!important;
+}
+html.reader-noimg .continueText p{margin-bottom:20px!important}
+html.reader-noimg .continuePager{margin-top:12px!important}
+
+/* Series page no longer reserves a cover-shaped visual column. */
+html.reader-noimg .seriesHero{
+  grid-template-columns:minmax(0,1fr)!important;
+  min-height:0!important;
+  padding:38px 42px!important;
+  margin-bottom:48px!important;
+}
+html.reader-noimg .seriesInfo{max-width:900px!important}
+html.reader-noimg .seriesHero h1{font-size:clamp(30px,4.5vw,48px)!important;margin-bottom:16px!important}
+html.reader-noimg .seriesDescription{max-width:78ch!important;line-height:1.72!important;margin-bottom:18px!important}
+html.reader-noimg #volumeGrid.cardGrid{
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr))!important;
+  gap:22px!important;
+}
+html.reader-noimg #volumeGrid .card{padding:24px!important;border:1px solid var(--line)!important}
+
+/* Search results use their entire width for text. */
+html.reader-noimg .advancedResultCard{
+  grid-template-columns:minmax(0,1fr)!important;
+  padding:26px 28px!important;
+  row-gap:0!important;
+}
+html.reader-noimg .advancedResultsGrid{gap:18px!important}
+
+/* Reader remains prose-only; there is no image-page visual state in noimg mode. */
 html.reader-noimg .readerStage.imageMode,
 html.reader-noimg .readerStage.imageMode #scrollHost{background:var(--paper)!important}
+
+@media(max-width:700px){
+  html.reader-noimg body:not(.reader-active) .view{
+    padding-left:20px!important;
+    padding-right:20px!important;
+    padding-bottom:100px!important;
+  }
+  html.reader-noimg #library.cardGrid,
+  html.reader-noimg #library.virtualLibrary .libraryVirtualChunk.cardGrid{
+    grid-template-columns:1fr!important;
+    gap:16px!important;
+  }
+  html.reader-noimg #library .card,
+  html.reader-noimg #library.virtualLibrary .card,
+  html.reader-noimg .discoveryShelf .card{
+    min-height:124px!important;
+    padding:21px 20px!important;
+  }
+  html.reader-noimg .discoveryShelf{grid-auto-columns:minmax(245px,82vw)!important}
+  html.reader-noimg .continueCard{padding:24px 20px!important;gap:18px!important}
+  html.reader-noimg .seriesHero{padding:28px 22px!important;margin-bottom:38px!important}
+  html.reader-noimg #volumeGrid.cardGrid{grid-template-columns:1fr!important}
+}
 </style>
 </head>
 <body>
@@ -3966,7 +4080,7 @@ html.reader-noimg .readerStage.imageMode #scrollHost{background:var(--paper)!imp
 <script>
 (()=>{const p=new URLSearchParams(location.search);window.__READER_NOIMG__=p.has('noimg');if(window.__READER_NOIMG__)document.documentElement.classList.add('reader-noimg')})();
 </script>
-<script src="./reader-static-adapter.js?v=20260912-noimg1"></script>
+<script src="./reader-static-adapter.js?v=20260912-noimg2"></script>
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
 const mobileReaderDefaults=matchMedia('(max-width:640px)').matches;
@@ -4278,7 +4392,7 @@ function getSavedProgress(){
   const x=migrateSharedProgress(BOOK.id);
   if(!x)return{section:0,fraction:0,anchor:null,updated:0};
 
-  const section=Math.max(0,Math.min(BOOK.sections.length-1,+x.section||0));
+  const section=readerSectionFromStored(x.section);
   const fraction=Math.max(0,Math.min(1,+x.fraction||0));
 
   // Word indices are only meaningful in the exact text language that created
@@ -4305,7 +4419,7 @@ function getSavedProgress(){
   if(!raw&&uiLanguage==='en')raw=storage.get(legacyProgressKey(BOOK.id));
   const x=JSON.parse(raw||'null');
   if(!x||!Number.isFinite(+x.section))throw 0;
-  const section=Math.max(0,Math.min(BOOK.sections.length-1,+x.section||0));
+  const section=readerSectionFromStored(x.section);
   const fraction=Number.isFinite(+x.fraction)?Math.max(0,Math.min(1,+x.fraction||0)):0;
   let anchor=null;
   if(!crossLanguage&&x.anchor&&Number.isFinite(+x.anchor.index))anchor={index:Math.max(0,+x.anchor.index||0),word:String(x.anchor.word||'').slice(0,80)};
@@ -4454,7 +4568,11 @@ async function hydrateBookSections(meta){
   setLoaderProgress(82,t('preparingChapters'));
   return sections
  }
- const sections=(meta.spine||[]).map(s=>({path:s.path,title:s.title||'',imageOnly:!!s.image_only,html:''}));
+ const spine=(meta.spine||[]).map((s,originalIndex)=>({path:s.path,title:s.title||'',imageOnly:!!s.image_only,html:'',originalIndex}));
+ let sections=window.__READER_NOIMG__?spine.filter(s=>!s.imageOnly):spine;
+ if(window.__READER_NOIMG__&&!sections.length){
+  sections=[{path:'__noimg_empty__',title:uiLanguage==='tr'?'Metin sayfası yok':'No text pages',imageOnly:false,html:`<div class="wnAvailability"><h2>${uiLanguage==='tr'?'Bu ciltte metin sayfası yok':'No text pages in this volume'}</h2></div>`,originalIndex:0,noFetch:true}]
+ }
  const bookLang=(uiLanguage==='tr'&&meta.translated)?'tr':'';
  let done=0,next=0;
  const workers=Math.min(6,Math.max(1,sections.length));
@@ -4462,6 +4580,7 @@ async function hydrateBookSections(meta){
   while(true){
    const i=next++;if(i>=sections.length)return;
    const sec=sections[i];
+   if(sec.noFetch){done++;setLoaderProgress(26+done/Math.max(1,sections.length)*56,t('loadingBook',{done,total:sections.length}));continue}
    try{
     const r=await fetch(resourceURLFor(meta.id,sec.path,bookLang));
     if(!r.ok)throw new Error(`HTTP ${r.status}`);
@@ -4842,6 +4961,17 @@ $$('.shelfArrow').forEach(b=>b.onclick=()=>{const shelf=$('#'+b.dataset.shelf+'S
 $('#librarySort').onchange=e=>{state.librarySort=e.target.value;storage.set(sourceSortKey(),state.librarySort);renderLibrary()};
 $('#volumeSort').onchange=e=>{state.volumeSort=e.target.value;storage.set('reader-volume-sort',state.volumeSort);renderVolumes()};
 function current(){return BOOK?.sections?.[state.section]||{imageOnly:false,html:'',title:''}}
+function readerSectionFromStored(rawSection){
+  const raw=Math.max(0,+rawSection||0);
+  if(!BOOK?.sections?.length)return 0;
+  if(!window.__READER_NOIMG__)return Math.max(0,Math.min(BOOK.sections.length-1,raw));
+  const hasOriginal=BOOK.sections.some(s=>Number.isFinite(+s.originalIndex));
+  if(!hasOriginal)return Math.max(0,Math.min(BOOK.sections.length-1,raw));
+  const exact=BOOK.sections.findIndex(s=>+s.originalIndex===raw);
+  if(exact>=0)return exact;
+  const next=BOOK.sections.findIndex(s=>+s.originalIndex>raw);
+  return next>=0?next:BOOK.sections.length-1;
+}
 function currentSectionFraction(){
   if(current().imageOnly)return .5;
   const anchored=sectionFractionFromAnchor(currentWordAnchor());
@@ -5271,7 +5401,7 @@ function setSectionMarkup(){
   ensureWebSectionLoaded(requested).then(()=>{if(BOOK?.kind==='webnovel'&&BOOK.id===requestedBookId&&state.section===requested)setSectionMarkup()}).catch(()=>{})
  }
  if(BOOK?.kind==='webnovel'&&sec.contentLanguage)BOOK.contentLanguage=sec.contentLanguage;
- resetImageZoom(false);host.classList.toggle('imageMode',sec.imageOnly&&!window.__READER_NOIMG__);prose.innerHTML='';imgStage.innerHTML='';if(sec.imageOnly&&window.__READER_NOIMG__){state.wordCount=0;state.pageAnchors=[];prose.innerHTML=`<div class="wnAvailability"><h2>${uiLanguage==='tr'?'Görseller devre dışı':'Images disabled'}</h2><p>${uiLanguage==='tr'?'Görselleri açmak için URL’den ?noimg parametresini kaldır.':'Remove the ?noimg parameter from the URL to enable images.'}</p></div>`}else if(sec.imageOnly){state.wordCount=0;state.pageAnchors=[];const temp=document.createElement('div');temp.innerHTML=sec.html;const img=temp.querySelector('img');if(img){img.removeAttribute('style');img.removeAttribute('width');img.removeAttribute('height');img.alt=sec.title||'Illustration';guardReaderImage(img,sec,BOOK?.id);imgStage.appendChild(img)}}else{prose.innerHTML=sec.html;prose.querySelectorAll('[style]').forEach(x=>x.removeAttribute('style'));prose.querySelectorAll('img').forEach(x=>{x.removeAttribute('width');x.removeAttribute('height')});decorateChapterOpening(prose)}state.renderedBookId=BOOK?.id??null;state.renderedSection=state.section;prepareBookMedia(host);applyReadingClasses();const resume=state._resumeProgress;const resumeAnchor=state._resumeAnchor;state._resumeProgress=null;state._resumeAnchor=null;applyLayout(resume,resumeAnchor);buildToc();updateHud();if(BOOK?.kind==='webnovel'&&sec.loaded)prefetchWebSections(state.section)
+ resetImageZoom(false);host.classList.toggle('imageMode',sec.imageOnly);prose.innerHTML='';imgStage.innerHTML='';if(sec.imageOnly){state.wordCount=0;state.pageAnchors=[];const temp=document.createElement('div');temp.innerHTML=sec.html;const img=temp.querySelector('img');if(img){img.removeAttribute('style');img.removeAttribute('width');img.removeAttribute('height');img.alt=sec.title||'Illustration';guardReaderImage(img,sec,BOOK?.id);imgStage.appendChild(img)}}else{prose.innerHTML=sec.html;prose.querySelectorAll('[style]').forEach(x=>x.removeAttribute('style'));prose.querySelectorAll('img').forEach(x=>{x.removeAttribute('width');x.removeAttribute('height')});decorateChapterOpening(prose)}state.renderedBookId=BOOK?.id??null;state.renderedSection=state.section;prepareBookMedia(host);applyReadingClasses();const resume=state._resumeProgress;const resumeAnchor=state._resumeAnchor;state._resumeProgress=null;state._resumeAnchor=null;applyLayout(resume,resumeAnchor);buildToc();updateHud();if(BOOK?.kind==='webnovel'&&sec.loaded)prefetchWebSections(state.section)
 }
 
 function stylePreviewProse(prose){
@@ -6005,7 +6135,7 @@ function saveReadingProgress(){
   const fraction=currentSectionFraction();
   const global=globalFraction();
   storage.set(progressKey(BOOK.id),JSON.stringify({
-    section:state.section,
+    section:Number.isFinite(+current().originalIndex)?+current().originalIndex:state.section,
     fraction,
     anchor,
     anchorLanguage:(BOOK.contentLanguage||'en').toLowerCase(),
