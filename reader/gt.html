@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Google Translate Test</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#111214;--panel:#191b1f;--panel2:#202329;--text:#f2f4f7;--muted:#9aa3ad;
+    --line:#30343b;--accent:#8ab4f8;--bad:#ff8a80;--ok:#81c995;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+  body{padding:clamp(16px,3vw,32px)}
+  main{max-width:1100px;margin:0 auto}
+  h1{font-size:22px;margin:0 0 6px}
+  .sub{color:var(--muted);margin:0 0 18px}
+  .toolbar{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:end;margin-bottom:12px}
+  label{display:grid;gap:6px;color:var(--muted);font-size:12px}
+  select,button,textarea{font:inherit}
+  select,button{min-height:42px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:0 12px}
+  button{cursor:pointer}
+  button:hover{border-color:#555b66}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#0d1520;font-weight:700}
+  button:disabled{opacity:.55;cursor:default}
+  .swap{width:44px;padding:0;font-size:18px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  textarea{width:100%;min-height:330px;resize:vertical;border:0;outline:0;background:transparent;color:var(--text);padding:16px}
+  textarea::placeholder{color:#6f7781}
+  .meta{display:flex;justify-content:space-between;gap:12px;border-top:1px solid var(--line);padding:9px 12px;color:var(--muted);font-size:12px}
+  .actions{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .status{color:var(--muted);min-height:21px}
+  .status.ok{color:var(--ok)}
+  .status.bad{color:var(--bad)}
+  details{margin-top:16px;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:10px 12px}
+  summary{cursor:pointer;color:var(--muted)}
+  pre{white-space:pre-wrap;word-break:break-word;margin:10px 0 0;font-size:12px;color:#b8c0ca;max-height:260px;overflow:auto}
+  .note{margin-top:10px;color:var(--muted);font-size:12px}
+  @media(max-width:720px){
+    body{padding:14px}
+    .toolbar{grid-template-columns:1fr 44px 1fr}
+    .grid{grid-template-columns:1fr}
+    textarea{min-height:230px}
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Google Translate test</h1>
+  <p class="sub">Standalone browser test. Direct Google first; alternate Google/proxy routes only if needed.</p>
+
+  <div class="toolbar">
+    <label>From
+      <select id="from">
+        <option value="auto" selected>Detect language</option>
+        <option value="en">English</option>
+        <option value="tr">Turkish</option>
+        <option value="ja">Japanese</option>
+        <option value="de">German</option>
+        <option value="fr">French</option>
+        <option value="es">Spanish</option>
+        <option value="ru">Russian</option>
+        <option value="ko">Korean</option>
+        <option value="zh-CN">Chinese (Simplified)</option>
+      </select>
+    </label>
+    <button class="swap" id="swap" title="Swap languages">⇄</button>
+    <label>To
+      <select id="to">
+        <option value="tr" selected>Turkish</option>
+        <option value="en">English</option>
+        <option value="ja">Japanese</option>
+        <option value="de">German</option>
+        <option value="fr">French</option>
+        <option value="es">Spanish</option>
+        <option value="ru">Russian</option>
+        <option value="ko">Korean</option>
+        <option value="zh-CN">Chinese (Simplified)</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="grid">
+    <div class="box">
+      <textarea id="input" spellcheck="false" placeholder="Type or paste text here..."></textarea>
+      <div class="meta"><span id="inCount">0 chars</span><span>Input</span></div>
+    </div>
+    <div class="box">
+      <textarea id="output" spellcheck="false" readonly placeholder="Translation appears here..."></textarea>
+      <div class="meta"><span id="outCount">0 chars</span><span id="routeLabel">No route yet</span></div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="primary" id="translate">Translate</button>
+    <button id="copy">Copy output</button>
+    <label style="display:flex;align-items:center;gap:7px;font-size:13px">
+      <input id="auto" type="checkbox" checked> Auto-translate after typing
+    </label>
+    <span class="status" id="status">Ready.</span>
+  </div>
+
+  <details>
+    <summary>Request diagnostics</summary>
+    <pre id="log">No requests yet.</pre>
+  </details>
+  <div class="note">No API key is stored. Proxy fallbacks are for testing only; text sent through a proxy is visible to that third party.</div>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  var $ = function(id){ return document.getElementById(id); };
+  var input = $("input"), output = $("output"), from = $("from"), to = $("to");
+  var statusEl = $("status"), logEl = $("log"), routeLabel = $("routeLabel");
+  var translateBtn = $("translate"), autoBox = $("auto");
+  var debounceTimer = 0, runId = 0, preferredRoute = null;
+
+  function log(msg){
+    var stamp = new Date().toLocaleTimeString();
+    if (logEl.textContent === "No requests yet.") logEl.textContent = "";
+    logEl.textContent += "[" + stamp + "] " + msg + "\n";
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function setStatus(text, type){
+    statusEl.textContent = text;
+    statusEl.className = "status" + (type ? " " + type : "");
+  }
+
+  function updateCounts(){
+    $("inCount").textContent = input.value.length.toLocaleString() + " chars";
+    $("outCount").textContent = output.value.length.toLocaleString() + " chars";
+  }
+
+  function googleUrl(text, sl, tl){
+    var p = new URLSearchParams({
+      client:"gtx", sl:sl, tl:tl, dt:"t", dj:"1", source:"input", q:text
+    });
+    return "https://translate.googleapis.com/translate_a/single?" + p.toString();
+  }
+
+  function dictUrl(text, sl, tl){
+    var p = new URLSearchParams({
+      client:"dict-chrome-ex", sl:sl, tl:tl, q:text
+    });
+    return "https://clients5.google.com/translate_a/t?" + p.toString();
+  }
+
+  function routeUrl(route, text, sl, tl){
+    var g = googleUrl(text, sl, tl);
+    if (route === "Google direct") return g;
+    if (route === "Google dict endpoint") return dictUrl(text, sl, tl);
+    if (route === "AllOrigins proxy") return "https://api.allorigins.win/raw?url=" + encodeURIComponent(g);
+    if (route === "CodeTabs proxy") return "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(g);
+    throw new Error("Unknown route");
+  }
+
+  function parseTranslation(data){
+    if (data && Array.isArray(data.sentences)) {
+      var s = data.sentences.map(function(x){ return x && x.trans ? x.trans : ""; }).join("");
+      if (s) return s;
+    }
+    if (Array.isArray(data) && Array.isArray(data[0])) {
+      var a = data[0].map(function(x){
+        return Array.isArray(x) && typeof x[0] === "string" ? x[0] : "";
+      }).join("");
+      if (a) return a;
+    }
+    if (data && typeof data.trans === "string") return data.trans;
+    throw new Error("Unexpected Google response shape");
+  }
+
+  async function fetchJsonText(url, timeoutMs){
+    var controller = new AbortController();
+    var timer = setTimeout(function(){ controller.abort(); }, timeoutMs);
+    try {
+      var res = await fetch(url, {
+        method:"GET",
+        mode:"cors",
+        cache:"no-store",
+        credentials:"omit",
+        signal:controller.signal,
+        headers:{ "Accept":"application/json,text/plain,*/*" }
+      });
+      var text = await res.text();
+      if (!res.ok) throw new Error("HTTP " + res.status + (text ? " · " + text.slice(0,120).replace(/\s+/g," ") : ""));
+      try { return JSON.parse(text); }
+      catch(e){ throw new Error("Non-JSON response · " + text.slice(0,140).replace(/\s+/g," ")); }
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function splitText(text, max){
+    if (text.length <= max) return [text];
+    var chunks = [], rest = text;
+    while (rest.length > max) {
+      var head = rest.slice(0, max);
+      var floor = Math.floor(max * 0.58);
+      var cut = -1;
+      var n = head.lastIndexOf("\n");
+      if (n >= floor) cut = n + 1;
+      if (cut < floor) {
+        var re = /[.!?。！？][\"')\]]?\s+/g, m, last = -1;
+        while ((m = re.exec(head))) last = re.lastIndex;
+        if (last >= floor) cut = last;
+      }
+      if (cut < floor) {
+        var sp = head.lastIndexOf(" ");
+        if (sp >= floor) cut = sp + 1;
+      }
+      if (cut < 1) cut = max;
+      chunks.push(rest.slice(0, cut));
+      rest = rest.slice(cut);
+    }
+    if (rest) chunks.push(rest);
+    return chunks;
+  }
+
+  async function translateChunk(text, sl, tl){
+    var baseRoutes = ["Google direct","Google dict endpoint","AllOrigins proxy","CodeTabs proxy"];
+    var routes = preferredRoute
+      ? [preferredRoute].concat(baseRoutes.filter(function(x){ return x !== preferredRoute; }))
+      : baseRoutes;
+
+    var lastError = null;
+    for (var i=0; i<routes.length; i++) {
+      var route = routes[i];
+      try {
+        log("Trying " + route + " (" + text.length + " chars)");
+        var data = await fetchJsonText(routeUrl(route, text, sl, tl), 7500);
+        var translated = parseTranslation(data);
+        preferredRoute = route;
+        log("OK via " + route);
+        return { text:translated, route:route };
+      } catch (e) {
+        lastError = e;
+        log("Failed " + route + ": " + (e && e.message ? e.message : String(e)));
+      }
+    }
+    throw lastError || new Error("All routes failed");
+  }
+
+  async function translateNow(){
+    var myRun = ++runId;
+    var text = input.value;
+    if (!text.trim()) {
+      output.value = "";
+      routeLabel.textContent = "No route yet";
+      setStatus("Ready.");
+      updateCounts();
+      return;
+    }
+
+    translateBtn.disabled = true;
+    setStatus("Translating...");
+    var chunks = splitText(text, 1800);
+    log("--- Translation start: " + chunks.length + " chunk(s), " + text.length + " chars ---");
+
+    try {
+      var parts = [], used = new Set();
+      for (var i=0; i<chunks.length; i++) {
+        if (myRun !== runId) return;
+        setStatus("Translating " + (i+1) + "/" + chunks.length + "...");
+        var r = await translateChunk(chunks[i], from.value, to.value);
+        parts.push(r.text);
+        used.add(r.route);
+      }
+      if (myRun !== runId) return;
+      output.value = parts.join("");
+      routeLabel.textContent = Array.from(used).join(" + ");
+      setStatus("Done · " + chunks.length + " chunk" + (chunks.length === 1 ? "" : "s"), "ok");
+      updateCounts();
+    } catch(e) {
+      if (myRun !== runId) return;
+      routeLabel.textContent = "All routes failed";
+      setStatus("Failed: " + (e && e.message ? e.message : String(e)), "bad");
+      log("FINAL FAILURE: " + (e && e.stack ? e.stack : String(e)));
+    } finally {
+      if (myRun === runId) translateBtn.disabled = false;
+    }
+  }
+
+  function schedule(){
+    updateCounts();
+    clearTimeout(debounceTimer);
+    if (!autoBox.checked) return;
+    debounceTimer = setTimeout(translateNow, 650);
+  }
+
+  input.addEventListener("input", schedule);
+  from.addEventListener("change", function(){ if (input.value.trim()) translateNow(); });
+  to.addEventListener("change", function(){ if (input.value.trim()) translateNow(); });
+  translateBtn.addEventListener("click", translateNow);
+
+  $("swap").addEventListener("click", function(){
+    if (from.value === "auto") from.value = to.value;
+    else {
+      var a = from.value;
+      from.value = to.value;
+      to.value = a;
+    }
+    var oldInput = input.value;
+    if (output.value) {
+      input.value = output.value;
+      output.value = oldInput;
+    }
+    updateCounts();
+    if (input.value.trim()) translateNow();
+  });
+
+  $("copy").addEventListener("click", async function(){
+    try {
+      await navigator.clipboard.writeText(output.value);
+      setStatus("Copied.", "ok");
+    } catch(e) {
+      output.focus();
+      output.select();
+      setStatus("Clipboard permission blocked; output selected instead.");
+    }
+  });
+
+  updateCounts();
+})();
+</script>
+</body>
+</html>
