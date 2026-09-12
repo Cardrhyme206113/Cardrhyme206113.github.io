@@ -3978,17 +3978,21 @@ html.reader-loader-active #continueSection::before{
   }
 }
 </style>
-<style id="library-desktop-overflow-fix-v1">
-/* Decorative Continue Reading ambience must never widen the document.
-   This matters especially in desktop-site / fit-to-page browser modes. */
-#libraryView #continueSection{
+<style id="library-desktop-overflow-fix-v2">
+/* Keep all decorative horizontal bleed local to Library rather than
+   clipping Continue Reading itself. This lets blur pass behind controls
+   that protrude beyond the card while preventing document-wide overflow. */
+#libraryView{
   overflow-x:clip!important;
 }
+#libraryView #continueSection{
+  overflow:visible!important;
+}
 #libraryView #continueSection::before{
-  width:100%!important;
-  max-width:100%!important;
-  left:0!important;
-  right:0!important;
+  width:calc(100% + 128px)!important;
+  max-width:none!important;
+  left:-64px!important;
+  right:auto!important;
   transform:none!important;
 }
 
