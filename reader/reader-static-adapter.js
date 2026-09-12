@@ -434,27 +434,58 @@
         if(!r.ok) throw new Error(`reader-static catalog HTTP ${r.status}`);
         let c=cfg.encrypted?await decodeProtectedJSON(r):await r.json();
         if(c?.__readerCorruptCipher)c=syntheticCatalog(c.__readerCorruptCipher);
-        setCatalogStage('Katalog indeksleniyor…');
         c.series=Array.isArray(c.series)?c.series:[];
         c.webnovels=Array.isArray(c.webnovels)?c.webnovels:c.series.filter(x=>x.kind==='webnovel');
         c.lightnovels=Array.isArray(c.lightnovels)?c.lightnovels:c.series.filter(x=>x.kind==='epub');
         c.volumes=Array.isArray(c.volumes)?c.volumes:[];
         c.seriesByPath=new Map(); c.wnById=new Map(); c.volumeById=new Map(); c.volumesBySeries=new Map(); c.coverById=new Map();
-        for(const s of c.series){
+
+        // Building all derived maps used to run as one uninterrupted synchronous
+        // block. On mobile that can monopolise the main thread long enough to
+        // make the loader look permanently frozen. Index in small batches and
+        // yield between them so rendering/input can continue.
+        const totalIndexItems=Math.max(1,c.series.length+c.volumes.length);
+        let indexed=0;
+        const indexYield=async()=>{
+          const pct=Math.min(99,Math.round(indexed/totalIndexItems*100));
+          setCatalogStage(`Katalog indeksleniyor… ${pct}%`);
+          await new Promise(r=>setTimeout(r,0))
+        };
+
+        for(let i=0;i<c.series.length;i++){
+          const s=c.series[i];
           c.seriesByPath.set(String(s.path),s);
           if(s.kind==='webnovel'){
-            const id=String(s.source_id ?? String(s.id).replace(/^wn:/,'')); c.wnById.set(id,s); c.wnById.set(`wn:${id}`,s);
-            if(s.cover){c.coverById.set(id,s.cover);c.coverById.set(`wn:${id}`,s.cover);}
+            const id=String(s.source_id ?? String(s.id).replace(/^wn:/,''));
+            c.wnById.set(id,s);c.wnById.set(`wn:${id}`,s);
+            if(s.cover){c.coverById.set(id,s.cover);c.coverById.set(`wn:${id}`,s.cover)}
           }
-          if(s.cover_book_id!=null && s.cover) c.coverById.set(String(s.cover_book_id),s.cover);
+          if(s.cover_book_id!=null&&s.cover)c.coverById.set(String(s.cover_book_id),s.cover);
+          indexed++;
+          if((i&255)===255)await indexYield()
         }
-        for(const v of c.volumes){
+
+        for(let i=0;i<c.volumes.length;i++){
+          const v=c.volumes[i];
           c.volumeById.set(String(v.id),v);
-          if(!c.volumesBySeries.has(String(v.series))) c.volumesBySeries.set(String(v.series),[]);
-          c.volumesBySeries.get(String(v.series)).push(v);
-          if(v.cover) c.coverById.set(String(v.id),v.cover);
+          const seriesKey=String(v.series);
+          let list=c.volumesBySeries.get(seriesKey);
+          if(!list){list=[];c.volumesBySeries.set(seriesKey,list)}
+          list.push(v);
+          if(v.cover)c.coverById.set(String(v.id),v.cover);
+          indexed++;
+          if((i&255)===255)await indexYield()
         }
-        catalogRef=c; return c;
+
+        setCatalogStage('Katalog indeksleniyor… 100%');
+        catalogRef=c;
+        window.mockCoverURL=function(id){
+          const k=String(id??'');
+          if(corruptMode)return c.coverById.get(k)||c.wnById.get(k)?.cover||corruptCoverURL(k);
+          const rel=c.coverById.get(k)||c.wnById.get(k)?.cover||null;
+          return rel?storageURL(String(rel),{}):placeholderCover(c.volumeById.get(k)?.title||c.wnById.get(k)?.name||k)
+        };
+        return c;
       })();
     }
     return catalogPromise;
@@ -590,8 +621,10 @@
     const sort=params.get('sort')||'relevance',sorts={title_az:(a,b)=>a.name.localeCompare(b.name),title_za:(a,b)=>b.name.localeCompare(a.name),rating_desc:(a,b)=>Number(b.rating||0)-Number(a.rating||0),rating_count_desc:(a,b)=>Number(b.rating_count||0)-Number(a.rating_count||0),chapters_desc:(a,b)=>Number(b.chapter_count||0)-Number(a.chapter_count||0),volumes_desc:(a,b)=>Number(b.volume_count||0)-Number(a.volume_count||0),updated_desc:(a,b)=>Number(b.updated_ns||0)-Number(a.updated_ns||0),release_desc:(a,b)=>String(b.latest_release_date||'').localeCompare(String(a.latest_release_date||'')),curated_desc:(a,b)=>Number(!!b.curated)-Number(!!a.curated)};if(sorts[sort])rows.sort(sorts[sort]);return rows;
   }
 
+  // Do NOT preload the catalog here. The main reader boot owns catalog loading.
+  // Starting loadCatalog() while this external script is still being parsed held
+  // the entire application at 0% on slower mobile devices.
   window.mockCoverURL=id=>corruptMode?corruptCoverURL(String(id??'')):placeholderCover(String(id??''));
-  loadCatalog().then(c=>{window.mockCoverURL=function(id){const k=String(id??'');if(corruptMode)return c.coverById.get(k)||c.wnById.get(k)?.cover||corruptCoverURL(k);const rel=c.coverById.get(k)||c.wnById.get(k)?.cover||null;return rel?storageURL(String(rel),{}):placeholderCover(c.volumeById.get(k)?.title||c.wnById.get(k)?.name||k);};}).catch(console.error);
 
 
 
