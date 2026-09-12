@@ -17,6 +17,11 @@
 (()=>{
 'use strict';
 
+if(window.__READER_NOIMG__===true){
+  window.ReaderImageEnhance={disabled:true,reason:'noimg'};
+  return;
+}
+
 const ANIME_STORAGE_KEY='reader-image-anime4k-mode';
 const DENOISE_STORAGE_KEY='reader-image-denoise-mode';
 const PROFILE_STORAGE_KEY='reader-image-anime4k-profile';
