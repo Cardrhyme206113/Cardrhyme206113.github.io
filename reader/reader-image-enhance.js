@@ -44,6 +44,14 @@ const cache=new Map();
 const order=[];
 let anime4kModulePromise=null;
 let processingGeneration=0;
+const coverAnimeObserver=('IntersectionObserver' in window)?new IntersectionObserver(entries=>{
+  for(const entry of entries){
+    if(entry.isIntersecting){
+      coverAnimeObserver.unobserve(entry.target);
+      processCoverImage(entry.target);
+    }
+  }
+},{root:null,rootMargin:'700px 0px',threshold:0.01}):null;
 
 function getAnimeMode(){
   try{
@@ -372,6 +380,42 @@ async function buildProcessed(src,animeMode,denoiseMode,profileMode){
   try{return await promise}catch(err){cache.delete(key);throw err}
 }
 
+async function processCoverImage(img){
+  if(!(img instanceof HTMLImageElement)||img.dataset.readerCoverAnime4k!=='1')return;
+  const current=img.currentSrc||img.src||'';
+  if(!current||generatedURLs.has(current)||img.dataset.readerCoverEnhanceBusy==='1')return;
+
+  const src=img.dataset.readerCoverEnhanceSource||current;
+  if(!src||generatedURLs.has(src))return;
+  const stamp='cover-simple-2x|'+src;
+  if(img.dataset.readerCoverEnhanceStamp===stamp&&img.dataset.readerCoverEnhanced==='1')return;
+
+  img.dataset.readerCoverEnhanceBusy='1';
+  img.dataset.readerCoverEnhanceSource=src;
+  try{
+    const processed=await buildProcessed(src,'all','off','simplified');
+    if(!img.isConnected||img.dataset.readerCoverAnime4k!=='1')return;
+    const live=img.currentSrc||img.src||'';
+    if(live!==src&&!generatedURLs.has(live))return;
+
+    img.dataset.readerCoverEnhanceStamp=stamp;
+    img.dataset.readerCoverEnhanced='1';
+    img.dataset.readerAnime4k='1';
+    img.dataset.readerAnimeProfile='simplified';
+    img.src=processed.url;
+  }catch(err){
+    console.warn('[reader-image] webnovel cover 2x failed',src,err);
+  }finally{
+    delete img.dataset.readerCoverEnhanceBusy;
+  }
+}
+
+function queueCoverImage(img){
+  if(!(img instanceof HTMLImageElement)||img.dataset.readerCoverAnime4k!=='1')return;
+  if(coverAnimeObserver)coverAnimeObserver.observe(img);
+  else processCoverImage(img);
+}
+
 async function processImage(img){
   if(!(img instanceof HTMLImageElement)||!img.closest('#readerView'))return;
   const current=img.currentSrc||img.src||'';
@@ -415,8 +459,12 @@ async function processImage(img){
 }
 
 function scan(root=document){
-  if(root instanceof HTMLImageElement)processImage(root);
+  if(root instanceof HTMLImageElement){
+    processImage(root);
+    queueCoverImage(root);
+  }
   root.querySelectorAll?.('#readerView img').forEach(processImage);
+  root.querySelectorAll?.('img[data-reader-cover-anime4k="1"]').forEach(queueCoverImage);
 }
 
 function reprocessVisible(){
@@ -542,7 +590,13 @@ const observer=new MutationObserver(records=>{
         img.dataset.readerEnhanced='0';
         img.dataset.readerEnhanceStamp='';
       }
+      if(img.dataset.readerCoverEnhanceSource&&live!==img.dataset.readerCoverEnhanceSource){
+        img.dataset.readerCoverEnhanceSource=live;
+        img.dataset.readerCoverEnhanced='0';
+        img.dataset.readerCoverEnhanceStamp='';
+      }
       processImage(img);
+      queueCoverImage(img);
     }
   }
 });
@@ -553,7 +607,7 @@ function boot(){
     subtree:true,
     childList:true,
     attributes:true,
-    attributeFilter:['src']
+    attributeFilter:['src','data-reader-cover-anime4k']
   });
   scan(document);
   console.info(
@@ -568,6 +622,7 @@ if(document.readyState==='loading'){
 
 addEventListener('pagehide',()=>{
   observer.disconnect();
+  coverAnimeObserver?.disconnect();
   for(const u of generatedURLs)try{URL.revokeObjectURL(u)}catch(_){}
   generatedURLs.clear();
   cache.clear();
