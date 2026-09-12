@@ -47,33 +47,29 @@ let processingGeneration=0;
 
 const COVER_VISIBLE_DWELL_MS=500;
 const COVER_MAX_STARTS_PER_SECOND=4;
-const COVER_MIN_START_SPACING_MS=Math.ceil(1000/COVER_MAX_STARTS_PER_SECOND);
-const COVER_VISIBLE_RATIO=0.15;
+const COVER_VISIBLE_RATIO=0.01;
 
-const coverVisibleSince=new WeakMap();
-const coverVisibilityTimers=new WeakMap();
+const coverDwellTimers=new WeakMap();
 const coverQueued=new WeakSet();
 const coverQueue=[];
 const coverStartTimes=[];
 let coverPumpTimer=0;
-let lastCoverStartAt=0;
 
-function clearCoverVisibilityTimer(img){
-  const timer=coverVisibilityTimers.get(img);
+function isCoverActuallyVisible(img){
+  if(!(img instanceof HTMLImageElement)||!img.isConnected||img.dataset.readerCoverAnime4k!=='1')return false;
+  if(document.visibilityState==='hidden')return false;
+  const r=img.getBoundingClientRect();
+  const vw=document.documentElement.clientWidth||innerWidth;
+  const vh=document.documentElement.clientHeight||innerHeight;
+  return r.width>0&&r.height>0&&r.bottom>0&&r.right>0&&r.top<vh&&r.left<vw;
+}
+function clearCoverDwell(img){
+  const timer=coverDwellTimers.get(img);
   if(timer)clearTimeout(timer);
-  coverVisibilityTimers.delete(img);
+  coverDwellTimers.delete(img);
 }
-function coverStillEligible(img){
-  return !!(
-    img instanceof HTMLImageElement &&
-    img.isConnected &&
-    img.dataset.readerCoverAnime4k==='1' &&
-    img.dataset.readerCoverEnhanced!=='1' &&
-    coverVisibleSince.has(img)
-  );
-}
-function pruneCoverStartTimes(now){
-  while(coverStartTimes.length&&now-coverStartTimes[0]>1000)coverStartTimes.shift();
+function pruneCoverStarts(now){
+  while(coverStartTimes.length&&now-coverStartTimes[0]>=1000)coverStartTimes.shift();
 }
 function scheduleCoverPump(delay=0){
   if(coverPumpTimer)return;
@@ -83,75 +79,60 @@ function scheduleCoverPump(delay=0){
   },Math.max(0,Math.ceil(delay)));
 }
 function enqueueCoverImage(img){
-  if(!coverStillEligible(img)||coverQueued.has(img))return;
+  if(!isCoverActuallyVisible(img)||img.dataset.readerCoverEnhanced==='1'||img.dataset.readerCoverEnhanceBusy==='1'||coverQueued.has(img))return;
   coverQueued.add(img);
   coverQueue.push(img);
   scheduleCoverPump(0);
 }
 function pumpCoverQueue(){
   const now=performance.now();
-  pruneCoverStartTimes(now);
+  pruneCoverStarts(now);
 
   while(coverQueue.length){
     const img=coverQueue.shift();
     coverQueued.delete(img);
-    if(!coverStillEligible(img))continue;
+    if(!isCoverActuallyVisible(img)||img.dataset.readerCoverEnhanced==='1'||img.dataset.readerCoverEnhanceBusy==='1')continue;
 
-    const visibleSince=coverVisibleSince.get(img);
-    const dwellLeft=COVER_VISIBLE_DWELL_MS-(now-visibleSince);
-    if(dwellLeft>0){
+    pruneCoverStarts(now);
+    if(coverStartTimes.length>=COVER_MAX_STARTS_PER_SECOND){
+      scheduleCoverPump(Math.max(1,1000-(now-coverStartTimes[0])+1));
       coverQueued.add(img);
       coverQueue.unshift(img);
-      scheduleCoverPump(dwellLeft);
-      return;
-    }
-
-    pruneCoverStartTimes(now);
-    const rollingDelay=coverStartTimes.length>=COVER_MAX_STARTS_PER_SECOND
-      ? Math.max(0,1001-(now-coverStartTimes[0]))
-      : 0;
-    const spacingDelay=lastCoverStartAt
-      ? Math.max(0,COVER_MIN_START_SPACING_MS-(now-lastCoverStartAt))
-      : 0;
-    const delay=Math.max(rollingDelay,spacingDelay);
-    if(delay>0){
-      coverQueued.add(img);
-      coverQueue.unshift(img);
-      scheduleCoverPump(delay);
       return;
     }
 
     coverStartTimes.push(now);
-    lastCoverStartAt=now;
-    clearCoverVisibilityTimer(img);
-    coverVisibleSince.delete(img);
     coverAnimeObserver?.unobserve(img);
     processCoverImage(img).catch(()=>{});
-    scheduleCoverPump(COVER_MIN_START_SPACING_MS);
+    // Even when fewer than four starts exist, pacing avoids a GPU burst.
+    scheduleCoverPump(250);
     return;
   }
 }
+function armCoverDwell(img){
+  if(!(img instanceof HTMLImageElement)||img.dataset.readerCoverAnime4k!=='1')return;
+  if(img.dataset.readerCoverEnhanced==='1'||img.dataset.readerCoverEnhanceBusy==='1')return;
+  clearCoverDwell(img);
+
+  const started=performance.now();
+  const check=()=>{
+    if(!isCoverActuallyVisible(img)){clearCoverDwell(img);return}
+    const elapsed=performance.now()-started;
+    if(elapsed>=COVER_VISIBLE_DWELL_MS){
+      coverDwellTimers.delete(img);
+      enqueueCoverImage(img);
+      return;
+    }
+    coverDwellTimers.set(img,setTimeout(check,Math.max(16,COVER_VISIBLE_DWELL_MS-elapsed)));
+  };
+  coverDwellTimers.set(img,setTimeout(check,COVER_VISIBLE_DWELL_MS));
+}
 
 const coverAnimeObserver=('IntersectionObserver' in window)?new IntersectionObserver(entries=>{
-  const now=performance.now();
   for(const entry of entries){
     const img=entry.target;
-    const visible=entry.isIntersecting&&entry.intersectionRatio>=COVER_VISIBLE_RATIO;
-    if(visible){
-      if(coverVisibleSince.has(img))continue;
-      coverVisibleSince.set(img,now);
-      clearCoverVisibilityTimer(img);
-      const timer=setTimeout(()=>{
-        coverVisibilityTimers.delete(img);
-        const since=coverVisibleSince.get(img);
-        if(since==null||performance.now()-since<COVER_VISIBLE_DWELL_MS)return;
-        enqueueCoverImage(img);
-      },COVER_VISIBLE_DWELL_MS);
-      coverVisibilityTimers.set(img,timer);
-    }else{
-      clearCoverVisibilityTimer(img);
-      coverVisibleSince.delete(img);
-    }
+    if(entry.isIntersecting&&entry.intersectionRatio>=COVER_VISIBLE_RATIO)armCoverDwell(img);
+    else clearCoverDwell(img);
   }
 },{root:null,rootMargin:'0px',threshold:[0,COVER_VISIBLE_RATIO]}):null;
 
@@ -515,7 +496,6 @@ async function processCoverImage(img){
 function queueCoverImage(img){
   if(!(img instanceof HTMLImageElement)||img.dataset.readerCoverAnime4k!=='1')return;
   if(img.dataset.readerCoverEnhanced==='1'||img.dataset.readerCoverEnhanceBusy==='1')return;
-  // Do not violate the visibility dwell rule on browsers without IntersectionObserver.
   if(coverAnimeObserver)coverAnimeObserver.observe(img);
 }
 
