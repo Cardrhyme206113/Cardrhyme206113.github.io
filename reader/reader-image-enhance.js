@@ -44,14 +44,116 @@ const cache=new Map();
 const order=[];
 let anime4kModulePromise=null;
 let processingGeneration=0;
+
+const COVER_VISIBLE_DWELL_MS=500;
+const COVER_MAX_STARTS_PER_SECOND=4;
+const COVER_MIN_START_SPACING_MS=Math.ceil(1000/COVER_MAX_STARTS_PER_SECOND);
+const COVER_VISIBLE_RATIO=0.15;
+
+const coverVisibleSince=new WeakMap();
+const coverVisibilityTimers=new WeakMap();
+const coverQueued=new WeakSet();
+const coverQueue=[];
+const coverStartTimes=[];
+let coverPumpTimer=0;
+let lastCoverStartAt=0;
+
+function clearCoverVisibilityTimer(img){
+  const timer=coverVisibilityTimers.get(img);
+  if(timer)clearTimeout(timer);
+  coverVisibilityTimers.delete(img);
+}
+function coverStillEligible(img){
+  return !!(
+    img instanceof HTMLImageElement &&
+    img.isConnected &&
+    img.dataset.readerCoverAnime4k==='1' &&
+    img.dataset.readerCoverEnhanced!=='1' &&
+    coverVisibleSince.has(img)
+  );
+}
+function pruneCoverStartTimes(now){
+  while(coverStartTimes.length&&now-coverStartTimes[0]>1000)coverStartTimes.shift();
+}
+function scheduleCoverPump(delay=0){
+  if(coverPumpTimer)return;
+  coverPumpTimer=setTimeout(()=>{
+    coverPumpTimer=0;
+    pumpCoverQueue();
+  },Math.max(0,Math.ceil(delay)));
+}
+function enqueueCoverImage(img){
+  if(!coverStillEligible(img)||coverQueued.has(img))return;
+  coverQueued.add(img);
+  coverQueue.push(img);
+  scheduleCoverPump(0);
+}
+function pumpCoverQueue(){
+  const now=performance.now();
+  pruneCoverStartTimes(now);
+
+  while(coverQueue.length){
+    const img=coverQueue.shift();
+    coverQueued.delete(img);
+    if(!coverStillEligible(img))continue;
+
+    const visibleSince=coverVisibleSince.get(img);
+    const dwellLeft=COVER_VISIBLE_DWELL_MS-(now-visibleSince);
+    if(dwellLeft>0){
+      coverQueued.add(img);
+      coverQueue.unshift(img);
+      scheduleCoverPump(dwellLeft);
+      return;
+    }
+
+    pruneCoverStartTimes(now);
+    const rollingDelay=coverStartTimes.length>=COVER_MAX_STARTS_PER_SECOND
+      ? Math.max(0,1001-(now-coverStartTimes[0]))
+      : 0;
+    const spacingDelay=lastCoverStartAt
+      ? Math.max(0,COVER_MIN_START_SPACING_MS-(now-lastCoverStartAt))
+      : 0;
+    const delay=Math.max(rollingDelay,spacingDelay);
+    if(delay>0){
+      coverQueued.add(img);
+      coverQueue.unshift(img);
+      scheduleCoverPump(delay);
+      return;
+    }
+
+    coverStartTimes.push(now);
+    lastCoverStartAt=now;
+    clearCoverVisibilityTimer(img);
+    coverVisibleSince.delete(img);
+    coverAnimeObserver?.unobserve(img);
+    processCoverImage(img).catch(()=>{});
+    scheduleCoverPump(COVER_MIN_START_SPACING_MS);
+    return;
+  }
+}
+
 const coverAnimeObserver=('IntersectionObserver' in window)?new IntersectionObserver(entries=>{
+  const now=performance.now();
   for(const entry of entries){
-    if(entry.isIntersecting){
-      coverAnimeObserver.unobserve(entry.target);
-      processCoverImage(entry.target);
+    const img=entry.target;
+    const visible=entry.isIntersecting&&entry.intersectionRatio>=COVER_VISIBLE_RATIO;
+    if(visible){
+      if(coverVisibleSince.has(img))continue;
+      coverVisibleSince.set(img,now);
+      clearCoverVisibilityTimer(img);
+      const timer=setTimeout(()=>{
+        coverVisibilityTimers.delete(img);
+        const since=coverVisibleSince.get(img);
+        if(since==null||performance.now()-since<COVER_VISIBLE_DWELL_MS)return;
+        enqueueCoverImage(img);
+      },COVER_VISIBLE_DWELL_MS);
+      coverVisibilityTimers.set(img,timer);
+    }else{
+      clearCoverVisibilityTimer(img);
+      coverVisibleSince.delete(img);
     }
   }
-},{root:null,rootMargin:'700px 0px',threshold:0.01}):null;
+},{root:null,rootMargin:'0px',threshold:[0,COVER_VISIBLE_RATIO]}):null;
 
 function getAnimeMode(){
   try{
@@ -412,8 +514,9 @@ async function processCoverImage(img){
 
 function queueCoverImage(img){
   if(!(img instanceof HTMLImageElement)||img.dataset.readerCoverAnime4k!=='1')return;
+  if(img.dataset.readerCoverEnhanced==='1'||img.dataset.readerCoverEnhanceBusy==='1')return;
+  // Do not violate the visibility dwell rule on browsers without IntersectionObserver.
   if(coverAnimeObserver)coverAnimeObserver.observe(img);
-  else processCoverImage(img);
 }
 
 async function processImage(img){
@@ -623,6 +726,9 @@ if(document.readyState==='loading'){
 addEventListener('pagehide',()=>{
   observer.disconnect();
   coverAnimeObserver?.disconnect();
+  if(coverPumpTimer){clearTimeout(coverPumpTimer);coverPumpTimer=0}
+  coverQueue.length=0;
+  coverStartTimes.length=0;
   for(const u of generatedURLs)try{URL.revokeObjectURL(u)}catch(_){}
   generatedURLs.clear();
   cache.clear();
