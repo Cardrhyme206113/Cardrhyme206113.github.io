@@ -4119,9 +4119,13 @@ function setText(sel,key){const el=$(sel);if(el)el.textContent=t(key)}
 function setAttr(sel,attr,key){const el=$(sel);if(el)el.setAttribute(attr,t(key))}
 const TRANSLATION_MODEL_WN='opus-mt_tiny_eng-tur-ct2-int8';
 const TRANSLATION_MODEL_LN='opus-mt_tiny_eng-tur-ct2-int8';
+function translationModelDisplayName(model){
+ return model==='opus-mt_tiny_eng-tur-ct2-int8'?'OPUS-MT Tiny (25M)':String(model||'');
+}
 function translationBadgeHTML(kind='webnovel'){
  const model=(kind==='epub'||kind==='ln')?TRANSLATION_MODEL_LN:TRANSLATION_MODEL_WN;
- const tip=uiLanguage==='tr'?`${model} tarafından çevrildi`:`Translated by ${model}`;
+ const displayModel=translationModelDisplayName(model);
+ const tip=uiLanguage==='tr'?`${displayModel} tarafından çevrildi`:`Translated by ${displayModel}`;
  return `<button type="button" class="translateBadge translationTip" data-translation-model="${esc(model)}" title="${esc(tip)}" aria-label="${esc(tip)}" aria-haspopup="true"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="4" width="11" height="11" rx="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M7 8h4M9 6v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="9.5" y="9" width="11" height="11" rx="2.2" fill="var(--accent)" stroke="currentColor" stroke-width="1.7"/><path d="m13 16 2-4 2 4m-3.4-1.2h2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
 }
 function curatedBadgeHTML(){
@@ -6872,7 +6876,7 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
      pop.setAttribute('role','tooltip');
      document.body.appendChild(pop);
    }
-   const tip=model=>uiLanguage==='tr'?`${model} tarafından çevrildi`:`Translated by ${model}`;
+   const tip=model=>{const name=typeof translationModelDisplayName==='function'?translationModelDisplayName(model):model;return uiLanguage==='tr'?`${name} tarafından çevrildi`:`Translated by ${name}`};
    const place=el=>{
      const r=el.getBoundingClientRect(),pr=pop.getBoundingClientRect();
      let l=Math.max(8,Math.min(innerWidth-pr.width-8,r.left+r.width/2-pr.width/2));
