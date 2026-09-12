@@ -402,14 +402,14 @@
     const idx=await loadIndex('ln',String(bookId));
     if(corruptMode){
       const fp=corruptIndexSeeds.get(idx._key)||idx._key, p=String(path||'');
-      if(/glitch-[^/]+\.svg$/i.test(p))return {bytes:new TextEncoder().encode(corruptSvg(`media:${bookId}:${p}:${fp}`,900,1200)),mime:'image/svg+xml'};
-      if(/\.x?html?$/i.test(p))return {bytes:new TextEncoder().encode(corruptHtml(`section:${bookId}:${p}:${fp}`)),mime:'application/xhtml+xml; charset=utf-8'};
-      return {bytes:new TextEncoder().encode(corruptParagraphs(`res:${bookId}:${p}:${fp}`,4).join('\n\n')),mime:'text/plain; charset=utf-8'};
+      if(/glitch-[^/]+\.svg$/i.test(p))return {bytes:new TextEncoder().encode(corruptSvg(`media:${bookId}:${p}:${fp}`,900,1200)),mime:'image/svg+xml',language:'en'};
+      if(/\.x?html?$/i.test(p))return {bytes:new TextEncoder().encode(corruptHtml(`section:${bookId}:${p}:${fp}`)),mime:'application/xhtml+xml; charset=utf-8',language:'en'};
+      return {bytes:new TextEncoder().encode(corruptParagraphs(`res:${bookId}:${p}:${fp}`,4).join('\n\n')),mime:'text/plain; charset=utf-8',language:'en'};
     }
-    let ent=null;
-    if(lang&&idx.translations?.[lang]?.[path])ent=idx.translations[lang][path];
+    let ent=null,actual='en';
+    if(lang&&idx.translations?.[lang]?.[path]){ent=idx.translations[lang][path];actual=lang}
     if(!ent)ent=idx.resources?.[path]; if(!ent)return null;
-    return {bytes:await readSegments(idx,ent.l||[]),mime:ent.m||'application/octet-stream'};
+    return {bytes:await readSegments(idx,ent.l||[]),mime:ent.m||'application/octet-stream',language:actual};
   }
 
   function applySearch(items,params){
@@ -543,7 +543,7 @@
       const cid=decodeURIComponent(p.split('/').pop());let e=chapterLookup.get(String(cid));if(!e){for(const v of indexCache.values()){const idx=await v;if(idx.kind!=='webnovel')continue;const ch=(idx.chapters||[]).find(x=>String(x.id)===String(cid));if(ch){e={index:idx,chapter:ch};break;}}}if(!e)return textResponse('',404);const out=await chapterText(e,(url.searchParams.get('lang')||'en').toLowerCase());return textResponse(out.text,200,{'X-Reader-Content-Language':out.language});
     }
     if(p.startsWith('/api/res/')){
-      const rest=p.slice('/api/res/'.length);const slash=rest.indexOf('/');if(slash<0)return bytesResponse('',400);const bid=decodeURIComponent(rest.slice(0,slash));const member=decodeURIComponent(rest.slice(slash+1));if(member.startsWith('/')||member.split('/').includes('..'))return bytesResponse('',400);const r=await lnResource(bid,member,(url.searchParams.get('lang')||'').toLowerCase());return r?bytesResponse(r.bytes,r.mime,200,{'Cache-Control':'public, max-age=3600'}):bytesResponse('',404);
+      const rest=p.slice('/api/res/'.length);const slash=rest.indexOf('/');if(slash<0)return bytesResponse('',400);const bid=decodeURIComponent(rest.slice(0,slash));const member=decodeURIComponent(rest.slice(slash+1));if(member.startsWith('/')||member.split('/').includes('..'))return bytesResponse('',400);const r=await lnResource(bid,member,(url.searchParams.get('lang')||'').toLowerCase());return r?bytesResponse(r.bytes,r.mime,200,{'Cache-Control':'public, max-age=3600','X-Reader-Content-Language':r.language||'en'}):bytesResponse('',404);
     }
     if(p==='/api/search/options'){
       const c=await loadCatalog(),gc=new Map(),sc=new Map(),ratings=[];for(const x of c.webnovels){for(const g of x.genres||[])gc.set(g,(gc.get(g)||0)+1);if(x.status)sc.set(x.status,(sc.get(x.status)||0)+1);if(Number.isFinite(Number(x.rating)))ratings.push(Number(x.rating));}
