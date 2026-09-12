@@ -42,6 +42,24 @@ let changingEngine=false;
 let fallbackActive=false;
 let fallbackBusy=false;
 let forcedFailureCount=0;
+const debugEvents=[];
+let lastFailure=null;
+function debugEvent(stage,data={}){
+  const e={time:new Date().toISOString(),stage,...data};
+  debugEvents.push(e);
+  while(debugEvents.length>80)debugEvents.shift();
+  if(stage.includes('fail')||stage.includes('error'))console.warn('[reader-translation]',stage,e);
+  else console.debug('[reader-translation]',stage,e);
+  refreshSettingsUI();
+  return e
+}
+function normalizeError(err){
+  return {
+    name:String(err?.name||'Error'),
+    message:String(err?.message||err||'Unknown error'),
+    stack:err?.stack?String(err.stack).split('\n').slice(0,4).join('\n'):''
+  }
+}
 
 function trUI(){
   try{return uiLanguage==='tr'}catch(_){return document.documentElement.lang==='tr'}
@@ -98,6 +116,8 @@ async function googleRequest(text){
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),GOOGLE_TIMEOUT_MS);
   const params=new URLSearchParams({client:'gtx',sl:SOURCE_LANG,tl:TARGET_LANG,dt:'t'});
+  const started=performance.now();
+  let postError=null;
   try{
     let r;
     try{
@@ -109,14 +129,32 @@ async function googleRequest(text){
         headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
         body:new URLSearchParams({q:text})
       });
-      if(!r.ok)throw new Error('HTTP '+r.status)
-    }catch(postError){
-      if(controller.signal.aborted)throw postError;
+      if(!r.ok){
+        const e=new Error('POST HTTP '+r.status);
+        e.httpStatus=r.status;e.method='POST';throw e
+      }
+      debugEvent('google.post.ok',{ms:Math.round(performance.now()-started),status:r.status,chars:text.length})
+    }catch(err){
+      postError=err;
+      debugEvent('google.post.fail',{ms:Math.round(performance.now()-started),...normalizeError(err)});
+      if(controller.signal.aborted)throw err;
       const u=GOOGLE_ENDPOINT+'?'+params.toString()+'&q='+encodeURIComponent(text);
+      const getStarted=performance.now();
       r=await fetch(u,{mode:'cors',credentials:'omit',signal:controller.signal});
-      if(!r.ok)throw new Error('HTTP '+r.status)
+      if(!r.ok){
+        const e=new Error('GET HTTP '+r.status);
+        e.httpStatus=r.status;e.method='GET';e.postError=postError;throw e
+      }
+      debugEvent('google.get.ok',{ms:Math.round(performance.now()-getStarted),status:r.status,chars:text.length})
     }
-    return parseGooglePayload(await r.json())
+    const parsed=parseGooglePayload(await r.json());
+    debugEvent('google.request.ok',{ms:Math.round(performance.now()-started),chars:text.length,via:postError?'GET':'POST'});
+    return parsed
+  }catch(err){
+    const info={ms:Math.round(performance.now()-started),chars:text.length,...normalizeError(err)};
+    lastFailure={stage:'google.request',...info};
+    debugEvent('google.request.fail',info);
+    throw err
   }finally{clearTimeout(timer)}
 }
 function splitText(text,limit=GOOGLE_CHUNK_LIMIT){
@@ -146,13 +184,22 @@ async function googleTranslate(text){
   for(const chunk of chunks){
     let lastError=null;
     for(let attempt=0;attempt<=GOOGLE_MAX_RETRIES;attempt++){
+      const attemptStarted=performance.now();
+      debugEvent('google.attempt.start',{attempt:attempt+1,total:GOOGLE_MAX_RETRIES+1,chars:chunk.length});
       try{
         out.push(await googleRequest(chunk));
+        debugEvent('google.attempt.ok',{attempt:attempt+1,total:GOOGLE_MAX_RETRIES+1,ms:Math.round(performance.now()-attemptStarted)});
         lastError=null;
         break
       }catch(err){
         lastError=err;
-        if(attempt<GOOGLE_MAX_RETRIES)await new Promise(r=>setTimeout(r,GOOGLE_RETRY_DELAY_MS))
+        const info={attempt:attempt+1,total:GOOGLE_MAX_RETRIES+1,ms:Math.round(performance.now()-attemptStarted),...normalizeError(err)};
+        lastFailure={stage:'google.attempt',...info};
+        debugEvent('google.attempt.fail',info);
+        if(attempt<GOOGLE_MAX_RETRIES){
+          debugEvent('google.retry.wait',{delayMs:GOOGLE_RETRY_DELAY_MS,nextAttempt:attempt+2});
+          await new Promise(r=>setTimeout(r,GOOGLE_RETRY_DELAY_MS))
+        }
       }
     }
     if(lastError)throw lastError
@@ -444,6 +491,7 @@ async function activateFallback(reason){
   if(fallbackActive||fallbackBusy||preferredEngine()!=='google')return;
   fallbackBusy=true;fallbackActive=true;syncTicket++;
   refreshSettingsUI();
+  debugEvent('fallback.activate',{reason:normalizeError(reason),book:currentBookId(),section:state?.section,page:state?.page});
   console.warn('[reader-translation] Google fallback',reason);
   try{
     if(typeof saveReadingProgress==='function'&&BOOK&&state?.view==='reader')saveReadingProgress();
@@ -474,16 +522,31 @@ async function syncVisibleWindow(){
     items.push({id,el,source,hash,key:makeCacheKey(id,source)})
   }
   if(!items.length)return;
+  let translations;
   try{
-    const translations=await translateItems(items);
-    if(ticket!==syncTicket||effectiveEngine()==='builtin')return;
-    await applyTranslations(items,translations,anchorId);
-    if(ticket!==syncTicket)return;
-    queueSync()
+    translations=await translateItems(items)
   }catch(err){
     if(ticket!==syncTicket)return;
-    await activateFallback(err)
+    const info={...normalizeError(err),book:currentBookId(),section:state.section,page:state.page};
+    lastFailure={stage:'provider.translation',...info};
+    debugEvent('provider.translation.fail',info);
+    await activateFallback(err);
+    return
   }
+  if(ticket!==syncTicket||effectiveEngine()==='builtin')return;
+  try{
+    await applyTranslations(items,translations,anchorId)
+  }catch(err){
+    const info={...normalizeError(err),book:currentBookId(),section:state.section,page:state.page};
+    lastFailure={stage:'reader.apply',...info};
+    debugEvent('reader.apply.error',info);
+    // Do NOT switch engines: Google may have succeeded and only the reader
+    // replacement/repagination path failed.
+    console.error('[reader-translation] DOM apply/repagination failed; keeping Google selected',err);
+    return
+  }
+  if(ticket!==syncTicket)return;
+  queueSync()
 }
 function queueSync(){
   if(syncQueued||applying)return;
@@ -518,6 +581,12 @@ function refreshSettingsUI(){
     ?'Google varsayılandır. Mevcut sayfa çevresindeki metin bloklarını toplu çevirir, +1 sayfa önden gider ve sonucu bu cihazda önbelleğe alır.'
     :'Google is the default. It batch-translates text blocks around the current page, keeps a +1 page buffer, and caches results on this device.';
   if(fallbackActive&&current==='google')hint+=(trUI()?' Google bu oturumda yanıt vermediği için yerleşik yedek aktif.':' Built-in fallback is active for this session because Google did not respond.');
+  if(lastFailure){
+    const detail=(lastFailure.name?lastFailure.name+': ':'')+(lastFailure.message||'');
+    hint+=' '+(trUI()?'Son hata':'Last error')+': '+lastFailure.stage+' · '+detail;
+    if(lastFailure.attempt)hint+=' · '+(trUI()?'deneme ':'attempt ')+lastFailure.attempt+'/'+lastFailure.total;
+    if(Number.isFinite(lastFailure.ms))hint+=' · '+lastFailure.ms+' ms'
+  }
   settingsSection.innerHTML=
     '<div class="settingsGroupTitle">'+esc(title)+'</div>'+
     '<div class="setting two"><label>'+esc(label)+'</label><div class="seg readerTranslationSeg" id="readerTranslationEngine">'+
@@ -631,6 +700,8 @@ window.ReaderTranslation={
   get effectiveEngine(){return effectiveEngine()},
   get providers(){return [...providers.keys()]},
   get fallbackActive(){return fallbackActive},
+  get lastFailure(){return lastFailure?{...lastFailure}:null},
+  diagnostics(){return {engine:preferredEngine(),effectiveEngine:effectiveEngine(),fallbackActive,lastFailure:lastFailure?{...lastFailure}:null,events:debugEvents.slice()}},
   setEngine,
   refresh:queueSync,
   retryGoogle(){fallbackActive=false;fallbackBusy=false;refreshSettingsUI();const id=currentBookId();return id&&state?.view==='reader'?openBook(id):Promise.resolve()},
