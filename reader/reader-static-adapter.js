@@ -98,6 +98,13 @@
   const fold = s => String(s ?? '').toLocaleLowerCase();
   const includesFold = (a,b) => fold(a).includes(fold(b));
 
+  function setCatalogStage(message){
+    try{
+      const el=document.getElementById('loaderStatus');
+      if(el)el.textContent=message;
+    }catch(_){}
+  }
+
   function metadataMirrorURL(input){
     try{
       const u=new URL(String(input));
@@ -106,45 +113,118 @@
       if(parts.length<4)return null;
       const owner=parts.shift(),repo=parts.shift(),ref=parts.shift();
       const path=parts.join('/');
-      // jsDelivr is only a fallback when raw.githubusercontent.com stalls/fails.
-      // The existing rsv query is unnecessary because @ref already scopes it.
       return `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${ref}/${path}`
     }catch(_){return null}
   }
 
-  async function fetchMetadataFully(url,options={},timeoutMs=12000){
-    const controller=new AbortController();
-    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+  function timeoutPromise(ms,label){
+    return new Promise((_,reject)=>setTimeout(()=>reject(new Error(label||'timeout')),ms))
+  }
+
+  async function readResponseBytes(response,controller,{stallMs=8000,totalMs=30000,onProgress=null}={}){
+    if(!response.body?.getReader){
+      return Promise.race([
+        response.arrayBuffer(),
+        timeoutPromise(totalMs,'metadata body timeout')
+      ])
+    }
+
+    const reader=response.body.getReader();
+    const chunks=[];
+    let total=0;
+    const started=Date.now();
+    const expected=Number(response.headers.get('content-length')||0);
+
     try{
-      const r=await nativeFetch(url,{...options,cache:'force-cache',signal:controller.signal});
-      // IMPORTANT: consume the entire body before clearing the timeout.
-      // fetch() itself only waits for response headers.
-      const bytes=await r.arrayBuffer();
+      while(true){
+        const elapsed=Date.now()-started;
+        if(elapsed>=totalMs)throw new Error('metadata total timeout');
+
+        let timer;
+        const stalled=new Promise((_,reject)=>{
+          timer=setTimeout(()=>reject(new Error('metadata stream stalled')),stallMs)
+        });
+        let part;
+        try{
+          part=await Promise.race([reader.read(),stalled])
+        }finally{
+          clearTimeout(timer)
+        }
+
+        if(part.done)break;
+        if(part.value?.byteLength){
+          chunks.push(part.value);
+          total+=part.value.byteLength;
+          if(onProgress)onProgress(total,expected)
+        }
+      }
+    }catch(e){
+      try{controller.abort()}catch(_){}
+      try{await reader.cancel(e)}catch(_){}
+      throw e
+    }
+
+    const out=new Uint8Array(total);
+    let off=0;
+    for(const chunk of chunks){out.set(chunk,off);off+=chunk.byteLength}
+    return out.buffer
+  }
+
+  async function fetchMetadataFully(url,options={},label='Katalog'){
+    const controller=new AbortController();
+    let headerTimer;
+    try{
+      const response=await Promise.race([
+        nativeFetch(url,{...options,cache:'force-cache',signal:controller.signal}),
+        new Promise((_,reject)=>{
+          headerTimer=setTimeout(()=>{
+            try{controller.abort()}catch(_){}
+            reject(new Error('metadata header timeout'))
+          },8000)
+        })
+      ]);
+      clearTimeout(headerTimer);
+
+      const bytes=await readResponseBytes(response,controller,{
+        stallMs:8000,
+        totalMs:30000,
+        onProgress:(done,total)=>{
+          const mb=(done/1048576).toFixed(1);
+          const all=total>0?' / '+(total/1048576).toFixed(1)+' MB':' MB';
+          setCatalogStage(`${label} indiriliyor… ${mb}${all}`)
+        }
+      });
+
       return new Response(bytes,{
-        status:r.status,
-        statusText:r.statusText,
-        headers:new Headers(r.headers)
+        status:response.status,
+        statusText:response.statusText,
+        headers:new Headers(response.headers)
       })
     }finally{
-      clearTimeout(timer)
+      clearTimeout(headerTimer)
     }
   }
 
-  async function resilientMetadataFetch(url,options={}){
-    const routes=[String(url)];
-    const mirror=metadataMirrorURL(url);
-    if(mirror&&mirror!==routes[0])routes.push(mirror);
+  async function resilientMetadataFetch(url,options={},label='Katalog'){
+    const primary=String(url);
+    const mirror=metadataMirrorURL(primary);
 
+    // CDN first: raw.githubusercontent.com has been the recurring mobile stall
+    // point for this reader. Raw GitHub remains the fallback.
+    const routes=mirror?[mirror,primary]:[primary];
     let last=null;
+
     for(let i=0;i<routes.length;i++){
       try{
-        const r=await fetchMetadataFully(routes[i],options,12000);
-        if(!r.ok)throw new Error(`metadata HTTP ${r.status} via ${new URL(routes[i]).hostname}`);
+        const host=new URL(routes[i]).hostname;
+        setCatalogStage(`${label} sunucusuna bağlanılıyor… (${i+1}/${routes.length})`);
+        const r=await fetchMetadataFully(routes[i],options,label);
+        if(!r.ok)throw new Error(`metadata HTTP ${r.status} via ${host}`);
         return r
       }catch(e){
         last=e;
         console.warn('[reader-static] metadata route failed',routes[i],e);
-        if(i+1<routes.length)await new Promise(r=>setTimeout(r,180))
+        if(i+1<routes.length)await new Promise(r=>setTimeout(r,150))
       }
     }
     throw last||new Error('metadata fetch failed')
@@ -282,7 +362,7 @@
   }
   async function loadCryptoConfig(){
     if(!cryptoConfigPromise)cryptoConfigPromise=(async()=>{
-      const r=await resilientMetadataFetch(storageURL('data/crypto.json',{mutable:true}));
+      const r=await resilientMetadataFetch(storageURL('data/crypto.json',{mutable:true}),{},'Şifre bilgisi');
       if(r.status===404)return {encrypted:false};
       if(!r.ok)throw new Error(`reader-static crypto config HTTP ${r.status}`);
       const c=await r.json();return c&&c.encrypted?c:{encrypted:false};
@@ -291,14 +371,25 @@
   }
   async function deriveReaderKey(password,cfg){
     if(!globalThis.crypto?.subtle)throw new Error('WebCrypto is unavailable; encrypted reader requires HTTPS or localhost');
+    setCatalogStage('Katalog anahtarı hazırlanıyor…');
     const material=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);
-    return crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:b64bytes(cfg.salt),iterations:Number(cfg.iterations||600000)},material,{name:'AES-GCM',length:256},false,['decrypt']);
+    return Promise.race([
+      crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:b64bytes(cfg.salt),iterations:Number(cfg.iterations||600000)},material,{name:'AES-GCM',length:256},false,['decrypt']),
+      timeoutPromise(15000,'PBKDF2 timeout')
+    ])
   }
   async function decryptEnvelope(bytes,key){
     if(bytes.byteLength<28)throw new Error('encrypted payload too short');
     const iv=bytes.subarray(0,12),ct=bytes.subarray(12);
-    try{return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct))}
-    catch(_){throw new Error('wrong password or corrupted encrypted data')}
+    try{
+      return new Uint8Array(await Promise.race([
+        crypto.subtle.decrypt({name:'AES-GCM',iv},key,ct),
+        timeoutPromise(15000,'AES decrypt timeout')
+      ]))
+    }catch(e){
+      if(/timeout/i.test(String(e?.message||e)))throw e;
+      throw new Error('wrong password or corrupted encrypted data')
+    }
   }
   async function ensureCryptoKey(){
     const cfg=await loadCryptoConfig();if(!cfg.encrypted)return null;
@@ -319,13 +410,19 @@
   }
   async function decodeProtectedJSON(response){
     let b=new Uint8Array(await response.arrayBuffer());
+    setCatalogStage('Katalog şifresi çözülüyor…');
     const key=await ensureCryptoKey();
     if(corruptMode)return {__readerCorruptCipher:b};
     if(key)b=await decryptEnvelope(b,key);
     if(key){
+      setCatalogStage('Katalog açılıyor…');
       const ds=new DecompressionStream('gzip');
-      b=new Uint8Array(await new Response(new Blob([b]).stream().pipeThrough(ds)).arrayBuffer());
+      b=new Uint8Array(await Promise.race([
+        new Response(new Blob([b]).stream().pipeThrough(ds)).arrayBuffer(),
+        timeoutPromise(15000,'catalog gzip timeout')
+      ]));
     }
+    setCatalogStage('Katalog okunuyor…');
     return JSON.parse(textDecoder.decode(b));
   }
 
@@ -333,10 +430,11 @@
     if(!catalogPromise){
       catalogPromise=(async()=>{
         const cfg=await loadCryptoConfig();
-        const r=await resilientMetadataFetch(storageURL(cfg.encrypted?'data/catalog.rse':'data/catalog.json',{mutable:true}));
+        const r=await resilientMetadataFetch(storageURL(cfg.encrypted?'data/catalog.rse':'data/catalog.json',{mutable:true}),{},'Katalog');
         if(!r.ok) throw new Error(`reader-static catalog HTTP ${r.status}`);
         let c=cfg.encrypted?await decodeProtectedJSON(r):await r.json();
         if(c?.__readerCorruptCipher)c=syntheticCatalog(c.__readerCorruptCipher);
+        setCatalogStage('Katalog indeksleniyor…');
         c.series=Array.isArray(c.series)?c.series:[];
         c.webnovels=Array.isArray(c.webnovels)?c.webnovels:c.series.filter(x=>x.kind==='webnovel');
         c.lightnovels=Array.isArray(c.lightnovels)?c.lightnovels:c.series.filter(x=>x.kind==='epub');
