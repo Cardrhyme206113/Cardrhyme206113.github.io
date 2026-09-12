@@ -13,3 +13,13 @@ window.__READER_STORAGE__ = Object.freeze({
   ],
   "revision": "hq-20260911-2348-card"
 });
+
+// Optional reader feature layers are loaded after the core reader has finished
+// parsing, so they can extend the current build without owning navigation/layout.
+document.addEventListener('DOMContentLoaded',()=>{
+  if(document.querySelector('script[data-reader-translation-engine]'))return;
+  const s=document.createElement('script');
+  s.src='./reader-translation.js?v=20260912-engine1';
+  s.dataset.readerTranslationEngine='1';
+  document.head.appendChild(s);
+},{once:true});
