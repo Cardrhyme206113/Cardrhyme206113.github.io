@@ -3657,6 +3657,22 @@ body.reader-active #themeQuickBtn{
   #continueSection::before{top:-145px;width:170vw;height:540px;filter:blur(30px)}
 }
 </style>
+<style id="reader-noimg-style">
+html.reader-noimg .cover,
+html.reader-noimg .heroCoverWrap,
+html.reader-noimg .continueCard>img,
+html.reader-noimg .advResultCover,
+html.reader-noimg #readerView img,
+html.reader-noimg picture,
+html.reader-noimg video,
+html.reader-noimg #seriesHeroBg{display:none!important;background-image:none!important}
+html.reader-noimg .cardTitle{margin-top:0!important}
+html.reader-noimg .continueCard{grid-template-columns:minmax(0,1fr) auto!important}
+html.reader-noimg .seriesHero{grid-template-columns:minmax(0,1fr)!important;min-height:0!important}
+html.reader-noimg .advancedResultCard{grid-template-columns:minmax(0,1fr)!important}
+html.reader-noimg .readerStage.imageMode,
+html.reader-noimg .readerStage.imageMode #scrollHost{background:var(--paper)!important}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -3947,7 +3963,10 @@ body.reader-active #themeQuickBtn{
 <aside id="drawer" class="drawer" aria-modal="true" role="dialog"><div class="drawerHead"><div class="panelHeadRow"><div class="panelHeadText"><h3 id="drawerTitle"></h3><p id="drawerAuthor"></p></div><button id="drawerClose" class="panelClose" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6.5 6.5 11 11m0-11-11 11" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button></div><div id="drawerContentsLabel" class="drawerSectionLabel">Contents</div></div><div id="toc" class="toc"></div></aside>
 
 <script src="./reader-storage-config.js"></script>
-<script src="./reader-static-adapter.js"></script>
+<script>
+(()=>{const p=new URLSearchParams(location.search);window.__READER_NOIMG__=p.has('noimg');if(window.__READER_NOIMG__)document.documentElement.classList.add('reader-noimg')})();
+</script>
+<script src="./reader-static-adapter.js?v=20260912-noimg1"></script>
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
 const mobileReaderDefaults=matchMedia('(max-width:640px)').matches;
@@ -4378,7 +4397,7 @@ function showBookLoader(kind='epub'){state.loading=true;const l=$('#bookLoader')
 async function hideBookLoader(){setLoaderProgress(100,uiLanguage==='tr'?'Hazır':'Ready');await wait(80);const l=$('#bookLoader');l.classList.remove('open');l.setAttribute('aria-hidden','true');state.loading=false}
 
 function resourceURLFor(bookId,path,lang=''){const base=`/api/res/${bookId}/${String(path).split('/').map(encodeURIComponent).join('/')}`;return lang?base+`?lang=${encodeURIComponent(lang)}`:base}
-function coverURLFor(bookId){return window.__READER_STATIC__&&window.__readerStaticCoverURL?window.__readerStaticCoverURL(bookId):`/api/cover/${encodeURIComponent(bookId)}`}
+function coverURLFor(bookId){if(window.__READER_NOIMG__)return 'data:,';return window.__READER_STATIC__&&window.__readerStaticCoverURL?window.__readerStaticCoverURL(bookId):`/api/cover/${encodeURIComponent(bookId)}`}
 function memberResolve(base,href){href=String(href||'').trim();if(!href)return null;if(/^(?:data:|blob:|https?:|mailto:|tel:)/i.test(href))return null;const hashAt=href.indexOf('#'),frag=hashAt>=0?href.slice(hashAt+1):'',clean=hashAt>=0?href.slice(0,hashAt):href;if(!clean)return{member:base,fragment:frag};try{const dir=base.includes('/')?base.slice(0,base.lastIndexOf('/')+1):'';const u=new URL(clean,'http://reader.invalid/'+dir);return{member:decodeURIComponent(u.pathname.replace(/^\//,'')),fragment:frag}}catch(_){return null}}
 function rewriteSrcset(value,bookId,base){return String(value||'').split(',').map(part=>{const bits=part.trim().split(/\s+/);const r=memberResolve(base,bits[0]);if(r)bits[0]=resourceURLFor(bookId,r.member);return bits.join(' ')}).join(', ')}
 function normalizeXhtmlForHtmlParser(raw){
@@ -4390,7 +4409,7 @@ function normalizeXhtmlForHtmlParser(raw){
  const re=new RegExp(`<(${nonVoid})(\\s[^<>]*?)?\\s*/\\s*>`,'gi');
  return String(raw??'').replace(re,(m,tag,attrs='')=>`<${tag}${attrs||''}></${tag}>`)
 }
-function sanitizeSectionHTML(raw,bookId,base){const doc=new DOMParser().parseFromString(normalizeXhtmlForHtmlParser(raw),'text/html'),root=doc.body||doc.documentElement;root.querySelectorAll('script,style,link,meta,iframe,object,embed').forEach(x=>x.remove());root.querySelectorAll('*').forEach(el=>{[...el.attributes].forEach(a=>{if(/^on/i.test(a.name))el.removeAttribute(a.name)});if(el.hasAttribute('style'))el.removeAttribute('style')});root.querySelectorAll('img[src],source[src],video[poster]').forEach(el=>{const attr=el.hasAttribute('src')?'src':'poster',r=memberResolve(base,el.getAttribute(attr));if(r){const u=resourceURLFor(bookId,r.member);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-'+attr,u);el.removeAttribute(attr)}else el.setAttribute(attr,u)}});root.querySelectorAll('[srcset]').forEach(el=>{const u=rewriteSrcset(el.getAttribute('srcset'),bookId,base);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-srcset',u);el.removeAttribute('srcset')}else el.setAttribute('srcset',u)});root.querySelectorAll('a[href]').forEach(a=>{const h=a.getAttribute('href');if(/^(?:https?:|mailto:|tel:)/i.test(h||'')){a.target='_blank';a.rel='noopener';return}const r=memberResolve(base,h);if(r){a.dataset.readerMember=r.member;a.dataset.readerFragment=r.fragment||'';a.setAttribute('href','#')}});root.querySelectorAll('image').forEach(el=>{for(const attr of ['href','xlink:href'])if(el.hasAttribute(attr)){const r=memberResolve(base,el.getAttribute(attr));if(r){const u=resourceURLFor(bookId,r.member);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-href',u);el.removeAttribute('href');el.removeAttribute('xlink:href')}else el.setAttribute(attr,u)}}});return root.innerHTML}
+function sanitizeSectionHTML(raw,bookId,base){const doc=new DOMParser().parseFromString(normalizeXhtmlForHtmlParser(raw),'text/html'),root=doc.body||doc.documentElement;if(window.__READER_NOIMG__)root.querySelectorAll('img,picture,source,video,svg image').forEach(x=>x.remove());root.querySelectorAll('script,style,link,meta,iframe,object,embed').forEach(x=>x.remove());root.querySelectorAll('*').forEach(el=>{[...el.attributes].forEach(a=>{if(/^on/i.test(a.name))el.removeAttribute(a.name)});if(el.hasAttribute('style'))el.removeAttribute('style')});root.querySelectorAll('img[src],source[src],video[poster]').forEach(el=>{const attr=el.hasAttribute('src')?'src':'poster',r=memberResolve(base,el.getAttribute(attr));if(r){const u=resourceURLFor(bookId,r.member);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-'+attr,u);el.removeAttribute(attr)}else el.setAttribute(attr,u)}});root.querySelectorAll('[srcset]').forEach(el=>{const u=rewriteSrcset(el.getAttribute('srcset'),bookId,base);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-srcset',u);el.removeAttribute('srcset')}else el.setAttribute('srcset',u)});root.querySelectorAll('a[href]').forEach(a=>{const h=a.getAttribute('href');if(/^(?:https?:|mailto:|tel:)/i.test(h||'')){a.target='_blank';a.rel='noopener';return}const r=memberResolve(base,h);if(r){a.dataset.readerMember=r.member;a.dataset.readerFragment=r.fragment||'';a.setAttribute('href','#')}});root.querySelectorAll('image').forEach(el=>{for(const attr of ['href','xlink:href'])if(el.hasAttribute(attr)){const r=memberResolve(base,el.getAttribute(attr));if(r){const u=resourceURLFor(bookId,r.member);if(window.__READER_STATIC__){el.setAttribute('data-reader-static-href',u);el.removeAttribute('href');el.removeAttribute('xlink:href')}else el.setAttribute(attr,u)}}});return root.innerHTML}
 function webNovelLoadingHTML(){return `<div class="wnAvailability"><h2>${esc(t('loadingChapter'))}</h2></div>`}
 function webNovelUnavailableHTML(){return `<div class="wnAvailability"><h2>${esc(t('contentNotAvailable'))}</h2><p>${esc(t('contentNotAvailableDetail'))}</p></div>`}
 function webNovelTextHTML(text){
@@ -4998,6 +5017,7 @@ function analyzeBwMedia(img){
   }
 }
 function prepareBookMedia(root=document){
+  if(window.__READER_NOIMG__)return;
   if(window.__READER_STATIC__&&window.__readerStaticHydrateMedia)window.__readerStaticHydrateMedia(root);
   root.querySelectorAll?.('#proseContent img,#imageStage img,.sectionGhost img,.swipePreview img').forEach(img=>analyzeBwMedia(img));
 }
@@ -5226,6 +5246,7 @@ function setImageInsets(){
   st.style.inset=`${ins.top}px 8px ${ins.bottom}px 8px`
 }
 function guardReaderImage(img,sec,bookId){
+ if(window.__READER_NOIMG__){img?.remove?.();return}
  if(!img||img.dataset.readerGuard==='1')return;
  img.dataset.readerGuard='1';
  const looksLikeFrontMatter=!window.__READER_STATIC__&&(state.section===0||/\bcover\b|front(?:matter)?|title[ _-]*page/i.test(`${sec?.title||''} ${sec?.path||''}`));
@@ -5250,7 +5271,7 @@ function setSectionMarkup(){
   ensureWebSectionLoaded(requested).then(()=>{if(BOOK?.kind==='webnovel'&&BOOK.id===requestedBookId&&state.section===requested)setSectionMarkup()}).catch(()=>{})
  }
  if(BOOK?.kind==='webnovel'&&sec.contentLanguage)BOOK.contentLanguage=sec.contentLanguage;
- resetImageZoom(false);host.classList.toggle('imageMode',sec.imageOnly);prose.innerHTML='';imgStage.innerHTML='';if(sec.imageOnly){state.wordCount=0;state.pageAnchors=[];const temp=document.createElement('div');temp.innerHTML=sec.html;const img=temp.querySelector('img');if(img){img.removeAttribute('style');img.removeAttribute('width');img.removeAttribute('height');img.alt=sec.title||'Illustration';guardReaderImage(img,sec,BOOK?.id);imgStage.appendChild(img)}}else{prose.innerHTML=sec.html;prose.querySelectorAll('[style]').forEach(x=>x.removeAttribute('style'));prose.querySelectorAll('img').forEach(x=>{x.removeAttribute('width');x.removeAttribute('height')});decorateChapterOpening(prose)}state.renderedBookId=BOOK?.id??null;state.renderedSection=state.section;prepareBookMedia(host);applyReadingClasses();const resume=state._resumeProgress;const resumeAnchor=state._resumeAnchor;state._resumeProgress=null;state._resumeAnchor=null;applyLayout(resume,resumeAnchor);buildToc();updateHud();if(BOOK?.kind==='webnovel'&&sec.loaded)prefetchWebSections(state.section)
+ resetImageZoom(false);host.classList.toggle('imageMode',sec.imageOnly&&!window.__READER_NOIMG__);prose.innerHTML='';imgStage.innerHTML='';if(sec.imageOnly&&window.__READER_NOIMG__){state.wordCount=0;state.pageAnchors=[];prose.innerHTML=`<div class="wnAvailability"><h2>${uiLanguage==='tr'?'Görseller devre dışı':'Images disabled'}</h2><p>${uiLanguage==='tr'?'Görselleri açmak için URL’den ?noimg parametresini kaldır.':'Remove the ?noimg parameter from the URL to enable images.'}</p></div>`}else if(sec.imageOnly){state.wordCount=0;state.pageAnchors=[];const temp=document.createElement('div');temp.innerHTML=sec.html;const img=temp.querySelector('img');if(img){img.removeAttribute('style');img.removeAttribute('width');img.removeAttribute('height');img.alt=sec.title||'Illustration';guardReaderImage(img,sec,BOOK?.id);imgStage.appendChild(img)}}else{prose.innerHTML=sec.html;prose.querySelectorAll('[style]').forEach(x=>x.removeAttribute('style'));prose.querySelectorAll('img').forEach(x=>{x.removeAttribute('width');x.removeAttribute('height')});decorateChapterOpening(prose)}state.renderedBookId=BOOK?.id??null;state.renderedSection=state.section;prepareBookMedia(host);applyReadingClasses();const resume=state._resumeProgress;const resumeAnchor=state._resumeAnchor;state._resumeProgress=null;state._resumeAnchor=null;applyLayout(resume,resumeAnchor);buildToc();updateHud();if(BOOK?.kind==='webnovel'&&sec.loaded)prefetchWebSections(state.section)
 }
 
 function stylePreviewProse(prose){
@@ -7010,6 +7031,6 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
 })();
 </script>
 
-<script src="./reader-image-enhance.js?v=20260912-cover-dwell2"></script>
+<script src="./reader-image-enhance.js?v=20260912-noimg1"></script>
 </body>
 </html>
