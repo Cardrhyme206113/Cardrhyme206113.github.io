@@ -4137,6 +4137,32 @@ body:not(.reader-active){
 .discoveryShelf .card{scroll-snap-align:start!important}
 .discoveryShelf::-webkit-scrollbar{display:none!important}
 </style>
+<style id="reader-hybrid-translation-v1">
+.liveTranslationStatus{
+  position:absolute;z-index:26;left:50%;top:72px;transform:translateX(-50%);
+  width:min(420px,calc(100vw - 28px));padding:9px 12px 8px;
+  border:1px solid color-mix(in srgb,var(--line) 86%,transparent);
+  border-radius:11px;background:color-mix(in srgb,var(--surface) 90%,transparent);
+  color:var(--text);box-shadow:0 7px 24px rgba(0,0,0,.18);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  pointer-events:none;transition:opacity .18s ease,transform .18s ease;
+}
+.liveTranslationStatus.hidden{display:none!important}
+.liveTranslationText{font-size:11px;line-height:1.35;letter-spacing:.01em}
+.liveTranslationTrack{height:2px;margin-top:7px;border-radius:999px;background:var(--line);overflow:hidden}
+.liveTranslationTrack>i{display:block;width:0;height:100%;background:var(--accent);transition:width .2s ease}
+#proseContent .hybridJustTranslated{
+  animation:hybridTranslationArrive 1.15s ease-out;
+}
+@keyframes hybridTranslationArrive{
+  0%{background:color-mix(in srgb,var(--accent) 22%,transparent)}
+  100%{background:transparent}
+}
+@media(max-width:640px){
+  .liveTranslationStatus{top:68px;width:calc(100vw - 22px);padding:8px 10px 7px}
+  .liveTranslationText{font-size:10.5px}
+}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -4408,6 +4434,10 @@ body:not(.reader-active){
  <div id="readerStage" class="readerStage paged">
    <div id="scrollHost"><div id="pageHost"><article id="proseContent" class="pagePaper"></article><div id="imageStage"></div></div></div>
    <div id="tapHint" class="tapHint">Tap center to show controls</div>
+   <div id="liveTranslationStatus" class="liveTranslationStatus hidden" aria-live="polite">
+     <div class="liveTranslationText" id="liveTranslationText"></div>
+     <div class="liveTranslationTrack"><i id="liveTranslationBar"></i></div>
+   </div>
  </div>
  <div class="readerHud"><button id="prevBtn" aria-label="Previous">‹</button><div id="pageLabel" class="pageLabel">0.0%</div><button id="nextBtn" aria-label="Next">›</button></div>
  <div class="readerProgress"><i id="progressBar"></i></div>
@@ -4472,9 +4502,14 @@ function bget(k,d){const v=storage.get(k);return v==null?d:v==='true'?true:v==='
 const LANG_KEY='reader-language';
 const TURKISH_MODE_KEY='reader-turkish-mode';
 let uiLanguage=storage.get(LANG_KEY)==='en'?'en':'tr';
-let turkishMode=storage.get(TURKISH_MODE_KEY)==='fallback'?'fallback':'online';
+// v3 semantics:
+//   hybrid = packaged Turkish appears immediately, Mozhi upgrades only the
+//            current reading window in the background.
+//   fast   = packaged Turkish only; zero Mozhi requests.
+const storedTurkishMode=storage.get(TURKISH_MODE_KEY);
+let turkishMode=storedTurkishMode==='fallback'||storedTurkishMode==='fast'?'fast':'hybrid';
 function activeLanguageChoice(){
- return uiLanguage==='en'?'en':(turkishMode==='fallback'?'tr-fallback':'tr-online')
+ return uiLanguage==='en'?'en':(turkishMode==='fast'?'tr-fast':'tr')
 }
 const I18N={
  en:{
@@ -4891,6 +4926,237 @@ function webNovelTextHTML(text){
  if(!clean)return webNovelUnavailableHTML();
  return clean.split(/\n{2,}/).map(block=>`<p>${esc(block.trim()).replace(/\n/g,'<br>')}</p>`).join('')
 }
+const HYBRID_BLOCK_SELECTOR='h1,h2,h3,h4,h5,h6,p,li,blockquote,figcaption,dt,dd,td,th';
+let hybridWindowTimer=0;
+
+function hybridBlockNodes(root){
+ return [...root.querySelectorAll(HYBRID_BLOCK_SELECTOR)].filter(el=>{
+  const text=(el.textContent||'').replace(/\s+/g,' ').trim();
+  if(!text)return false;
+  // Prefer the innermost semantic block so the same prose is never translated twice.
+  if(el.querySelector(HYBRID_BLOCK_SELECTOR))return false;
+  return true
+ })
+}
+
+function setupHybridSection(sec,sourceHtml,fallbackHtml){
+ sec.sourceHtmlEn=String(sourceHtml||'');
+ sec.fallbackHtmlTr=String(fallbackHtml||'');
+ sec.hybridTranslations=new Map();
+ sec.hybridBusy=false;
+ sec.hybridRerun=false;
+ sec.hybridAvgMs=0;
+ sec.hybridDoneBatches=0;
+ sec.hybridBlockCount=0;
+
+ const src=document.createElement('div');src.innerHTML=sec.sourceHtmlEn;
+ const fb=document.createElement('div');fb.innerHTML=sec.fallbackHtmlTr;
+ sec.hybridBlockCount=Math.min(hybridBlockNodes(src).length,hybridBlockNodes(fb).length);
+ sec.html=buildHybridSectionHtml(sec);
+ sec.translationSource='builtin';
+ sec.contentLanguage='tr'
+}
+
+function buildHybridSectionHtml(sec,recent=[]){
+ const root=document.createElement('div');
+ root.innerHTML=sec.fallbackHtmlTr||sec.html||'';
+ const blocks=hybridBlockNodes(root);
+ const recentSet=new Set(recent.map(Number));
+ const count=Math.min(sec.hybridBlockCount||blocks.length,blocks.length);
+ for(let i=0;i<count;i++){
+  const el=blocks[i];
+  el.dataset.rdrHybrid=String(i);
+  const translated=sec.hybridTranslations?.get(i);
+  if(typeof translated==='string'){
+   el.innerHTML=translated;
+   el.dataset.rdrOnline='1';
+   if(recentSet.has(i))el.classList.add('hybridJustTranslated')
+  }
+ }
+ return root.innerHTML
+}
+
+function hybridSourceBlocks(sec){
+ const root=document.createElement('div');
+ root.innerHTML=sec.sourceHtmlEn||'';
+ return hybridBlockNodes(root)
+}
+
+function hybridStatus({done=0,total=0,eta=null,state='working',message='' }={}){
+ const box=$('#liveTranslationStatus'),label=$('#liveTranslationText'),bar=$('#liveTranslationBar');
+ if(!box||!label||!bar)return;
+ if(state==='hidden'){
+  box.classList.add('hidden');bar.style.width='0%';return
+ }
+ box.classList.remove('hidden');
+ const pct=total?Math.max(0,Math.min(100,done/total*100)):0;
+ bar.style.width=pct+'%';
+ if(message){label.textContent=message;return}
+ if(state==='working'){
+  const etaText=Number.isFinite(eta)&&eta>0?` · ~${Math.max(1,Math.ceil(eta/1000))} sn`:'';
+  label.textContent=`Hızlı Türkçe gösteriliyor · çevrimiçi çeviri ${done}/${total}${etaText}`
+ }else if(state==='ready'){
+  label.textContent='Çevrimiçi çeviri hazır · metin güncellendi'
+ }else if(state==='error'){
+  label.textContent='Çevrimiçi çeviri başarısız · Hızlı Türkçe gösterilmeye devam ediyor'
+ }
+}
+
+function hideHybridStatusLater(ms=1500){
+ clearTimeout(hybridStatus._timer);
+ hybridStatus._timer=setTimeout(()=>hybridStatus({state:'hidden'}),ms)
+}
+
+function hybridWindowIndices(sec){
+ if(!sec?.hybridBlockCount||state.view!=='reader'||current()!==sec)return[];
+ const prose=$('#proseContent');
+ const blocks=[...prose.querySelectorAll('[data-rdr-hybrid]')];
+ const out=[];
+
+ if(state.mode==='paged'){
+  const from=state.page;
+  const to=Math.min(state.pages-1,state.page+3);
+  for(const el of blocks){
+   const idx=Number(el.dataset.rdrHybrid);
+   if(!Number.isFinite(idx)||sec.hybridTranslations?.has(idx))continue;
+   const spans=[...el.querySelectorAll('.wordAnchor')];
+   if(!spans.length)continue;
+   const firstPage=pageForAnchor(anchorFromSpan(spans[0]))??0;
+   const lastPage=pageForAnchor(anchorFromSpan(spans[spans.length-1]))??firstPage;
+   if(lastPage>=from&&firstPage<=to)out.push(idx)
+  }
+ }else{
+  const host=$('#scrollHost'),hr=host.getBoundingClientRect();
+  const top=hr.top-8,bottom=hr.top+host.clientHeight*4.05;
+  for(const el of blocks){
+   const idx=Number(el.dataset.rdrHybrid);
+   if(!Number.isFinite(idx)||sec.hybridTranslations?.has(idx))continue;
+   const r=el.getBoundingClientRect();
+   if(r.bottom>=top&&r.top<=bottom)out.push(idx)
+  }
+ }
+ return [...new Set(out)].sort((a,b)=>a-b)
+}
+
+function hybridBatches(sec,indices,maxChars=1350){
+ const src=hybridSourceBlocks(sec),batches=[];
+ let cur=[],chars=0;
+ for(const idx of indices){
+  const el=src[idx];if(!el)continue;
+  const n=Math.max(1,(el.textContent||'').length);
+  if(cur.length&&chars+n>maxChars){batches.push(cur);cur=[];chars=0}
+  cur.push(idx);chars+=n
+ }
+ if(cur.length)batches.push(cur);
+ return batches
+}
+
+function hybridPayload(sec,indices){
+ const src=hybridSourceBlocks(sec);
+ const root=document.createElement('div');
+ for(const idx of indices){
+  const source=src[idx];if(!source)continue;
+  const wrap=document.createElement('div');
+  wrap.dataset.rdrHybridOut=String(idx);
+  wrap.innerHTML=source.innerHTML;
+  root.appendChild(wrap)
+ }
+ return root.innerHTML
+}
+
+function applyHybridBatchResult(sec,indices,html){
+ const root=document.createElement('div');root.innerHTML=html;
+ const found=new Map();
+ root.querySelectorAll('[data-rdr-hybrid-out]').forEach(el=>{
+  const idx=Number(el.dataset.rdrHybridOut);
+  if(Number.isFinite(idx))found.set(idx,el.innerHTML)
+ });
+ if(found.size!==indices.length)throw new Error('Mozhi block mapping changed');
+ for(const idx of indices){
+  const translated=found.get(idx);
+  if(typeof translated!=='string'||!translated.trim())throw new Error('Mozhi returned an empty block');
+  sec.hybridTranslations.set(idx,translated)
+ }
+}
+
+function rerenderHybridSection(sec,recent){
+ if(!BOOK||current()!==sec||state.view!=='reader')return;
+ const fraction=currentSectionFraction();
+ sec.html=buildHybridSectionHtml(sec,recent);
+ state._resumeProgress=fraction;
+ state._resumeAnchor=null;
+ state.renderedSection=-1;
+ setSectionMarkup();
+ setTimeout(()=>{
+  $('#proseContent')?.querySelectorAll('.hybridJustTranslated').forEach(x=>x.classList.remove('hybridJustTranslated'));
+  sec.html=buildHybridSectionHtml(sec)
+ },1250)
+}
+
+async function runHybridTranslationWindow(){
+ clearTimeout(hybridWindowTimer);
+ if(uiLanguage!=='tr'||turkishMode!=='hybrid'||!BOOK||state.view!=='reader')return;
+ const sec=current();
+ if(sec.imageOnly||!sec.hybridBlockCount||!sec.sourceHtmlEn||!sec.fallbackHtmlTr)return;
+ if(sec.hybridBusy){sec.hybridRerun=true;return}
+
+ const indices=hybridWindowIndices(sec);
+ if(!indices.length){
+  if(sec.hybridTranslations?.size)hybridStatus({state:'ready'});
+  hideHybridStatusLater(900);
+  return
+ }
+
+ const batches=hybridBatches(sec,indices);
+ if(!batches.length)return;
+ sec.hybridBusy=true;
+ sec.hybridRerun=false;
+ const sectionIndex=state.section,bookId=BOOK.id;
+ const started=performance.now();
+ let done=0;
+ hybridStatus({done,total:batches.length,state:'working'});
+
+ try{
+  for(const batch of batches){
+   if(!BOOK||BOOK.id!==bookId||state.section!==sectionIndex||uiLanguage!=='tr'||turkishMode!=='hybrid')break;
+   const t0=performance.now();
+   const payload=hybridPayload(sec,batch);
+   const translated=await ReaderMozhi.translateHTML(payload,{
+    source:'en',target:'tr',
+    cacheKey:`window:${BOOK.id}:${sec.path||sectionIndex}:${batch[0]}-${batch[batch.length-1]}`
+   });
+   applyHybridBatchResult(sec,batch,translated);
+   const elapsed=performance.now()-t0;
+   sec.hybridAvgMs=sec.hybridAvgMs?sec.hybridAvgMs*.65+elapsed*.35:elapsed;
+   done++;
+   const eta=sec.hybridAvgMs*(batches.length-done);
+   hybridStatus({done,total:batches.length,eta,state:'working'});
+   rerenderHybridSection(sec,batch);
+   await new Promise(r=>setTimeout(r,0))
+  }
+
+  if(done===batches.length){
+   hybridStatus({state:'ready'});
+   hideHybridStatusLater(1400)
+  }
+ }catch(e){
+  console.warn('[reader-mozhi] live window translation failed',e);
+  hybridStatus({state:'error'});
+  hideHybridStatusLater(2600)
+ }finally{
+  sec.hybridBusy=false;
+  const rerun=sec.hybridRerun;
+  sec.hybridRerun=false;
+  if(rerun||performance.now()-started>0)scheduleHybridTranslationWindow(220)
+ }
+}
+
+function scheduleHybridTranslationWindow(delay=140){
+ if(uiLanguage!=='tr'||turkishMode!=='hybrid'||!BOOK||state.view!=='reader')return;
+ clearTimeout(hybridWindowTimer);
+ hybridWindowTimer=setTimeout(()=>runHybridTranslationWindow().catch(e=>console.warn('[reader-mozhi] window scheduler failed',e)),delay)
+}
+
 async function ensureWebSectionLoaded(index,force=false){
  if(!BOOK||BOOK.kind!=='webnovel'||index<0||index>=BOOK.sections.length)return;
  const sec=BOOK.sections[index],now=Date.now();
@@ -4911,37 +5177,36 @@ async function ensureWebSectionLoaded(index,force=false){
      sec.translationSource='original';
      sec.html=sec.available?`<h2>${esc(sec.sourceTitle||sec.title||`${t('chapter')} ${index+1}`)}</h2>${webNovelTextHTML(text)}`:webNovelUnavailableHTML()
     }
-   }else if(turkishMode==='fallback'){
-    // Forced packaged Turkish mode. Never call Mozhi and never show English.
+   }else if(turkishMode==='fast'){
     const r=await fetch(base+'?lang=tr',{cache:'no-store'});
     if(!r.ok)throw new Error(`Türkçe paket HTTP ${r.status}`);
     const actual=(r.headers.get('X-Reader-Content-Language')||'').toLowerCase();
     const text=await r.text();
     if(actual!=='tr'||!text.trim())throw new Error('Bu bölüm için paketlenmiş Türkçe çeviri yok');
-    sec.translationSource='builtin';
-    sec.contentLanguage='tr';
-    sec.available=true;
+    sec.translationSource='builtin';sec.contentLanguage='tr';sec.available=true;
     const title=sec.fallbackTitleTr||`Bölüm ${sec.chapterIndex||index+1}`;
     sec.html=`<h2>${esc(title)}</h2>${webNovelTextHTML(text)}`
    }else{
-    // Forced online mode. English is source input only; there is NO packaged-TR fallback.
-    const r=await fetch(base,{cache:'no-store'});
-    if(r.status===204)throw new Error('English source unavailable');
-    if(!r.ok)throw new Error(`English HTTP ${r.status}`);
-    const enText=await r.text();
+    // Hybrid/default Turkish: fetch EN + packaged TR. Show packaged TR immediately.
+    const [enR,trR]=await Promise.all([
+     fetch(base,{cache:'no-store'}),
+     fetch(base+'?lang=tr',{cache:'no-store'}).catch(()=>null)
+    ]);
+    if(!enR.ok)throw new Error(`English HTTP ${enR.status}`);
+    const enText=await enR.text();
+    const trText=trR?.ok?await trR.text():'';
+    const actual=(trR?.headers.get('X-Reader-Content-Language')||'').toLowerCase();
     if(!enText.trim())throw new Error('English source is empty');
-    if(!window.ReaderMozhi?.translateText)throw new Error('Mozhi runtime unavailable');
+    if(actual!=='tr'||!trText.trim())throw new Error('Bu bölüm için paketlenmiş Türkçe çeviri yok');
 
-    const translated=await ReaderMozhi.translateText(enText,{
-     source:'en',target:'tr',cacheKey:`wn:${BOOK.id}:${sec.chapterId}`
-    });
-    if(!translated.trim())throw new Error('Mozhi returned empty translation');
-
-    sec.translationSource='mozhi';
-    sec.contentLanguage='tr';
-    sec.available=true;
-    const title=sec.fallbackTitleTr||`Bölüm ${sec.chapterIndex||index+1}`;
-    sec.html=`<h2>${esc(title)}</h2>${webNovelTextHTML(translated)}`
+    const enTitle=sec.sourceTitle||`Chapter ${sec.chapterIndex||index+1}`;
+    const trTitle=sec.fallbackTitleTr||`Bölüm ${sec.chapterIndex||index+1}`;
+    setupHybridSection(
+     sec,
+     `<h2>${esc(enTitle)}</h2>${webNovelTextHTML(enText)}`,
+     `<h2>${esc(trTitle)}</h2>${webNovelTextHTML(trText)}`
+    );
+    sec.available=true
    }
   }catch(e){
    sec.available=false;
@@ -4954,11 +5219,13 @@ async function ensureWebSectionLoaded(index,force=false){
  })();
  return sec.loadingPromise
 }
+
 function prefetchWebSections(index){
  if(!BOOK||BOOK.kind!=='webnovel')return;
  const list=uiLanguage==='tr'?[index+1]:[index-2,index-1,index+1,index+2];
  for(const i of list)if(i>=0&&i<BOOK.sections.length)ensureWebSectionLoaded(i).catch(()=>{})
 }
+
 async function hydrateBookSections(meta){
  if(meta.kind==='webnovel'){
   let manifest=Array.isArray(meta.spine)?meta.spine:[];
@@ -4970,8 +5237,7 @@ async function hydrateBookSections(meta){
   const sections=manifest.map((s,i)=>({
    path:s.path,
    title:uiLanguage==='tr'?(s.translated_title||`Bölüm ${s.chapter_index||i+1}`):(s.title||''),
-   sourceTitle:s.title||'',
-   fallbackTitleTr:s.translated_title||'',
+   sourceTitle:s.title||'',fallbackTitleTr:s.translated_title||'',
    imageOnly:false,html:webNovelLoadingHTML(),source:'webnovel',
    chapterId:s.chapter_id,chapterIndex:s.chapter_index,available:!!s.available,
    translated:!!s.translated,contentLanguage:uiLanguage==='tr'?'tr':'en',
@@ -4982,20 +5248,16 @@ async function hydrateBookSections(meta){
  }
 
  const wantsTurkish=uiLanguage==='tr';
- const onlineTurkish=wantsTurkish&&turkishMode==='online';
- const fallbackTurkish=wantsTurkish&&turkishMode==='fallback';
+ const hybridTurkish=wantsTurkish&&turkishMode==='hybrid';
+ const fastTurkish=wantsTurkish&&turkishMode==='fast';
  const sections=(meta.spine||[]).map(s=>({
   path:s.path,title:s.title||'',imageOnly:!!s.image_only,html:'',
   sourceHtmlEn:'',fallbackHtmlTr:null,contentLanguage:wantsTurkish?'tr':'en',
-  mozhiState:onlineTurkish?'pending':(fallbackTurkish?'fallback':'off'),
-  mozhiPromise:null,translationSource:null
+  translationSource:null,hybridBlockCount:0,hybridBusy:false
  }));
  let done=0,next=0;
  const workers=Math.min(6,Math.max(1,sections.length));
-
- async function safeFetch(url){
-  try{return await fetch(url)}catch(_){return null}
- }
+ async function safeFetch(url){try{return await fetch(url)}catch(_){return null}}
 
  async function worker(){
   while(true){
@@ -5006,46 +5268,43 @@ async function hydrateBookSections(meta){
      const r=await fetch(resourceURLFor(meta.id,sec.path));
      if(!r.ok)throw new Error(`HTTP ${r.status}`);
      sec.html=sanitizeSectionHTML(await r.text(),meta.id,sec.path);
-     sec.contentLanguage='en';
-     sec.mozhiState='off';
-     sec.translationSource='original'
+     sec.contentLanguage='en';sec.translationSource='original'
     }else if(sec.imageOnly){
-     // Illustrations/media are language-neutral; use the original resource in either TR mode.
      const r=await fetch(resourceURLFor(meta.id,sec.path));
      if(!r.ok)throw new Error(`Media HTTP ${r.status}`);
      sec.html=sanitizeSectionHTML(await r.text(),meta.id,sec.path);
-     sec.contentLanguage='tr';
-     sec.mozhiState='ready';
-     sec.translationSource='media'
-    }else if(fallbackTurkish){
-     // Forced packaged translation only.
+     sec.contentLanguage='tr';sec.translationSource='media'
+    }else if(fastTurkish){
+     // Fast = packaged TR only. Never fetch/call Mozhi.
      const trR=await safeFetch(resourceURLFor(meta.id,sec.path,'tr'));
      if(!trR?.ok)throw new Error('Paketlenmiş Türkçe bölüm alınamadı');
      const actual=(trR.headers.get('X-Reader-Content-Language')||'').toLowerCase();
      const trRaw=await trR.text();
      if(actual!=='tr'||!trRaw.trim())throw new Error('Bu bölüm için paketlenmiş Türkçe çeviri yok');
      sec.fallbackHtmlTr=sanitizeSectionHTML(trRaw,meta.id,sec.path);
-     sec.html=sec.fallbackHtmlTr;
-     sec.contentLanguage='tr';
-     sec.mozhiState='fallback';
-     sec.translationSource='builtin';
-     syncLnTranslatedTitle(sec)
-    }else{
-     // Forced online mode: fetch English source only. No packaged translation is fetched.
-     const enR=await safeFetch(resourceURLFor(meta.id,sec.path));
-     if(!enR?.ok)throw new Error('English source unavailable for Mozhi');
-     const enRaw=await enR.text();
+     sec.html=sec.fallbackHtmlTr;sec.contentLanguage='tr';sec.translationSource='builtin'
+    }else if(hybridTurkish){
+     // Default Turkish = fetch both, render packaged TR immediately, then upgrade
+     // only the visible + 3-page window after pagination exists.
+     const [enR,trR]=await Promise.all([
+      safeFetch(resourceURLFor(meta.id,sec.path)),
+      safeFetch(resourceURLFor(meta.id,sec.path,'tr'))
+     ]);
+     if(!enR?.ok)throw new Error('English source unavailable for online translation');
+     if(!trR?.ok)throw new Error('Paketlenmiş Türkçe bölüm alınamadı');
+     const enRaw=await enR.text(),trRaw=await trR.text();
+     const actual=(trR.headers.get('X-Reader-Content-Language')||'').toLowerCase();
      if(!enRaw.trim())throw new Error('English source is empty');
-     sec.sourceHtmlEn=sanitizeSectionHTML(enRaw,meta.id,sec.path);
-     sec.html='<p>Çeviri hazırlanıyor…</p>';
-     sec.mozhiState='pending';
-     sec.translationSource=null
+     if(actual!=='tr'||!trRaw.trim())throw new Error('Bu bölüm için paketlenmiş Türkçe çeviri yok');
+     setupHybridSection(
+      sec,
+      sanitizeSectionHTML(enRaw,meta.id,sec.path),
+      sanitizeSectionHTML(trRaw,meta.id,sec.path)
+     )
     }
    }catch(e){
     sec.html=`<p>${esc(t('sectionLoadError'))}</p><p>${esc(e.message)}</p>`;
-    sec.contentLanguage=wantsTurkish?'tr':'en';
-    sec.mozhiState=wantsTurkish?'failed':'off';
-    sec.translationSource='error'
+    sec.contentLanguage=wantsTurkish?'tr':'en';sec.translationSource='error'
    }
    done++;
    setLoaderProgress(26+done/Math.max(1,sections.length)*56,t('loadingBook',{done,total:sections.length}))
@@ -5057,50 +5316,11 @@ async function hydrateBookSections(meta){
 
 function syncLnTranslatedTitle(sec){
  if(!sec?.html)return;
- const d=document.createElement('div');
- d.innerHTML=sec.html;
+ const d=document.createElement('div');d.innerHTML=sec.html;
  const candidate=d.querySelector('h1,h2,h3,h4')?.textContent?.replace(/\s+/g,' ').trim();
  if(candidate&&candidate.length<180)sec.title=candidate
 }
 
-async function ensureLnSectionTranslated(index){
- if(uiLanguage!=='tr'||turkishMode!=='online'||!BOOK||BOOK.kind!=='epub'||index<0||index>=BOOK.sections.length)return;
- const sec=BOOK.sections[index];
- if(sec.imageOnly||['ready','failed'].includes(sec.mozhiState))return;
- if(sec.mozhiPromise)return sec.mozhiPromise;
-
- sec.mozhiState='loading';
- sec.mozhiPromise=(async()=>{
-  try{
-   if(!sec.sourceHtmlEn)throw new Error('English source unavailable for Mozhi');
-   if(!window.ReaderMozhi?.translateHTML)throw new Error('Mozhi runtime unavailable');
-   const html=await ReaderMozhi.translateHTML(sec.sourceHtmlEn,{
-    source:'en',target:'tr',cacheKey:`ln:${BOOK.id}:${sec.path}`
-   });
-   if(!html.trim())throw new Error('Mozhi returned empty HTML');
-   sec.html=html;
-   sec.contentLanguage='tr';
-   sec.mozhiState='ready';
-   sec.translationSource='mozhi';
-   syncLnTranslatedTitle(sec)
-  }catch(e){
-   // Online means online: never silently substitute packaged Turkish.
-   sec.html=`<p>${esc(t('sectionLoadError'))}</p><p>${esc(e.message)}</p>`;
-   sec.contentLanguage='tr';
-   sec.mozhiState='failed';
-   sec.translationSource='error'
-  }finally{
-   sec.mozhiPromise=null
-  }
- })();
- return sec.mozhiPromise
-}
-
-function prefetchLnMozhi(index){
- if(uiLanguage!=='tr'||turkishMode!=='online'||!BOOK||BOOK.kind!=='epub')return;
- const next=index+1;
- if(next<BOOK.sections.length)ensureLnSectionTranslated(next).catch(()=>{})
-}
 function webNovelCurationRank(s){
  const tier=String(s?.curation_tier||'');
  if(tier==='elite')return 0;
@@ -5335,10 +5555,7 @@ async function openBook(id){
   state.section=0;state.page=0;state.pages=1;state._target=0;
   $('#drawerTitle').textContent=BOOK.title;$('#drawerAuthor').textContent=BOOK.author;
   const p=getSavedProgress();
-  if(BOOK.kind==='epub'&&uiLanguage==='tr'&&turkishMode==='online'){
-   setLoaderProgress(88,'Mozhi ile çevriliyor…');
-   await ensureLnSectionTranslated(p.section)
-  }
+
   if(BOOK.kind==='webnovel'){
    setLoaderProgress(74,t('loadingBook',{done:Math.min(BOOK.sections.length,p.section+1),total:BOOK.sections.length}));
    await ensureWebSectionLoaded(p.section);
@@ -5453,13 +5670,11 @@ function renderSavedAdvancedSearches(){const root=$('#advSavedList');if(!root)re
 function saveAdvancedSearch(){const name=advValue('#advSaveName')||advValue('#advQuery')||at('title');const all=savedAdvancedSearches();all.unshift({name:name.slice(0,40),filters:advancedSnapshot()});storage.set(ADV_SAVED_KEY,JSON.stringify(all.slice(0,12)));$('#advSaveName').value='';renderSavedAdvancedSearches()}
 
 async function selectLanguageChoice(choice){
- const wanted=['en','tr-online','tr-fallback'].includes(choice)?choice:'en';
+ const wanted=['en','tr','tr-fast'].includes(choice)?choice:'en';
  const nextLanguage=wanted==='en'?'en':'tr';
- const nextTurkishMode=wanted==='tr-fallback'?'fallback':'online';
+ const nextTurkishMode=wanted==='tr-fast'?'fast':'hybrid';
 
  if(nextLanguage===uiLanguage&&(nextLanguage==='en'||nextTurkishMode===turkishMode))return;
-
- // One shared reading checkpoint remains valid across EN / TR(O) / TR(F).
  if(BOOK&&state.view==='reader')saveReadingProgress();
 
  uiLanguage=nextLanguage;
@@ -5467,6 +5682,7 @@ async function selectLanguageChoice(choice){
  state.language=nextLanguage;
  storage.set(LANG_KEY,nextLanguage);
  if(nextLanguage==='tr')storage.set(TURKISH_MODE_KEY,nextTurkishMode);
+ hybridStatus({state:'hidden'});
  applyLanguage();
 
  if(BOOK&&state.view==='reader'){
@@ -5481,7 +5697,7 @@ async function selectLanguageChoice(choice){
 }
 
 async function switchLanguage(){
- return selectLanguageChoice(uiLanguage==='tr'?'en':(turkishMode==='fallback'?'tr-fallback':'tr-online'))
+ return selectLanguageChoice(uiLanguage==='tr'?'en':(turkishMode==='fast'?'tr-fast':'tr'))
 }
 
 $('#langBtn').onclick=()=>switchLanguage();
@@ -5980,17 +6196,8 @@ function setSectionMarkup(){
   const requested=state.section,requestedBookId=BOOK.id;
   ensureWebSectionLoaded(requested).then(()=>{if(BOOK?.kind==='webnovel'&&BOOK.id===requestedBookId&&state.section===requested)setSectionMarkup()}).catch(()=>{})
  }
- if(BOOK?.kind==='epub'&&uiLanguage==='tr'&&!sec.imageOnly&&!['ready','fallback','failed'].includes(sec.mozhiState)){
-  const requested=state.section,requestedBookId=BOOK.id;
-  ensureLnSectionTranslated(requested).then(()=>{
-   if(BOOK?.kind==='epub'&&BOOK.id===requestedBookId&&state.section===requested){
-    state.renderedSection=-1;
-    setSectionMarkup()
-   }
-  }).catch(()=>{})
- }
  if(sec.contentLanguage)BOOK.contentLanguage=sec.contentLanguage;
- resetImageZoom(false);host.classList.toggle('imageMode',sec.imageOnly);prose.innerHTML='';imgStage.innerHTML='';if(sec.imageOnly){state.wordCount=0;state.pageAnchors=[];const temp=document.createElement('div');temp.innerHTML=sec.html;const img=temp.querySelector('img');if(img){img.removeAttribute('style');img.removeAttribute('width');img.removeAttribute('height');img.alt=sec.title||'Illustration';guardReaderImage(img,sec,BOOK?.id);imgStage.appendChild(img)}}else{prose.innerHTML=sec.html;prose.querySelectorAll('[style]').forEach(x=>x.removeAttribute('style'));prose.querySelectorAll('img').forEach(x=>{x.removeAttribute('width');x.removeAttribute('height')});decorateChapterOpening(prose)}state.renderedBookId=BOOK?.id??null;state.renderedSection=state.section;prepareBookMedia(host);applyReadingClasses();const resume=state._resumeProgress;const resumeAnchor=state._resumeAnchor;state._resumeProgress=null;state._resumeAnchor=null;applyLayout(resume,resumeAnchor);buildToc();updateHud();if(BOOK?.kind==='webnovel'&&sec.loaded)prefetchWebSections(state.section);if(BOOK?.kind==='epub'&&uiLanguage==='tr')prefetchLnMozhi(state.section)
+ resetImageZoom(false);host.classList.toggle('imageMode',sec.imageOnly);prose.innerHTML='';imgStage.innerHTML='';if(sec.imageOnly){state.wordCount=0;state.pageAnchors=[];const temp=document.createElement('div');temp.innerHTML=sec.html;const img=temp.querySelector('img');if(img){img.removeAttribute('style');img.removeAttribute('width');img.removeAttribute('height');img.alt=sec.title||'Illustration';guardReaderImage(img,sec,BOOK?.id);imgStage.appendChild(img)}}else{prose.innerHTML=sec.html;prose.querySelectorAll('[style]').forEach(x=>x.removeAttribute('style'));prose.querySelectorAll('img').forEach(x=>{x.removeAttribute('width');x.removeAttribute('height')});decorateChapterOpening(prose)}state.renderedBookId=BOOK?.id??null;state.renderedSection=state.section;prepareBookMedia(host);applyReadingClasses();const resume=state._resumeProgress;const resumeAnchor=state._resumeAnchor;state._resumeProgress=null;state._resumeAnchor=null;applyLayout(resume,resumeAnchor);buildToc();updateHud();if(BOOK?.kind==='webnovel'&&sec.loaded)prefetchWebSections(state.section);if(uiLanguage==='tr'&&turkishMode==='hybrid')scheduleHybridTranslationWindow(170)
 }
 
 function stylePreviewProse(prose){
@@ -6633,6 +6840,7 @@ function setPage(p,animate=true){
     prose.style.transform=`translate3d(${-state.page*state._stride}px,0,0)`
   }
   updateHud();
+  if(uiLanguage==='tr'&&turkishMode==='hybrid')scheduleHybridTranslationWindow(120);
   keepChromeStateAfterNav()
 }
 
@@ -6736,7 +6944,7 @@ function saveReadingProgress(){
 }
 function scheduleProgressSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveReadingProgress,180)}
 function updateHud(){if(state.view!=='reader')return;const frac=globalFraction(),pct=formatPct(frac,BOOK?.kind),mins=remainingMinutes(),stats=state.showTime&&mins!=null?`${pct} · ${compactRemainingTime(mins)}`:pct;$('#pageLabel').textContent=stats;const topStats=$('#readerTopStats');if(topStats)topStats.textContent=stats;$('#progressBar').style.width=(frac*100)+'%';renderLibraryProgress(frac);scheduleProgressSave()}
-$('#scrollHost').addEventListener('scroll',()=>{if(state.mode==='scroll'&&!current().imageOnly)updateHud()},{passive:true});
+$('#scrollHost').addEventListener('scroll',()=>{if(state.mode==='scroll'&&!current().imageOnly){updateHud();if(uiLanguage==='tr'&&turkishMode==='hybrid')scheduleHybridTranslationWindow(180)}},{passive:true});
 $('#readerStage').addEventListener('wheel',e=>{
   if(state.view!=='reader')return;
   if(current().imageOnly&&state.zoomScale>1.05){
@@ -7474,7 +7682,7 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
      langMenu.id='readerLanguageMenu';
      langMenu.className='readerLanguageMenu';
      langMenu.hidden=true;
-     langMenu.innerHTML='<button class="readerLanguageChoice" type="button" data-lang-choice="en"><span class="readerLanguageEmoji" aria-hidden="true">🇺🇸</span><span>English</span></button><button class="readerLanguageChoice" type="button" data-lang-choice="tr-online"><span class="readerLanguageEmoji" aria-hidden="true">🇹🇷</span><span>Türkçe (O)</span></button><button class="readerLanguageChoice" type="button" data-lang-choice="tr-fallback"><span class="readerLanguageEmoji" aria-hidden="true">🇹🇷</span><span>Türkçe (F)</span></button>';
+     langMenu.innerHTML='<button class="readerLanguageChoice" type="button" data-lang-choice="en"><span class="readerLanguageEmoji" aria-hidden="true">🇺🇸</span><span>English</span></button><button class="readerLanguageChoice" type="button" data-lang-choice="tr"><span class="readerLanguageEmoji" aria-hidden="true">🇹🇷</span><span>Türkçe</span></button><button class="readerLanguageChoice" type="button" data-lang-choice="tr-fast"><span class="readerLanguageEmoji" aria-hidden="true">⚡</span><span>Türkçe (Hızlı)</span></button>';
      document.body.appendChild(langMenu);
    }
 
@@ -7490,7 +7698,7 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
 
    const place=()=>{
      if(langMenu.hidden)return;
-     const r=btn.getBoundingClientRect(),w=174,h=128;
+     const r=btn.getBoundingClientRect(),w=190,h=128;
      let l=Math.max(8,Math.min(innerWidth-w-8,r.left+r.width/2-w/2));
      let t=r.top-h-8;
      if(t<8)t=Math.min(innerHeight-h-8,r.bottom+8);
@@ -7511,7 +7719,7 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
      e.preventDefault();e.stopPropagation();
      const wanted=x.dataset.langChoice;
      close();
-     if(wanted!==uiLanguage)await switchLanguage();
+     if(wanted!==activeLanguageChoice())await selectLanguageChoice(wanted);
      localizeV8();
      sync();
      syncNav();
