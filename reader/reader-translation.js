@@ -20,6 +20,7 @@ const GOOGLE_TIMEOUT_MS=6500;
 const GOOGLE_RETRY_DELAY_MS=3000;
 const GOOGLE_MAX_RETRIES=3;
 const GOOGLE_CHUNK_LIMIT=4200;
+const GOOGLE_GET_CHUNK_LIMIT=900;
 const BATCH_CHAR_LIMIT=3400;
 const BUFFER_PAGES=1;
 const CACHE_DB='reader-translation-block-cache-v2';
@@ -112,51 +113,94 @@ function parseGooglePayload(data){
   if(!Array.isArray(data)||!Array.isArray(data[0]))throw new Error('Unexpected Google Translate response');
   return cleanText(data[0].map(x=>Array.isArray(x)?(x[0]||''):'').join(''))
 }
+function timeoutError(ms){
+  const e=new Error('Google request timed out after '+ms+' ms');
+  e.name='TimeoutError';
+  return e
+}
+function withTimeout(promise,ms){
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_,reject)=>{timer=setTimeout(()=>reject(timeoutError(ms)),ms)})
+  ]).finally(()=>clearTimeout(timer))
+}
+async function googleGetSmall(text,params){
+  const pieces=splitText(text,GOOGLE_GET_CHUNK_LIMIT);
+  const out=[];
+  for(let i=0;i<pieces.length;i++){
+    const piece=pieces[i];
+    const u=GOOGLE_ENDPOINT+'?'+params.toString()+'&q='+encodeURIComponent(piece);
+    const started=performance.now();
+    try{
+      const r=await withTimeout(fetch(u,{mode:'cors',credentials:'omit'}),GOOGLE_TIMEOUT_MS);
+      if(!r.ok){
+        const e=new Error('GET HTTP '+r.status);
+        e.httpStatus=r.status;e.method='GET';throw e
+      }
+      const translated=parseGooglePayload(await r.json());
+      debugEvent('google.get.ok',{
+        ms:Math.round(performance.now()-started),
+        status:r.status,
+        chars:piece.length,
+        encodedUrlChars:u.length,
+        chunk:i+1,
+        chunks:pieces.length
+      });
+      out.push(translated)
+    }catch(err){
+      const info={
+        ms:Math.round(performance.now()-started),
+        chars:piece.length,
+        encodedUrlChars:u.length,
+        chunk:i+1,
+        chunks:pieces.length,
+        ...normalizeError(err)
+      };
+      debugEvent('google.get.fail',info);
+      throw err
+    }
+  }
+  return cleanText(out.join('\n\n'))
+}
 async function googleRequest(text){
   if(forcedFailureCount>0){forcedFailureCount--;throw new Error('Simulated Google failure')}
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),GOOGLE_TIMEOUT_MS);
   const params=new URLSearchParams({client:'gtx',sl:SOURCE_LANG,tl:TARGET_LANG,dt:'t'});
   const started=performance.now();
-  let postError=null;
   try{
-    let r;
     try{
-      r=await fetch(GOOGLE_ENDPOINT+'?'+params.toString(),{
+      // Keep the exact transport shape from the first working revision:
+      // no AbortController/signal on the cross-origin request.
+      const r=await withTimeout(fetch(GOOGLE_ENDPOINT+'?'+params.toString(),{
         method:'POST',
         mode:'cors',
         credentials:'omit',
-        signal:controller.signal,
         headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
         body:new URLSearchParams({q:text})
-      });
+      }),GOOGLE_TIMEOUT_MS);
       if(!r.ok){
         const e=new Error('POST HTTP '+r.status);
         e.httpStatus=r.status;e.method='POST';throw e
       }
-      debugEvent('google.post.ok',{ms:Math.round(performance.now()-started),status:r.status,chars:text.length})
-    }catch(err){
-      postError=err;
-      debugEvent('google.post.fail',{ms:Math.round(performance.now()-started),...normalizeError(err)});
-      if(controller.signal.aborted)throw err;
-      const u=GOOGLE_ENDPOINT+'?'+params.toString()+'&q='+encodeURIComponent(text);
-      const getStarted=performance.now();
-      r=await fetch(u,{mode:'cors',credentials:'omit',signal:controller.signal});
-      if(!r.ok){
-        const e=new Error('GET HTTP '+r.status);
-        e.httpStatus=r.status;e.method='GET';e.postError=postError;throw e
-      }
-      debugEvent('google.get.ok',{ms:Math.round(performance.now()-getStarted),status:r.status,chars:text.length})
+      const parsed=parseGooglePayload(await r.json());
+      debugEvent('google.post.ok',{ms:Math.round(performance.now()-started),status:r.status,chars:text.length});
+      debugEvent('google.request.ok',{ms:Math.round(performance.now()-started),chars:text.length,via:'POST'});
+      return parsed
+    }catch(postError){
+      debugEvent('google.post.fail',{ms:Math.round(performance.now()-started),chars:text.length,...normalizeError(postError)});
+      // The old overlay revision's GET fallback worked with small page payloads.
+      // New block batches can be much larger once URL-encoded, so split only
+      // the GET transport into small chunks while preserving the logical batch.
+      const translated=await googleGetSmall(text,params);
+      debugEvent('google.request.ok',{ms:Math.round(performance.now()-started),chars:text.length,via:'GET-chunked'});
+      return translated
     }
-    const parsed=parseGooglePayload(await r.json());
-    debugEvent('google.request.ok',{ms:Math.round(performance.now()-started),chars:text.length,via:postError?'GET':'POST'});
-    return parsed
   }catch(err){
     const info={ms:Math.round(performance.now()-started),chars:text.length,...normalizeError(err)};
     lastFailure={stage:'google.request',...info};
     debugEvent('google.request.fail',info);
     throw err
-  }finally{clearTimeout(timer)}
+  }
 }
 function splitText(text,limit=GOOGLE_CHUNK_LIMIT){
   text=cleanText(text);
@@ -746,6 +790,6 @@ window.ReaderTranslation={
   simulateGoogleFailure(count=1){forcedFailureCount=Math.max(1,+count||1);queueSync()},
   simulateFallback(){return activateFallback(new Error('Simulated Google fallback'))},
   clearMemoryCache(){memCache.clear()},
-  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:BUFFER_PAGES,googleTimeoutMs:GOOGLE_TIMEOUT_MS,googleRetryDelayMs:GOOGLE_RETRY_DELAY_MS,googleMaxRetries:GOOGLE_MAX_RETRIES,batchCharLimit:BATCH_CHAR_LIMIT}
+  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:BUFFER_PAGES,googleTimeoutMs:GOOGLE_TIMEOUT_MS,googleRetryDelayMs:GOOGLE_RETRY_DELAY_MS,googleMaxRetries:GOOGLE_MAX_RETRIES,googleGetChunkLimit:GOOGLE_GET_CHUNK_LIMIT,batchCharLimit:BATCH_CHAR_LIMIT}
 };
 })();
