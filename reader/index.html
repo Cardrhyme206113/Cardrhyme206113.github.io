@@ -4083,13 +4083,12 @@ body:not(.reader-active){
 }
 </style>
 
-<style id="mobile-dock-bottom-anchor-v1">
-/* Canonical mobile dock anchor. Do not derive the dock's Y position from
-   100dvh: Firefox Android changes its dynamic viewport while browser chrome
-   expands/collapses, which can strand the fixed dock in the middle of the page. */
+<style id="mobile-dock-bottom-anchor-v2">
+/* Normal mobile browsers can use a true bottom anchor. Firefox Android is
+   special: its bottom browser toolbar can overlay bottom:0, so Firefox gets a
+   measured visual-viewport top coordinate instead. */
 @media(max-width:860px){
-  body:not(.reader-active) .topbar,
-  html.firefox-android body:not(.reader-active) .topbar{
+  body:not(.reader-active) .topbar{
     position:fixed!important;
     top:auto!important;
     bottom:0!important;
@@ -4103,6 +4102,14 @@ body:not(.reader-active){
     padding-bottom:env(safe-area-inset-bottom)!important;
     transform:none!important;
     box-sizing:border-box!important;
+  }
+
+  html.firefox-android body:not(.reader-active) .topbar{
+    top:var(--firefox-dock-top,calc(100dvh - var(--dock)))!important;
+    bottom:auto!important;
+    height:var(--dock)!important;
+    max-height:var(--dock)!important;
+    padding-bottom:0!important;
   }
 }
 </style>
@@ -7605,11 +7612,32 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
 </script>
 
 
-<script id="firefox-android-browser-class-v1">
+<script id="firefox-android-browser-class-v2">
 (()=>{
   const ua=navigator.userAgent||'';
-  if(/Android/i.test(ua)&&/Firefox\//i.test(ua)){
-    document.documentElement.classList.add('firefox-android');
+  if(!(/Android/i.test(ua)&&/Firefox\//i.test(ua)))return;
+
+  const root=document.documentElement;
+  root.classList.add('firefox-android');
+
+  let raf=0;
+  const syncFirefoxDock=()=>{
+    cancelAnimationFrame(raf);
+    raf=requestAnimationFrame(()=>{
+      const vv=window.visualViewport;
+      const viewportTop=vv?vv.offsetTop:0;
+      const viewportHeight=vv?vv.height:window.innerHeight;
+      const dock=parseFloat(getComputedStyle(root).getPropertyValue('--dock'))||60;
+      root.style.setProperty('--firefox-dock-top',Math.max(0,viewportTop+viewportHeight-dock)+'px');
+    });
+  };
+
+  syncFirefoxDock();
+  addEventListener('resize',syncFirefoxDock,{passive:true});
+  addEventListener('orientationchange',syncFirefoxDock,{passive:true});
+  if(window.visualViewport){
+    visualViewport.addEventListener('resize',syncFirefoxDock,{passive:true});
+    visualViewport.addEventListener('scroll',syncFirefoxDock,{passive:true});
   }
 })();
 </script>
