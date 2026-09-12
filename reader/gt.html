@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Google Translate Test</title>
+<title>Mozhi Translate Test</title>
 <style>
   :root{
     color-scheme:dark;
@@ -48,8 +48,8 @@
 </head>
 <body>
 <main>
-  <h1>Google Translate test</h1>
-  <p class="sub">Standalone browser test. Direct Google first; alternate Google/proxy routes only if needed.</p>
+  <h1>Mozhi translate test</h1>
+  <p class="sub">Mozhi only. No direct Google requests and no generic CORS proxies.</p>
 
   <div class="toolbar">
     <label>From
@@ -89,7 +89,7 @@
     </div>
     <div class="box">
       <textarea id="output" spellcheck="false" readonly placeholder="Translation appears here..."></textarea>
-      <div class="meta"><span id="outCount">0 chars</span><span id="routeLabel">No route yet</span></div>
+      <div class="meta"><span id="outCount">0 chars</span><span id="routeLabel">No instance yet</span></div>
     </div>
   </div>
 
@@ -106,7 +106,7 @@
     <summary>Request diagnostics</summary>
     <pre id="log">No requests yet.</pre>
   </details>
-  <div class="note">No API key is stored. Proxy fallbacks are for testing only; text sent through a proxy is visible to that third party.</div>
+  <div class="note">All requests go directly to public Mozhi instances. The Mozhi Google engine is used for translation quality; if one Mozhi instance fails, another Mozhi instance is tried.</div>
 </main>
 
 <script>
@@ -117,7 +117,20 @@
   var input = $("input"), output = $("output"), from = $("from"), to = $("to");
   var statusEl = $("status"), logEl = $("log"), routeLabel = $("routeLabel");
   var translateBtn = $("translate"), autoBox = $("auto");
-  var debounceTimer = 0, runId = 0, preferredRoute = null;
+  var debounceTimer = 0, runId = 0, preferredInstance = null;
+
+  // Public Mozhi instances only. Ordered roughly for Europe/Türkiye first.
+  var INSTANCES = [
+    "https://translate.projectsegfau.lt",
+    "https://translate.privacyredirect.com",
+    "https://mozhi.adminforge.de",
+    "https://mozhi.ducks.party",
+    "https://mozhi.pussthecat.org",
+    "https://mozhi.aryak.me",
+    "https://translate.nerdvpn.de",
+    "https://mozhi.canine.tools",
+    "https://mozhi.franklyflawless.org"
+  ];
 
   function log(msg){
     var stamp = new Date().toLocaleTimeString();
@@ -136,60 +149,41 @@
     $("outCount").textContent = output.value.length.toLocaleString() + " chars";
   }
 
-  function googleUrl(text, sl, tl){
+  function mozhiUrl(instance, text, sl, tl){
     var p = new URLSearchParams({
-      client:"gtx", sl:sl, tl:tl, dt:"t", dj:"1", source:"input", q:text
+      engine:"google",
+      from:sl,
+      to:tl,
+      text:text
     });
-    return "https://translate.googleapis.com/translate_a/single?" + p.toString();
+    return instance + "/api/translate?" + p.toString();
   }
 
-  function dictUrl(text, sl, tl){
-    var p = new URLSearchParams({
-      client:"dict-chrome-ex", sl:sl, tl:tl, q:text
-    });
-    return "https://clients5.google.com/translate_a/t?" + p.toString();
-  }
-
-  function routeUrl(route, text, sl, tl){
-    var g = googleUrl(text, sl, tl);
-    if (route === "Google direct") return g;
-    if (route === "Google dict endpoint") return dictUrl(text, sl, tl);
-    if (route === "AllOrigins proxy") return "https://api.allorigins.win/raw?url=" + encodeURIComponent(g);
-    if (route === "CodeTabs proxy") return "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(g);
-    throw new Error("Unknown route");
-  }
-
-  function parseTranslation(data){
-    if (data && Array.isArray(data.sentences)) {
-      var s = data.sentences.map(function(x){ return x && x.trans ? x.trans : ""; }).join("");
-      if (s) return s;
-    }
-    if (Array.isArray(data) && Array.isArray(data[0])) {
-      var a = data[0].map(function(x){
-        return Array.isArray(x) && typeof x[0] === "string" ? x[0] : "";
-      }).join("");
-      if (a) return a;
-    }
-    if (data && typeof data.trans === "string") return data.trans;
-    throw new Error("Unexpected Google response shape");
-  }
-
-  async function fetchJsonText(url, timeoutMs){
+  async function fetchMozhi(instance, text, sl, tl, timeoutMs){
     var controller = new AbortController();
     var timer = setTimeout(function(){ controller.abort(); }, timeoutMs);
     try {
-      var res = await fetch(url, {
+      var res = await fetch(mozhiUrl(instance, text, sl, tl), {
         method:"GET",
         mode:"cors",
         cache:"no-store",
         credentials:"omit",
         signal:controller.signal,
-        headers:{ "Accept":"application/json,text/plain,*/*" }
+        headers:{ "Accept":"application/json" }
       });
-      var text = await res.text();
-      if (!res.ok) throw new Error("HTTP " + res.status + (text ? " · " + text.slice(0,120).replace(/\s+/g," ") : ""));
-      try { return JSON.parse(text); }
-      catch(e){ throw new Error("Non-JSON response · " + text.slice(0,140).replace(/\s+/g," ")); }
+      var body = await res.text();
+      if (!res.ok) {
+        throw new Error("HTTP " + res.status + (body ? " · " + body.slice(0,120).replace(/\s+/g," ") : ""));
+      }
+      var data;
+      try { data = JSON.parse(body); }
+      catch(e){ throw new Error("Non-JSON response · " + body.slice(0,140).replace(/\s+/g," ")); }
+
+      var translated = data && data["translated-text"];
+      if (typeof translated !== "string") {
+        throw new Error("Unexpected Mozhi response shape");
+      }
+      return translated;
     } finally {
       clearTimeout(timer);
     }
@@ -202,17 +196,21 @@
       var head = rest.slice(0, max);
       var floor = Math.floor(max * 0.58);
       var cut = -1;
+
       var n = head.lastIndexOf("\n");
       if (n >= floor) cut = n + 1;
+
       if (cut < floor) {
         var re = /[.!?。！？][\"')\]]?\s+/g, m, last = -1;
         while ((m = re.exec(head))) last = re.lastIndex;
         if (last >= floor) cut = last;
       }
+
       if (cut < floor) {
         var sp = head.lastIndexOf(" ");
         if (sp >= floor) cut = sp + 1;
       }
+
       if (cut < 1) cut = max;
       chunks.push(rest.slice(0, cut));
       rest = rest.slice(cut);
@@ -222,35 +220,34 @@
   }
 
   async function translateChunk(text, sl, tl){
-    var baseRoutes = ["Google direct","Google dict endpoint","AllOrigins proxy","CodeTabs proxy"];
-    var routes = preferredRoute
-      ? [preferredRoute].concat(baseRoutes.filter(function(x){ return x !== preferredRoute; }))
-      : baseRoutes;
+    var list = preferredInstance
+      ? [preferredInstance].concat(INSTANCES.filter(function(x){ return x !== preferredInstance; }))
+      : INSTANCES.slice();
 
     var lastError = null;
-    for (var i=0; i<routes.length; i++) {
-      var route = routes[i];
+    for (var i=0; i<list.length; i++) {
+      var instance = list[i];
       try {
-        log("Trying " + route + " (" + text.length + " chars)");
-        var data = await fetchJsonText(routeUrl(route, text, sl, tl), 7500);
-        var translated = parseTranslation(data);
-        preferredRoute = route;
-        log("OK via " + route);
-        return { text:translated, route:route };
-      } catch (e) {
+        log("Trying " + instance + " (" + text.length + " chars)");
+        var translated = await fetchMozhi(instance, text, sl, tl, 7000);
+        preferredInstance = instance;
+        log("OK via " + instance);
+        return { text:translated, instance:instance };
+      } catch(e) {
         lastError = e;
-        log("Failed " + route + ": " + (e && e.message ? e.message : String(e)));
+        log("Failed " + instance + ": " + (e && e.message ? e.message : String(e)));
       }
     }
-    throw lastError || new Error("All routes failed");
+    throw lastError || new Error("All Mozhi instances failed");
   }
 
   async function translateNow(){
     var myRun = ++runId;
     var text = input.value;
+
     if (!text.trim()) {
       output.value = "";
-      routeLabel.textContent = "No route yet";
+      routeLabel.textContent = "No instance yet";
       setStatus("Ready.");
       updateCounts();
       return;
@@ -258,26 +255,30 @@
 
     translateBtn.disabled = true;
     setStatus("Translating...");
+
+    // GET requests can hit URL-length limits when text is large, so keep chunks modest.
     var chunks = splitText(text, 1800);
-    log("--- Translation start: " + chunks.length + " chunk(s), " + text.length + " chars ---");
+    log("--- Mozhi translation: " + chunks.length + " chunk(s), " + text.length + " chars ---");
 
     try {
       var parts = [], used = new Set();
+
       for (var i=0; i<chunks.length; i++) {
         if (myRun !== runId) return;
         setStatus("Translating " + (i+1) + "/" + chunks.length + "...");
         var r = await translateChunk(chunks[i], from.value, to.value);
         parts.push(r.text);
-        used.add(r.route);
+        used.add(new URL(r.instance).hostname);
       }
+
       if (myRun !== runId) return;
       output.value = parts.join("");
-      routeLabel.textContent = Array.from(used).join(" + ");
+      routeLabel.textContent = "Mozhi · " + Array.from(used).join(" + ");
       setStatus("Done · " + chunks.length + " chunk" + (chunks.length === 1 ? "" : "s"), "ok");
       updateCounts();
     } catch(e) {
       if (myRun !== runId) return;
-      routeLabel.textContent = "All routes failed";
+      routeLabel.textContent = "Mozhi failed";
       setStatus("Failed: " + (e && e.message ? e.message : String(e)), "bad");
       log("FINAL FAILURE: " + (e && e.stack ? e.stack : String(e)));
     } finally {
@@ -298,17 +299,20 @@
   translateBtn.addEventListener("click", translateNow);
 
   $("swap").addEventListener("click", function(){
-    if (from.value === "auto") from.value = to.value;
-    else {
+    if (from.value === "auto") {
+      from.value = to.value;
+    } else {
       var a = from.value;
       from.value = to.value;
       to.value = a;
     }
+
     var oldInput = input.value;
     if (output.value) {
       input.value = output.value;
       output.value = oldInput;
     }
+
     updateCounts();
     if (input.value.trim()) translateNow();
   });
