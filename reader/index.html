@@ -3940,16 +3940,17 @@ html.reader-loader-active #continueSection::before{
   }
 }
 </style>
-<style id="mobile-dock-even-spacing-v1">
+<style id="mobile-dock-even-spacing-v2">
 @media(max-width:860px){
   body:not(.reader-active) .topbar{
     display:grid!important;
-    grid-template-columns:repeat(5,48px)!important;
-    justify-content:space-between!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    justify-content:stretch!important;
     align-items:center!important;
     column-gap:0!important;
-    padding-left:env(safe-area-inset-left)!important;
-    padding-right:env(safe-area-inset-right)!important;
+    padding-left:max(12px,env(safe-area-inset-left))!important;
+    padding-right:max(12px,env(safe-area-inset-right))!important;
+    box-sizing:border-box!important;
   }
 
   body:not(.reader-active) .railNav{
