@@ -5198,7 +5198,28 @@ function syncAdvancedFilterDrawer(){
  if(state.view!=='search'){document.body.classList.remove('adv-filter-open');$('#advancedFilters')?.classList.remove('mobileOpen');return}
  if(advancedMobileMode())setAdvancedFilterDrawer(advancedMobileFiltersOpen);else{document.body.classList.remove('adv-filter-open');$('#advancedFilters')?.classList.remove('mobileOpen')}
 }
-async function runAdvancedSearch(page=1,revealMobile=true){await ensureAdvancedOptions();state.advancedPage=Math.max(1,+page||1);const wrap=$('#advancedResults');wrap.classList.add('advLoading');$('#advResultsCount').textContent=at('loading');storage.set(ADV_LAST_KEY,JSON.stringify(advancedSnapshot()));try{const payload=await fetchJSON('/api/search?'+buildAdvancedParams(state.advancedPage).toString());state.advancedPage=payload.page||1;renderAdvancedResults(payload);if(revealMobile&&advancedMobileMode())setAdvancedFilterDrawer(false)}catch(e){$('#advResultsGrid').innerHTML=`<div class="advEmpty">${esc(e.message||String(e))}</div>`}finally{wrap.classList.remove('advLoading')}}
+let advancedSearchRequestSeq=0;
+async function runAdvancedSearch(page=1,revealMobile=true){
+ const requestSeq=++advancedSearchRequestSeq;
+ await ensureAdvancedOptions();
+ state.advancedPage=Math.max(1,+page||1);
+ const wrap=$('#advancedResults');
+ wrap.classList.add('advLoading');
+ $('#advResultsCount').textContent=at('loading');
+ storage.set(ADV_LAST_KEY,JSON.stringify(advancedSnapshot()));
+ try{
+  const payload=await fetchJSON('/api/search?'+buildAdvancedParams(state.advancedPage).toString());
+  if(requestSeq!==advancedSearchRequestSeq)return;
+  state.advancedPage=payload.page||1;
+  renderAdvancedResults(payload);
+  if(revealMobile&&advancedMobileMode())setAdvancedFilterDrawer(false)
+ }catch(e){
+  if(requestSeq!==advancedSearchRequestSeq)return;
+  $('#advResultsGrid').innerHTML=`<div class="advEmpty">${esc(e.message||String(e))}</div>`
+ }finally{
+  if(requestSeq===advancedSearchRequestSeq)wrap.classList.remove('advLoading')
+ }
+}
 async function openAdvancedSearch(){advancedMobileFiltersOpen=true;setView('search');syncAdvancedFilterDrawer();await ensureAdvancedOptions();if(!state.advancedLastPayload)await runAdvancedSearch(1,false)}
 function savedAdvancedSearches(){try{const v=JSON.parse(storage.get(ADV_SAVED_KEY)||'[]');return Array.isArray(v)?v:[]}catch(_){return[]}}
 function renderSavedAdvancedSearches(){const root=$('#advSavedList');if(!root)return;root.innerHTML='';savedAdvancedSearches().forEach((x,i)=>{const item=document.createElement('span');item.className='advSavedItem';const load=document.createElement('button');load.type='button';load.textContent=x.name;load.onclick=()=>applyAdvancedSnapshot(x.filters,true);const del=document.createElement('button');del.type='button';del.className='advSavedDelete';del.textContent='×';del.title=at('deleteSaved');del.onclick=()=>{const all=savedAdvancedSearches();all.splice(i,1);storage.set(ADV_SAVED_KEY,JSON.stringify(all));renderSavedAdvancedSearches()};item.append(load,del);root.appendChild(item)})}
@@ -5242,7 +5263,33 @@ $('#backBtn').onclick=async()=>{
 };
 $('#search').oninput=e=>{if(state.librarySource==='webnovel'){state.discoveryGenre='All';storage.set('reader-discovery-genre','All')}clearTimeout(state.searchTimer);state.searchTimer=setTimeout(()=>loadLibrary(e.target.value),150)};
 $('#advancedSearchBtn').onclick=()=>openAdvancedSearch();
-$('#advRun').onclick=()=>runAdvancedSearch(1);$('#advReset').onclick=()=>resetAdvancedSearch(true);$('#advResetTop').onclick=()=>resetAdvancedSearch(true);$('#advPrev').onclick=()=>runAdvancedSearch(Math.max(1,state.advancedPage-1));$('#advNext').onclick=()=>runAdvancedSearch(state.advancedPage+1);$('#advSaveBtn').onclick=()=>saveAdvancedSearch();$('#advGenreSearch').oninput=()=>renderAdvancedGenres();$$('#advSourceSwitch .sourceTab').forEach(b=>b.onclick=()=>setAdvancedSource(b.dataset.source));$('#advQuery').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runAdvancedSearch(1)}});$('#advFilterTab').onclick=()=>setAdvancedFilterDrawer(true);$('#advResultsTab').onclick=()=>setAdvancedFilterDrawer(false);addEventListener('resize',syncAdvancedFilterDrawer,{passive:true});renderSavedAdvancedSearches();
+$('#advRun').onclick=()=>runAdvancedSearch(1);$('#advReset').onclick=()=>resetAdvancedSearch(true);$('#advResetTop').onclick=()=>resetAdvancedSearch(true);$('#advPrev').onclick=()=>runAdvancedSearch(Math.max(1,state.advancedPage-1));$('#advNext').onclick=()=>runAdvancedSearch(state.advancedPage+1);$('#advSaveBtn').onclick=()=>saveAdvancedSearch();$('#advGenreSearch').oninput=()=>renderAdvancedGenres();$('#advSourceSwitch .sourceTab').forEach(b=>b.onclick=()=>setAdvancedSource(b.dataset.source));$('#advQuery').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runAdvancedSearch(1)}});
+let advancedAutoSearchTimer=0;
+function scheduleAdvancedAutoSearch(immediate=false){
+ if(state.view!=='search')return;
+ clearTimeout(advancedAutoSearchTimer);
+ advancedAutoSearchTimer=setTimeout(()=>runAdvancedSearch(1,false),immediate?0:180)
+}
+const advancedFiltersRoot=$('#advancedFilters');
+advancedFiltersRoot?.addEventListener('input',e=>{
+ const target=e.target;
+ if(!(target instanceof HTMLInputElement))return;
+ /* These two inputs only filter UI / name a saved search; they are not search filters. */
+ if(target.matches('#advGenreSearch,#advSaveName'))return;
+ scheduleAdvancedAutoSearch(false)
+});
+advancedFiltersRoot?.addEventListener('change',e=>{
+ const target=e.target;
+ if(!(target instanceof HTMLInputElement||target instanceof HTMLSelectElement))return;
+ if(target.matches('#advGenreSearch,#advSaveName'))return;
+ scheduleAdvancedAutoSearch(true)
+});
+advancedFiltersRoot?.addEventListener('click',e=>{
+ const control=e.target.closest('#advSourceSwitch .sourceTab,.advGenreChip,.advStatusChip');
+ if(!control)return;
+ /* Existing button handlers mutate state first; search on the next microtask. */
+ queueMicrotask(()=>scheduleAdvancedAutoSearch(true))
+});$('#advFilterTab').onclick=()=>setAdvancedFilterDrawer(true);$('#advResultsTab').onclick=()=>setAdvancedFilterDrawer(false);addEventListener('resize',syncAdvancedFilterDrawer,{passive:true});renderSavedAdvancedSearches();
 $('#sourceBoth').onclick=()=>setLibrarySource('both');$('#sourceLight').onclick=()=>setLibrarySource('epub');$('#sourceWeb').onclick=()=>setLibrarySource('webnovel');
 $$('.shelfArrow').forEach(b=>b.onclick=()=>{const shelf=$('#'+b.dataset.shelf+'Shelf');shelf?.scrollBy({left:Number(b.dataset.dir)*650,behavior:'smooth'})});
 
