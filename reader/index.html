@@ -4065,6 +4065,23 @@ body:not(.reader-active){
   }
 }
 </style>
+
+<style id="mobile-dock-viewport-lock-v1">
+/* Library ambience intentionally bleeds wider than the content canvas.
+   Lock the fixed mobile dock to the visual viewport so that overflow can
+   never make the dock wider than the screen. */
+@media(max-width:860px){
+  body:not(.reader-active) .topbar{
+    left:0!important;
+    right:auto!important;
+    width:100dvw!important;
+    max-width:100dvw!important;
+    min-width:0!important;
+    overflow-x:clip!important;
+    box-sizing:border-box!important;
+  }
+}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
