@@ -8,6 +8,9 @@ let section=null;
 let renderQueued=false;
 let lastStateSig='';
 let lastVpSig='';
+let googleProbeResult=null;
+let googleProbePromise=null;
+let lastGoogleProbeAt=0;
 const nativeFetch=window.fetch.bind(window);
 
 function esc(s){
@@ -91,6 +94,72 @@ function eventLine(e){
   const t=String(e.time||'').slice(11,19);
   return '<div class="readerUiDbgItem '+(bad?'bad':'')+'"><span class="readerUiDbgTime">'+esc(t)+'</span>'+esc(parts.join(' · '))+'</div>'
 }
+async function probeNoCors(url,label){
+  const started=performance.now();
+  try{
+    const r=await nativeFetch(url,{mode:'no-cors',credentials:'omit',cache:'no-store'});
+    add('google.probe.'+label+'.ok',{ms:Math.round(performance.now()-started),type:r.type,status:r.status});
+    return {ok:true,ms:Math.round(performance.now()-started),type:r.type,status:r.status}
+  }catch(err){
+    const info={ok:false,ms:Math.round(performance.now()-started),...errInfo(err)};
+    add('google.probe.'+label+'.fail',info);
+    return info
+  }
+}
+async function probeGoogle(force=false){
+  const now=Date.now();
+  if(googleProbePromise)return googleProbePromise;
+  if(!force&&googleProbeResult&&now-lastGoogleProbeAt<30000)return googleProbeResult;
+  googleProbePromise=(async()=>{
+    add('google.probe.start');
+    const endpoint='https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=tr&dt=t&q=hello';
+    const google204='https://www.google.com/generate_204';
+    const endpointResult=await probeNoCors(endpoint,'translate');
+    let googleResult=null;
+    let classification='';
+    let explanation='';
+    if(endpointResult.ok){
+      classification='cors_or_http_rejection';
+      explanation=tr()
+        ?'Google Translate sunucusuna ağ erişimi VAR. Normal CORS isteği başarısız olduğuna göre en olası neden CORS/anti-abuse/rate-limit gibi tarayıcının ayrıntısını gizlediği bir sunucu yanıtı.'
+        :'Network access to Google Translate WORKS. Since the normal CORS request fails, the likely cause is a CORS/anti-abuse/rate-limit response whose details the browser hides.'
+    }else{
+      googleResult=await probeNoCors(google204,'google');
+      if(googleResult.ok){
+        classification='translate_domain_blocked';
+        explanation=tr()
+          ?'Google genel olarak erişilebilir ama translate.googleapis.com erişilemiyor. Alan adı engeli, içerik engelleyici/DNS filtresi veya bu Google uç noktasına özel ağ engeli olası.'
+          :'Google is reachable generally, but translate.googleapis.com is not. A domain/content-blocker/DNS filter or endpoint-specific network block is likely.'
+      }else{
+        classification='google_network_blocked';
+        explanation=tr()
+          ?'Hem Translate uç noktası hem genel Google testi ağ katmanında başarısız. DNS/TLS, VPN, özel DNS, içerik engelleyici veya bağlantı kaynaklı engel olası.'
+          :'Both the Translate endpoint and the general Google probe fail at the network layer. DNS/TLS, VPN, private DNS, content blocking, or connectivity is likely.'
+      }
+    }
+    googleProbeResult={
+      time:new Date().toISOString(),
+      classification,
+      explanation,
+      translate:endpointResult,
+      google:googleResult
+    };
+    lastGoogleProbeAt=Date.now();
+    add('google.probe.result',{classification,translateOk:endpointResult.ok,googleOk:googleResult?.ok??null});
+    queueRender();
+    return googleProbeResult
+  })().finally(()=>{googleProbePromise=null});
+  return googleProbePromise
+}
+function probeSummary(){
+  if(!googleProbeResult)return '';
+  const r=googleProbeResult;
+  let lead='';
+  if(r.classification==='cors_or_http_rejection')lead=tr()?'Google erişilebilir · CORS/HTTP reddi olası':'Google reachable · CORS/HTTP rejection likely';
+  else if(r.classification==='translate_domain_blocked')lead=tr()?'Translate alan adı erişilemiyor':'Translate domain unreachable';
+  else lead=tr()?'Google ağ erişimi başarısız':'Google network access failed';
+  return lead+' — '+r.explanation
+}
 function reportText(){
   const snap=snapshot();
   const lines=[
@@ -103,6 +172,7 @@ function reportText(){
     'Viewport: '+JSON.stringify(snap.viewport),
     'VisualViewport: '+JSON.stringify(snap.visualViewport),
     'Reader state: '+JSON.stringify(snap.app),
+    'Google probe: '+JSON.stringify(googleProbeResult),
     '',
     'Recent events:'
   ];
@@ -177,13 +247,16 @@ function render(){
     '<div class="readerUiDbgActions">'+
       '<button type="button" class="readerUiDbgBtn" data-ui-debug-toggle>'+esc(show)+'</button>'+
       '<button type="button" class="readerUiDbgBtn" data-ui-debug-copy>'+esc(tr()?'Raporu kopyala':'Copy report')+'</button>'+
+      '<button type="button" class="readerUiDbgBtn" data-ui-debug-google>'+esc(tr()?'Google testi':'Test Google')+'</button>'+
       (panelOpen?'<button type="button" class="readerUiDbgBtn" data-ui-debug-clear>'+esc(tr()?'Temizle':'Clear')+'</button>':'')+
     '</div>'+
+    (googleProbeResult?'<div class="readerUiDbgBox"><div class="readerUiDbgHead">'+esc(probeSummary())+'</div></div>':'')+
     (panelOpen?'<div class="readerUiDbgBox"><div class="readerUiDbgHead">'+esc(head)+'</div><div class="readerUiDbgList">'+
       (ev.length?ev.slice(-40).reverse().map(eventLine).join(''):'<div class="readerUiDbgItem">'+esc(tr()?'Henüz olay yok.':'No events yet.')+'</div>')+
     '</div></div>':'');
   section.querySelector('[data-ui-debug-toggle]')?.addEventListener('click',()=>{panelOpen=!panelOpen;render()});
   section.querySelector('[data-ui-debug-copy]')?.addEventListener('click',e=>copyReport(e.currentTarget));
+  section.querySelector('[data-ui-debug-google]')?.addEventListener('click',async e=>{const b=e.currentTarget;const old=b.textContent;b.disabled=true;b.textContent=tr()?'Test ediliyor…':'Testing…';try{await probeGoogle(true)}finally{if(b.isConnected){b.disabled=false;b.textContent=old}render()}});
   section.querySelector('[data-ui-debug-clear]')?.addEventListener('click',()=>{events.length=0;render()})
 }
 
@@ -211,6 +284,7 @@ window.fetch=async function(input,init){
     return r
   }catch(err){
     add('fetch.error',{method,url:safeUrl(url),ms:Math.round(performance.now()-started),...errInfo(err)});
+    if(String(url).includes('translate.googleapis.com'))setTimeout(()=>probeGoogle(false),0);
     throw err
   }
 };
@@ -248,6 +322,8 @@ window.ReaderUIDebug={
   snapshot,
   events:()=>allEvents().map(e=>({...e})),
   report:reportText,
+  probeGoogle,
+  get googleProbe(){return googleProbeResult?{...googleProbeResult}:null},
   clear(){events.length=0;render()},
   open(){panelOpen=true;render()}
 };
