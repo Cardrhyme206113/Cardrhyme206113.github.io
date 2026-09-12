@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en" data-theme="paper">
+<html lang="en" data-theme="dusk">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#FAF8F5">
+<meta name="theme-color" content="#23211F">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&amp;family=Instrument+Sans:wght@400;500;600;700&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;family=Geist:wght@300;400;500;600;700&amp;family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&amp;display=swap">
@@ -20,8 +20,8 @@
  --imageBg:#eee3d8;--readingText:#302822;--readingHeading:#241d18;--readingLink:#8f483d;--readerTextActive:var(--readingText);--readerHeadingActive:var(--readingHeading);--brightness:0;
 }
 :root[data-theme="sepia"]{--bg:#e9e0cf;--surface:#f5edde;--paper:#fff8e9;--text:#352d24;--muted:#766a5d;--line:#d7cabb;--line2:#e7ddcf;--accent:#96604b;--accentSoft:#edddd2;--accentText:#714431;--topbar:rgba(245,237,222,.94);--control:#f5edde;--controlHover:#eee3d1;--cover:#d8cbb7;--readerCanvas:#e8dece;--hud:rgba(247,239,224,.92);--imageBg:#e5d8c6;--readingText:#332b23;--readingHeading:#261f19;--readingLink:#87533f}
-:root[data-theme="sage"]{--bg:#e5ebe3;--surface:#f1f5ef;--paper:#fbfcf8;--text:#293129;--muted:#687468;--line:#cad4c8;--line2:#dfe6dc;--accent:#607a62;--accentSoft:#dce8da;--accentText:#405a43;--topbar:rgba(241,245,239,.94);--control:#f1f5ef;--controlHover:#e8eee5;--cover:#d2dbcf;--readerCanvas:#e3e9e0;--hud:rgba(241,245,239,.92);--imageBg:#dfe6dc;--readingText:#293129;--readingHeading:#1e281f;--readingLink:#4f6d52}
-:root[data-theme="slate"]{--bg:#e3e7eb;--surface:#f0f3f6;--paper:#fafbfd;--text:#27303a;--muted:#67717d;--line:#cbd2da;--line2:#e0e5ea;--accent:#5f7188;--accentSoft:#dce4ed;--accentText:#40536a;--topbar:rgba(240,243,246,.94);--control:#f0f3f6;--controlHover:#e6ebf0;--cover:#d2d8df;--readerCanvas:#e0e5ea;--hud:rgba(240,243,246,.92);--imageBg:#dce2e8;--readingText:#27303a;--readingHeading:#1d252e;--readingLink:#526b88}
+
+
 :root[data-theme="dusk"]{--bg:#3c3937;--surface:#47423f;--paper:#514b47;--text:#f2ece6;--muted:#c2b7ae;--line:#655d57;--line2:#59524d;--accent:#d39988;--accentSoft:#664e47;--accentText:#f1c8bb;--topbar:rgba(71,66,63,.88);--control:#4d4743;--controlHover:#58514c;--cover:#5b544f;--readerCanvas:#403c39;--hud:rgba(71,66,63,.92);--imageBg:#393532;--readingText:#eee7e1;--readingHeading:#fff8f2;--readingLink:#e0aa86;--overlay:rgba(0,0,0,.27);--shadow:0 12px 34px rgba(0,0,0,.22)}
 :root[data-theme="oled"]{
  --bg:#000;--surface:#050505;--paper:#000;
@@ -397,7 +397,7 @@ body.imageZoomActive .readerProgress{
 }
 
 /* ---------- Tema paletleri (renkler değişmedi) ---------- */
-:root,:root[data-theme="paper"]{
+:root{
   --bg:#FAF8F5;--surface:#FFFFFF;--paper:#FFFFFF;--text:#1A1A1E;--muted:#5A5A62;--faint:#8E8E98;
   --line:#E6DFD5;--line2:#F1ECE5;--accent:#704A11;--accentSoft:#FBEEDA;--accentText:#8C6228;
   --topbar:rgba(250,248,245,.9);--control:#F5F3F0;--controlHover:#EDE9E3;--cover:#EFEAE4;
@@ -411,20 +411,8 @@ body.imageZoomActive .readerProgress{
   --readerCanvas:#EFE8DC;--overlay:rgba(36,31,24,.32);--hud:rgba(251,247,239,.94);--imageBg:#EFE6D7;
   --readingText:#2A241B;--readingHeading:#1E1913;--readingLink:#7C5A1E;--shadow:var(--shadowMd);
 }
-:root[data-theme="sage"]{
-  --bg:#EEF1EA;--surface:#FBFCF9;--paper:#FCFDFA;--text:#1E241E;--muted:#5C6A5C;--faint:#8B968B;
-  --line:#D8E0D3;--line2:#E9EEE5;--accent:#4F6B4F;--accentSoft:#E1EDDD;--accentText:#3E5A40;
-  --topbar:rgba(238,241,234,.9);--control:#F2F5EF;--controlHover:#E9EEE5;--cover:#DFE6DA;
-  --readerCanvas:#EEF1EA;--overlay:rgba(30,36,30,.32);--hud:rgba(251,252,249,.94);--imageBg:#E7EDE3;
-  --readingText:#232922;--readingHeading:#19201A;--readingLink:#4A6A4C;--shadow:var(--shadowMd);
-}
-:root[data-theme="slate"]{
-  --bg:#EDF0F3;--surface:#FBFCFD;--paper:#FDFDFE;--text:#1D242C;--muted:#5B6774;--faint:#8A94A0;
-  --line:#D6DDE4;--line2:#E8ECF1;--accent:#47607C;--accentSoft:#E0E9F2;--accentText:#3B5471;
-  --topbar:rgba(237,240,243,.9);--control:#F2F5F8;--controlHover:#E8EDF2;--cover:#DDE3EA;
-  --readerCanvas:#EDF0F3;--overlay:rgba(29,36,44,.32);--hud:rgba(251,252,253,.94);--imageBg:#E5EAF0;
-  --readingText:#232B33;--readingHeading:#171D24;--readingLink:#3F5D7E;--shadow:var(--shadowMd);
-}
+
+
 :root[data-theme="dusk"]{
   --bg:#23211F;--surface:#2B2926;--paper:#2F2C29;--text:#F2EDE6;--muted:#B4A99D;--faint:#8B8177;
   --line:#423D38;--line2:#37332F;--accent:#EEBF74;--accentSoft:#4A3A22;--accentText:#F2CE93;
@@ -4308,10 +4296,10 @@ body.reader-active #settings.settingsPage.readerPopup.open{
    <div class="toggleRow"><span id="timeLabel">Show time remaining</span><button id="timeToggle" class="switch"><i></i></button></div>
  </section>
  <section class="settingsGroup"><div id="settingsAppearanceTitle" class="settingsGroupTitle">Appearance</div><div class="themeGrid">
-  <button class="themeBtn" data-theme="paper" style="--previewBg:#FFFFFF;--previewAccent:#704A11;--previewText:#1A1A1E"><span class="themeSwatch"><i class="swBg"></i><i class="swAccent"></i><i class="swText"></i></span><span class="themeName">Paper</span></button>
+  
   <button class="themeBtn" data-theme="sepia" style="--previewBg:#FFFAF1;--previewAccent:#6B4A16;--previewText:#241F18"><span class="themeSwatch"><i class="swBg"></i><i class="swAccent"></i><i class="swText"></i></span><span class="themeName">Sepia</span></button>
-  <button class="themeBtn" data-theme="sage" style="--previewBg:#FCFDFA;--previewAccent:#4F6B4F;--previewText:#1E241E"><span class="themeSwatch"><i class="swBg"></i><i class="swAccent"></i><i class="swText"></i></span><span class="themeName">Sage</span></button>
-  <button class="themeBtn" data-theme="slate" style="--previewBg:#FDFDFE;--previewAccent:#47607C;--previewText:#1D242C"><span class="themeSwatch"><i class="swBg"></i><i class="swAccent"></i><i class="swText"></i></span><span class="themeName">Slate</span></button>
+  
+  
   <button class="themeBtn" data-theme="dusk" style="--previewBg:#2F2C29;--previewAccent:#EEBF74;--previewText:#F2EDE6"><span class="themeSwatch"><i class="swBg"></i><i class="swAccent"></i><i class="swText"></i></span><span class="themeName">Dusk</span></button>
   <button class="themeBtn" data-theme="oled" style="--previewBg:#000000;--previewAccent:#E0B072;--previewText:#D8D3CC"><span class="themeSwatch"><i class="swBg"></i><i class="swAccent"></i><i class="swText"></i></span><span class="themeName">OLED</span></button>
  </div>
@@ -4319,7 +4307,7 @@ body.reader-active #settings.settingsPage.readerPopup.open{
    <div id="oledMediaSetting" class="setting" hidden><label id="oledMediaLabel">Media brightness</label><input id="oledMediaBrightness" type="range" min="20" max="100" step="1"><output id="oledMediaOut"></output></div>
    <div id="oledInvertSetting" class="toggleRow" hidden><span id="oledInvertLabel">Invert light B&amp;W images</span><button id="oledInvertToggle" class="switch" aria-label="Invert light black and white images"><i></i></button></div>
  </section>
- <section class="settingsGroup"><div id="settingsReaderTitle" class="settingsGroupTitle">Reader</div><div class="toggleRow"><span id="selectionLabel">Allow text selection</span><button id="selectionToggle" class="switch" aria-label="Allow text selection"><i></i></button></div><div class="toggleRow"><span id="swipeAnimationLabel">Swipe page animation</span><button id="swipeAnimationToggle" class="switch" aria-label="Swipe page animation"><i></i></button></div><div id="hideUiRow" class="toggleRow desktopOnly" hidden><span class="toggleLabel"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M3 12s3.2-5 9-5 9 5 9 5-3.2 5-9 5-9-5-9-5Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.7"/></svg><span id="hideUiLabel">Hide reader controls</span></span><button id="hideUiToggle" class="switch" aria-label="Hide reader controls"><i></i></button></div><div class="settingsActions"><button id="fullscreenBtn" class="btn">Fullscreen</button><button id="resetSettingsBtn" class="btn">Reset appearance</button></div><div class="hint">Text selection is off by default to avoid accidental mobile selection menus. On mobile, center tap toggles the interface and horizontal swipes turn pages. Swipe page animation is optional and off by default. On desktop, reader controls stay visible unless you enable Hide reader controls; use the mouse wheel, arrows, PageUp/PageDown, or the navigation buttons to turn pages. On illustrations, double-tap toggles image zoom. EPUB text colors are normalized by default, and you can choose your own reading text color or restore the theme color. OLED can independently dim text and media. All reading and appearance settings, including layout, are shared between light novels and web novels on this device.</div></section>
+ <section class="settingsGroup"><div id="settingsReaderTitle" class="settingsGroupTitle">Reader</div><div class="toggleRow"><span id="selectionLabel">Allow text selection</span><button id="selectionToggle" class="switch" aria-label="Allow text selection"><i></i></button></div><div class="toggleRow"><span id="swipeAnimationLabel">Swipe page animation</span><button id="swipeAnimationToggle" class="switch" aria-label="Swipe page animation"><i></i></button></div><div id="hideUiRow" class="toggleRow desktopOnly" hidden><span id="hideUiLabel">Hide reader controls</span><button id="hideUiToggle" class="switch" aria-label="Hide reader controls"><i></i></button></div><div class="settingsActions"><button id="fullscreenBtn" class="btn">Fullscreen</button><button id="resetSettingsBtn" class="btn">Reset appearance</button></div><div class="hint">Text selection is off by default to avoid accidental mobile selection menus. On mobile, center tap toggles the interface and horizontal swipes turn pages. Swipe page animation is optional and off by default. On desktop, reader controls stay visible unless you enable Hide reader controls; use the mouse wheel, arrows, PageUp/PageDown, or the navigation buttons to turn pages. On illustrations, double-tap toggles image zoom. EPUB text colors are normalized by default, and you can choose your own reading text color or restore the theme color. OLED can independently dim text and media. All reading and appearance settings, including layout, are shared between light novels and web novels on this device.</div></section>
 </main>
 
 <main id="seriesView" class="view hidden">
@@ -4373,7 +4361,9 @@ body.reader-active #settings.settingsPage.readerPopup.open{
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
 const mobileReaderDefaults=matchMedia('(max-width:640px)').matches;
+const THEME_IDS=Object.freeze(['sepia','dusk','oled']);
 const defaults={mode:'paged',fontSize:mobileReaderDefaults?15:18,lineHeight:mobileReaderDefaults?1.5:1.7,textWidth:900,pageMargin:36,theme:'dusk',fontFamily:'serif',textColor:'',normalizeColors:true,spacing:'normal',indent:false,justify:false,hyphen:false,brightness:100,oledTextBrightness:82,oledMediaBrightness:78,autoInvertBw:true,showTime:false,allowSelection:false,swipeAnimation:true};
+function normalizeTheme(value){return THEME_IDS.includes(String(value||''))?String(value):defaults.theme}
 function readerKind(kind){return kind==='webnovel'?'webnovel':'epub'}
 const SHARED_MODE_KEY='reader-mode';
 function modeDefaultForKind(_kind){return defaults.mode}
@@ -4425,7 +4415,7 @@ const I18N={
   paragraphs:'Paragraphs',compact:'Compact',normal:'Normal',airy:'Airy',firstIndent:'First-line indent',
   justified:'Justified text',hyphenation:'Hyphenation',layout:'Layout',paged:'Paged',scroll:'Scroll',
   textWidth:'Text width',margins:'Margins',brightness:'Brightness',showTime:'Show time remaining',
-  paper:'Paper',sepia:'Sepia',sage:'Sage',slate:'Slate',dusk:'Dusk',oled:'OLED',
+  sepia:'Sepia',dusk:'Dusk',oled:'OLED',
   textBrightness:'Text brightness',mediaBrightness:'Media brightness',invertBw:'Invert light B&W images',
   allowSelection:'Allow text selection',swipeAnimation:'Swipe page animation',fullscreen:'Fullscreen',hideUi:'Hide reader controls',close:'Close',resetAppearance:'Reset appearance',
   contents:'Contents',back:'Back',language:'Language',readingSettings:'Reading settings',
@@ -4441,7 +4431,7 @@ const I18N={
   statusDeep:'Library ready · Deep indexing {done} / {total} changed/new volumes · {workers} workers',
   statusDone:'{series} novels · {found} volumes indexed',errors:'{n} errors',
   uiHint:'Text selection is off by default to avoid accidental mobile selection menus. On mobile, center tap toggles the interface and horizontal swipes turn pages. Swipe page animation is optional and off by default. On desktop, reader controls stay visible unless you explicitly hide them here. On illustrations, double-tap toggles image zoom. OLED can independently dim text and media. All reading and appearance settings, including layout, are shared between light novels and web novels on this device.',
-  discoveryContinueBlurb:'Pick up exactly where you left off.',lnMostShelf:'Most volumes',lnMostShelfBlurb:'Long-running light novel series with the deepest shelves.',lnRecentShelf:'Recently changed',lnRecentShelfBlurb:'Freshly added or updated EPUB series.',lnTranslatedShelf:'Translated',lnTranslatedShelfBlurb:'Light novels with Turkish translation patches available.',browseGenre:'Browse by genre',browseGenreBlurb:'Narrow the full library without leaving the shelf.',allGenres:'All',eliteShelf:'Curated',eliteShelfBlurb:'The strongest hand-picked novels in the library.',strongShelf:'Highly regarded',strongShelfBlurb:'Consistently strong genre recommendations.',popularShelf:'Popular & addictive',popularShelfBlurb:'Big, famous page-turners — even when they are not literary peak.',seeAll:'See all',toggleTheme:'Toggle Paper / Dusk',
+  discoveryContinueBlurb:'Pick up exactly where you left off.',lnMostShelf:'Most volumes',lnMostShelfBlurb:'Long-running light novel series with the deepest shelves.',lnRecentShelf:'Recently changed',lnRecentShelfBlurb:'Freshly added or updated EPUB series.',lnTranslatedShelf:'Translated',lnTranslatedShelfBlurb:'Light novels with Turkish translation patches available.',browseGenre:'Browse by genre',browseGenreBlurb:'Narrow the full library without leaving the shelf.',allGenres:'All',eliteShelf:'Curated',eliteShelfBlurb:'The strongest hand-picked novels in the library.',strongShelf:'Highly regarded',strongShelfBlurb:'Consistently strong genre recommendations.',popularShelf:'Popular & addictive',popularShelfBlurb:'Big, famous page-turners — even when they are not literary peak.',seeAll:'See all',toggleTheme:'Cycle theme',
   volUp:'Volume ↑',volDown:'Volume ↓',titleAZ:'Title A–Z',titleZA:'Title Z–A',filenameAZ:'Filename A–Z',
   largest:'Largest',smallest:'Smallest',tapControls:'Tap center to show controls'
  },
@@ -4459,7 +4449,7 @@ const I18N={
   paragraphs:'Paragraflar',compact:'Sıkışık',normal:'Normal',airy:'Ferah',firstIndent:'İlk satır girintisi',
   justified:'İki yana yaslı',hyphenation:'Heceleme',layout:'Düzen',paged:'Sayfalı',scroll:'Kaydırma',
   textWidth:'Metin genişliği',margins:'Kenar boşlukları',brightness:'Parlaklık',showTime:'Kalan süreyi göster',
-  paper:'Kağıt',sepia:'Sepya',sage:'Adaçayı',slate:'Arduvaz',dusk:'Alacakaranlık',oled:'OLED',
+  sepia:'Sepya',dusk:'Alacakaranlık',oled:'OLED',
   textBrightness:'Metin parlaklığı',mediaBrightness:'Medya parlaklığı',invertBw:'Açık renkli S/B görselleri ters çevir',
   allowSelection:'Metin seçimine izin ver',swipeAnimation:'Sayfa geçiş animasyonu',fullscreen:'Tam ekran',hideUi:'Okuyucu kontrollerini gizle',close:'Kapat',resetAppearance:'Görünümü sıfırla',
   contents:'İçindekiler',back:'Geri',language:'Dil',readingSettings:'Okuma ayarları',
@@ -4475,7 +4465,7 @@ const I18N={
   statusDeep:'Kütüphane hazır · Değişen/yeni ciltler indeksleniyor {done} / {total} · {workers} iş parçacığı',
   statusDone:'{series} roman · {found} cilt indekslendi',errors:'{n} hata',
   uiHint:'Metin seçimi, mobilde yanlışlıkla açılan seçim menülerini önlemek için varsayılan olarak kapalıdır. Mobilde ortaya dokunmak arayüzü açıp kapatır; yatay kaydırma ise sayfayı değiştirir. Sayfa geçiş animasyonu isteğe bağlıdır ve varsayılan olarak kapalıdır. Masaüstünde okuyucu kontrolleri siz gizlemedikçe görünür kalır. Görsellerde çift dokunuş yakınlaştırmayı açıp kapatır. EPUB içindeki özel metin renkleri varsayılan olarak yok sayılır; isterseniz okuma metni için özel bir renk seçebilir veya tema rengine dönebilirsiniz. OLED temasında metin ve medya parlaklığı ayrı ayrı azaltılabilir. Düzen dahil tüm okuma ve görünüm ayarları bu cihazda Light Novel ve Web Novel içerikleri arasında ortaktır.',
-  discoveryContinueBlurb:'Kaldığınız yerden devam edin.',lnMostShelf:'En çok cilt',lnMostShelfBlurb:'En fazla cilde sahip uzun soluklu Light Novel serileri.',lnRecentShelf:'Son değiştirilenler',lnRecentShelfBlurb:'Yeni eklenen veya yakın zamanda güncellenen EPUB serileri.',lnTranslatedShelf:'Türkçe mevcut',lnTranslatedShelfBlurb:'Türkçe çeviri yaması bulunan Light Novel serileri.',browseGenre:'Türe göre göz at',browseGenreBlurb:'Kütüphaneyi türe göre hızlıca filtreleyin.',allGenres:'Tümü',eliteShelf:'Seçki',eliteShelfBlurb:'Özenle seçilmiş, öne çıkan Web Novel serileri.',strongShelf:'Çok beğenilen',strongShelfBlurb:'Kendi türlerinde öne çıkan, güçlü öneriler.',popularShelf:'Popüler ve sürükleyici',popularShelfBlurb:'Çok okunan, kolay içine çeken ve uzun soluklu popüler seriler.',seeAll:'Hepsini gör',toggleTheme:'Kağıt / Alacakaranlık temasını değiştir',
+  discoveryContinueBlurb:'Kaldığınız yerden devam edin.',lnMostShelf:'En çok cilt',lnMostShelfBlurb:'En fazla cilde sahip uzun soluklu Light Novel serileri.',lnRecentShelf:'Son değiştirilenler',lnRecentShelfBlurb:'Yeni eklenen veya yakın zamanda güncellenen EPUB serileri.',lnTranslatedShelf:'Türkçe mevcut',lnTranslatedShelfBlurb:'Türkçe çeviri yaması bulunan Light Novel serileri.',browseGenre:'Türe göre göz at',browseGenreBlurb:'Kütüphaneyi türe göre hızlıca filtreleyin.',allGenres:'Tümü',eliteShelf:'Seçki',eliteShelfBlurb:'Özenle seçilmiş, öne çıkan Web Novel serileri.',strongShelf:'Çok beğenilen',strongShelfBlurb:'Kendi türlerinde öne çıkan, güçlü öneriler.',popularShelf:'Popüler ve sürükleyici',popularShelfBlurb:'Çok okunan, kolay içine çeken ve uzun soluklu popüler seriler.',seeAll:'Hepsini gör',toggleTheme:'Temayı değiştir',
   volUp:'Cilt ↑',volDown:'Cilt ↓',titleAZ:'Başlık A–Z',titleZA:'Başlık Z–A',filenameAZ:'Dosya adı A–Z',
   largest:'En büyük',smallest:'En küçük',tapControls:'Kontrolleri açmak için ortaya dokun'
  }
@@ -4541,7 +4531,7 @@ function applyLanguage(){
  const vo=$('#volumeSort').options;[t('volUp'),t('volDown'),t('titleAZ'),t('titleZA'),t('filenameAZ'),t('largest'),t('smallest')].forEach((x,i)=>{if(vo[i])vo[i].text=x});
  $('#pagedMode').textContent=t('paged');$('#scrollMode').textContent=t('scroll');
  const spacing=$$('[data-spacing]');[t('compact'),t('normal'),t('airy')].forEach((x,i)=>{if(spacing[i])spacing[i].textContent=x});
- const themeNames=['paper','sepia','sage','slate','dusk','oled'];themeNames.forEach(k=>{const el=$(`.themeBtn[data-theme="${k}"] .themeName`);if(el)el.textContent=t(k)});
+ const themeNames=THEME_IDS;themeNames.forEach(k=>{const el=$(`.themeBtn[data-theme="${k}"] .themeName`);if(el)el.textContent=t(k)});
  const hint=$('.settings .hint');if(hint)hint.textContent=t('uiHint');
  applyAdvancedLanguage();
  $('#heroTranslateBadge').title=t('translated');$('#heroTranslateBadge').setAttribute('aria-label',t('translated'));
@@ -4564,7 +4554,8 @@ function applyAdvancedLanguage(){
 let BOOK=null,sectionWeights=[],totalWeight=1,totalWords=0;
 const PROGRESS_PREFIX='reader-progress-v2:';
 const OLD_PROGRESS_PREFIX='reader-progress-v1:';
-const state={language:uiLanguage,view:'library',series:null,libraryData:[],volumeData:[],section:0,page:0,pages:1,mode:loadModeForKind('epub'),fontSize:+bget('ln-font',defaults.fontSize),lineHeight:+bget('ln-line',defaults.lineHeight),textWidth:+bget('ln-width',defaults.textWidth),pageMargin:+bget('ln-margin',defaults.pageMargin),theme:bget('ln-theme',defaults.theme),fontFamily:bget('ln-font-family',defaults.fontFamily),textColor:bget('ln-text-color',defaults.textColor),normalizeColors:bget('ln-normalize-colors',defaults.normalizeColors),spacing:bget('ln-spacing',defaults.spacing),indent:bget('ln-indent',defaults.indent),justify:bget('ln-justify',defaults.justify),hyphen:bget('ln-hyphen',defaults.hyphen),brightness:+bget('ln-brightness',defaults.brightness),oledTextBrightness:+bget('ln-oled-text-brightness',defaults.oledTextBrightness),oledMediaBrightness:+bget('ln-oled-media-brightness',defaults.oledMediaBrightness),autoInvertBw:bget('ln-oled-auto-invert',defaults.autoInvertBw),showTime:bget('ln-show-time',defaults.showTime),wheel:0,edgeWheel:0,animating:false,_resumeProgress:null,_target:0,_stride:0,chromeVisible:true,chromeTimer:0,touch:null,suppressClickUntil:0,lastTap:0,lastTapX:0,lastTapY:0,singleTapTimer:0,touchTapTime:0,touchTapX:0,touchTapY:0,touchTapKind:'',touchTapTimer:0,zoomScale:1,zoomX:0,zoomY:0,zoomAnimTimer:0,zoomViewportTimer:0,pinch:null,drag:null,swipe:null,navQueue:0,animTimer:0,animFinish:null,_resumeAnchor:null,pageAnchors:[],wordCount:0,layoutMetrics:null,pendingViewportAnchor:null,renderedBookId:null,renderedSection:-1,allowSelection:bget('reader-allow-selection',defaults.allowSelection),swipeAnimation:bget('reader-swipe-animation',defaults.swipeAnimation),swipeNavActive:false,swipePageTimer:0,loading:false,fullscreenTransition:false,pendingViewportReflow:false,librarySource:(()=>{const v=storage.get('reader-library-source');return ['both','epub','webnovel'].includes(v)?v:'both'})(),librarySort:'source',libraryBySource:{epub:[],webnovel:[]},libraryTotals:{epubVolumes:0,webnovelChapters:0},volumeSort:storage.get('reader-volume-sort')||'volume_asc',lastStatusKey:'',webnovelsAvailable:false,discoveryGenre:storage.get('reader-discovery-genre')||'All',advancedOptions:null,advancedSource:'both',advancedGenreModes:{},advancedStatuses:[],advancedPage:1,advancedLastPayload:null,advancedRestored:false};
+const state={language:uiLanguage,view:'library',series:null,libraryData:[],volumeData:[],section:0,page:0,pages:1,mode:loadModeForKind('epub'),fontSize:+bget('ln-font',defaults.fontSize),lineHeight:+bget('ln-line',defaults.lineHeight),textWidth:+bget('ln-width',defaults.textWidth),pageMargin:+bget('ln-margin',defaults.pageMargin),theme:normalizeTheme(bget('ln-theme',defaults.theme)),fontFamily:bget('ln-font-family',defaults.fontFamily),textColor:bget('ln-text-color',defaults.textColor),normalizeColors:bget('ln-normalize-colors',defaults.normalizeColors),spacing:bget('ln-spacing',defaults.spacing),indent:bget('ln-indent',defaults.indent),justify:bget('ln-justify',defaults.justify),hyphen:bget('ln-hyphen',defaults.hyphen),brightness:+bget('ln-brightness',defaults.brightness),oledTextBrightness:+bget('ln-oled-text-brightness',defaults.oledTextBrightness),oledMediaBrightness:+bget('ln-oled-media-brightness',defaults.oledMediaBrightness),autoInvertBw:bget('ln-oled-auto-invert',defaults.autoInvertBw),showTime:bget('ln-show-time',defaults.showTime),wheel:0,edgeWheel:0,animating:false,_resumeProgress:null,_target:0,_stride:0,chromeVisible:true,chromeTimer:0,touch:null,suppressClickUntil:0,lastTap:0,lastTapX:0,lastTapY:0,singleTapTimer:0,touchTapTime:0,touchTapX:0,touchTapY:0,touchTapKind:'',touchTapTimer:0,zoomScale:1,zoomX:0,zoomY:0,zoomAnimTimer:0,zoomViewportTimer:0,pinch:null,drag:null,swipe:null,navQueue:0,animTimer:0,animFinish:null,_resumeAnchor:null,pageAnchors:[],wordCount:0,layoutMetrics:null,pendingViewportAnchor:null,renderedBookId:null,renderedSection:-1,allowSelection:bget('reader-allow-selection',defaults.allowSelection),swipeAnimation:bget('reader-swipe-animation',defaults.swipeAnimation),swipeNavActive:false,swipePageTimer:0,loading:false,fullscreenTransition:false,pendingViewportReflow:false,librarySource:(()=>{const v=storage.get('reader-library-source');return ['both','epub','webnovel'].includes(v)?v:'both'})(),librarySort:'source',libraryBySource:{epub:[],webnovel:[]},libraryTotals:{epubVolumes:0,webnovelChapters:0},volumeSort:storage.get('reader-volume-sort')||'volume_asc',lastStatusKey:'',webnovelsAvailable:false,discoveryGenre:storage.get('reader-discovery-genre')||'All',advancedOptions:null,advancedSource:'both',advancedGenreModes:{},advancedStatuses:[],advancedPage:1,advancedLastPayload:null,advancedRestored:false};
+if(storage.get('ln-theme')!==state.theme)storage.set('ln-theme',state.theme);
 state.librarySort=storage.get(sourceSortKey(state.librarySource))||sourceDefaultSort(state.librarySource);
 if(!['paper','sepia','sage','slate','dusk','oled'].includes(state.theme))state.theme='dusk';
 if(!['paged','scroll'].includes(state.mode))state.mode='paged';
@@ -6812,7 +6803,7 @@ function bindToggle(id,key,store,reflow=true){$(id).onclick=()=>{const a=state.v
 bindToggle('#normalizeColorsToggle','normalizeColors','ln-normalize-colors',false);bindToggle('#indentToggle','indent','ln-indent');bindToggle('#justifyToggle','justify','ln-justify');bindToggle('#hyphenToggle','hyphen','ln-hyphen');bindToggle('#timeToggle','showTime','ln-show-time',false);bindToggle('#selectionToggle','allowSelection','reader-allow-selection',false);bindToggle('#swipeAnimationToggle','swipeAnimation','reader-swipe-animation',false);
 bindToggle('#oledInvertToggle','autoInvertBw','ln-oled-auto-invert',false);
 $$('.themeBtn').forEach(b=>b.onclick=()=>{state.theme=b.dataset.theme;storage.set('ln-theme',state.theme);syncSettings();prepareBookMedia($('#readerStage'))});
-$('#themeQuickBtn').onclick=()=>{state.theme=state.theme==='dusk'?'paper':'dusk';storage.set('ln-theme',state.theme);syncSettings();prepareBookMedia($('#readerStage'))};
+$('#themeQuickBtn').onclick=()=>{const i=THEME_IDS.indexOf(state.theme);state.theme=THEME_IDS[(i+1)%THEME_IDS.length];storage.set('ln-theme',state.theme);syncSettings();prepareBookMedia($('#readerStage'))};
 $('#fullscreenBtn').onclick=()=>toggleFullscreen();
 $('#hideUiToggle').onclick=()=>{if(state.view!=='reader')return;const hide=state.chromeVisible;closePanels();setChrome(!hide,true)};
 $('#resetSettingsBtn').onclick=()=>{Object.assign(state,defaults);state.mode=defaults.mode;for(const k of ['ln-font','ln-line','ln-width','ln-margin','ln-theme','ln-font-family','ln-text-color','ln-normalize-colors','ln-spacing','ln-indent','ln-justify','ln-hyphen','ln-brightness','ln-oled-text-brightness','ln-oled-media-brightness','ln-oled-auto-invert','ln-show-time','reader-allow-selection','reader-swipe-animation',SHARED_MODE_KEY,'reader-mode-epub','reader-mode-webnovel','ln-mode'])storage.del(k);syncSettings();if(state.view==='reader'){const a=currentWordAnchor(),p=currentProgress();applyLayout(p,a)}};
