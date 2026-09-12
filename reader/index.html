@@ -4398,7 +4398,8 @@ body:not(.reader-active){
 <aside id="drawer" class="drawer" aria-modal="true" role="dialog"><div class="drawerHead"><div class="panelHeadRow"><div class="panelHeadText"><h3 id="drawerTitle"></h3><p id="drawerAuthor"></p></div><button id="drawerClose" class="panelClose" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6.5 6.5 11 11m0-11-11 11" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button></div><div id="drawerContentsLabel" class="drawerSectionLabel">Contents</div></div><div id="toc" class="toc"></div></aside>
 
 <script src="./reader-storage-config.js?v=20260912-pretranslate-clean1"></script>
-<script src="./reader-static-adapter.js"></script>
+<script src="./reader-static-adapter.js?v=20260912-mozhi1"></script>
+<script src="./reader-mozhi.js?v=20260912-auto1"></script>
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
 const mobileReaderDefaults=matchMedia('(max-width:640px)').matches;
@@ -4734,7 +4735,7 @@ function getSavedProgress(){
   return{section,fraction,anchor,updated:+x.updated||0}
 }
 
-function recomputeBookStats(){if(BOOK?.kind==='webnovel'){sectionWeights=BOOK.sections.map(()=>1);totalWeight=Math.max(1,sectionWeights.length);totalWords=Math.max(0,+BOOK.estimatedWords||0);return}sectionWeights=BOOK.sections.map(s=>s.imageOnly?220:Math.max(80,stripText(s.html).split(/\s+/).filter(Boolean).length));totalWeight=Math.max(1,sectionWeights.reduce((a,b)=>a+b,0));totalWords=BOOK.sections.reduce((n,s)=>n+(s.imageOnly?0:stripText(s.html).split(/\s+/).filter(Boolean).length),0)}
+function recomputeBookStats(){if(BOOK?.kind==='webnovel'){sectionWeights=BOOK.sections.map(()=>1);totalWeight=Math.max(1,sectionWeights.length);totalWords=Math.max(0,+BOOK.estimatedWords||0);return}const statHtml=s=>s?.sourceHtmlEn||s?.html||'';sectionWeights=BOOK.sections.map(s=>s.imageOnly?220:Math.max(80,stripText(statHtml(s)).split(/\s+/).filter(Boolean).length));totalWeight=Math.max(1,sectionWeights.reduce((a,b)=>a+b,0));totalWords=BOOK.sections.reduce((n,s)=>n+(s.imageOnly?0:stripText(statHtml(s)).split(/\s+/).filter(Boolean).length),0)}
 function weightBefore(i){let n=0;for(let x=0;x<i;x++)n+=sectionWeights[x]||0;return n}
 function getSavedProgress(){
  if(!BOOK)return{section:0,fraction:0,anchor:null,updated:0};
@@ -4863,13 +4864,64 @@ async function ensureWebSectionLoaded(index,force=false){
  if(sec.loadingPromise)return sec.loadingPromise;
  sec.loadingPromise=(async()=>{
   try{
-   const wantsTranslation=uiLanguage==='tr'&&!!sec.translated;
-   const suffix=wantsTranslation?'?lang=tr':'';
-   const r=await fetch(`/api/wn/chapter/${encodeURIComponent(sec.chapterId)}${suffix}`,{cache:'no-store'});
-   if(r.status===204){sec.available=false;sec.contentLanguage='en';sec.html=webNovelUnavailableHTML()}
-   else if(!r.ok)throw new Error(`HTTP ${r.status}`);
-   else{const text=await r.text();sec.contentLanguage=(r.headers.get('X-Reader-Content-Language')||((wantsTranslation)?'tr':'en')).toLowerCase();sec.available=!!text.trim();sec.html=sec.available?`<h2>${esc(sec.title||`${t('chapter')} ${index+1}`)}</h2>${webNovelTextHTML(text)}`:webNovelUnavailableHTML()}
+   const base=`/api/wn/chapter/${encodeURIComponent(sec.chapterId)}`;
+   if(uiLanguage!=='tr'){
+    const r=await fetch(base,{cache:'no-store'});
+    if(r.status===204){sec.available=false;sec.contentLanguage='en';sec.html=webNovelUnavailableHTML()}
+    else if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    else{
+     const text=await r.text();
+     sec.contentLanguage=(r.headers.get('X-Reader-Content-Language')||'en').toLowerCase();
+     sec.available=!!text.trim();
+     sec.html=sec.available?`<h2>${esc(sec.sourceTitle||sec.title||`${t('chapter')} ${index+1}`)}</h2>${webNovelTextHTML(text)}`:webNovelUnavailableHTML()
+    }
+   }else{
+    const enPromise=fetch(base,{cache:'no-store'});
+    const trPromise=fetch(base+'?lang=tr',{cache:'no-store'}).catch(()=>null);
+    const enResponse=await enPromise;
+    const trResponse=await trPromise;
+
+    if(enResponse.status===204)throw new Error('English source unavailable');
+    if(!enResponse.ok)throw new Error(`English HTTP ${enResponse.status}`);
+    const enText=await enResponse.text();
+    if(!enText.trim())throw new Error('English source is empty');
+
+    let fallbackTr='';
+    if(trResponse&&trResponse.ok){
+     const lang=(trResponse.headers.get('X-Reader-Content-Language')||'').toLowerCase();
+     const candidate=await trResponse.text();
+     if(lang==='tr'&&candidate.trim())fallbackTr=candidate
+    }
+
+    let translated='';
+    let mozhiError=null;
+    try{
+     if(!window.ReaderMozhi?.translateText)throw new Error('Mozhi runtime unavailable');
+     translated=await ReaderMozhi.translateText(enText,{
+      source:'en',target:'tr',cacheKey:`wn:${BOOK.id}:${sec.chapterId}`
+     })
+    }catch(e){mozhiError=e}
+
+    if(translated.trim()){
+     sec.translationSource='mozhi';
+     sec.contentLanguage='tr';
+     sec.available=true;
+     const title=sec.fallbackTitleTr||`Bölüm ${sec.chapterIndex||index+1}`;
+     sec.html=`<h2>${esc(title)}</h2>${webNovelTextHTML(translated)}`
+    }else if(fallbackTr){
+     sec.translationSource='builtin';
+     sec.contentLanguage='tr';
+     sec.available=true;
+     const title=sec.fallbackTitleTr||`Bölüm ${sec.chapterIndex||index+1}`;
+     sec.html=`<h2>${esc(title)}</h2>${webNovelTextHTML(fallbackTr)}`;
+     console.warn('[reader-mozhi] WN fallback to packaged Turkish',sec.chapterId,mozhiError)
+    }else{
+     throw mozhiError||new Error('Mozhi failed and no packaged Turkish fallback exists')
+    }
+   }
   }catch(e){
+   sec.available=false;
+   sec.contentLanguage=uiLanguage==='tr'?'tr':'en';
    sec.html=`<p>${esc(t('sectionLoadError'))}</p><p>${esc(e.message)}</p>`
   }finally{
    sec.loaded=true;sec.loadedAt=Date.now();sec.loadingPromise=null
@@ -4879,7 +4931,8 @@ async function ensureWebSectionLoaded(index,force=false){
 }
 function prefetchWebSections(index){
  if(!BOOK||BOOK.kind!=='webnovel')return;
- for(const i of [index-2,index-1,index+1,index+2])if(i>=0&&i<BOOK.sections.length)ensureWebSectionLoaded(i).catch(()=>{})
+ const list=uiLanguage==='tr'?[index+1]:[index-2,index-1,index+1,index+2];
+ for(const i of list)if(i>=0&&i<BOOK.sections.length)ensureWebSectionLoaded(i).catch(()=>{})
 }
 async function hydrateBookSections(meta){
  if(meta.kind==='webnovel'){
@@ -4889,29 +4942,85 @@ async function hydrateBookSections(meta){
    manifest=Array.isArray(fallback.chapters)?fallback.chapters:[]
   }
   if(!manifest.length&&Number(meta.chapter_count||0)>0)throw new Error(`Chapter list unavailable (${meta.chapter_count} expected)`);
-  const sections=manifest.map(s=>({path:s.path,title:(uiLanguage==='tr'&&s.translated&&s.translated_title)?s.translated_title:(s.title||''),imageOnly:false,html:webNovelLoadingHTML(),source:'webnovel',chapterId:s.chapter_id,chapterIndex:s.chapter_index,available:!!s.available,translated:!!s.translated,contentLanguage:'en',loaded:false,loadedAt:0,loadingPromise:null}));
+  const sections=manifest.map((s,i)=>({
+   path:s.path,
+   title:uiLanguage==='tr'?(s.translated_title||`Bölüm ${s.chapter_index||i+1}`):(s.title||''),
+   sourceTitle:s.title||'',
+   fallbackTitleTr:s.translated_title||'',
+   imageOnly:false,html:webNovelLoadingHTML(),source:'webnovel',
+   chapterId:s.chapter_id,chapterIndex:s.chapter_index,available:!!s.available,
+   translated:!!s.translated,contentLanguage:uiLanguage==='tr'?'tr':'en',
+   translationSource:null,loaded:false,loadedAt:0,loadingPromise:null
+  }));
   setLoaderProgress(82,t('preparingChapters'));
   return sections
  }
- const sections=(meta.spine||[]).map(s=>({path:s.path,title:s.title||'',imageOnly:!!s.image_only,html:''}));
- const bookLang=(uiLanguage==='tr'&&meta.translated)?'tr':'';
+
+ const wantsMozhi=uiLanguage==='tr';
+ const sections=(meta.spine||[]).map(s=>({
+  path:s.path,title:s.title||'',imageOnly:!!s.image_only,html:'',
+  sourceHtmlEn:'',fallbackHtmlTr:null,contentLanguage:wantsMozhi?'tr':'en',
+  mozhiState:wantsMozhi?'pending':'off',mozhiPromise:null,translationSource:null
+ }));
  let done=0,next=0;
  const workers=Math.min(6,Math.max(1,sections.length));
+
+ async function safeFetch(url){
+  try{return await fetch(url)}catch(_){return null}
+ }
+
  async function worker(){
   while(true){
    const i=next++;if(i>=sections.length)return;
    const sec=sections[i];
    try{
-    const r=await fetch(resourceURLFor(meta.id,sec.path,bookLang));
-    if(!r.ok)throw new Error(`HTTP ${r.status}`);
-    sec.html=sanitizeSectionHTML(await r.text(),meta.id,sec.path);
-    if(bookLang==='tr'){
-      const d=document.createElement('div');d.innerHTML=sec.html;
-      const candidate=d.querySelector('h1,h2,h3,h4')?.textContent?.replace(/\s+/g,' ').trim();
-      if(candidate&&candidate.length<180)sec.title=candidate
+    if(!wantsMozhi){
+     const r=await fetch(resourceURLFor(meta.id,sec.path));
+     if(!r.ok)throw new Error(`HTTP ${r.status}`);
+     sec.html=sanitizeSectionHTML(await r.text(),meta.id,sec.path);
+     sec.contentLanguage='en';
+     sec.mozhiState='off'
+    }else{
+     const [enR,trR]=await Promise.all([
+      safeFetch(resourceURLFor(meta.id,sec.path)),
+      safeFetch(resourceURLFor(meta.id,sec.path,'tr'))
+     ]);
+
+     let enRaw='';
+     if(enR?.ok)enRaw=await enR.text();
+     if(enRaw)sec.sourceHtmlEn=sanitizeSectionHTML(enRaw,meta.id,sec.path);
+
+     let trRaw='';
+     if(trR?.ok){
+      const actual=(trR.headers.get('X-Reader-Content-Language')||'').toLowerCase();
+      const candidate=await trR.text();
+      const looksTurkish=actual==='tr'||(!actual&&meta.translated&&candidate&&candidate!==enRaw);
+      if(looksTurkish)trRaw=candidate
+     }
+     if(trRaw)sec.fallbackHtmlTr=sanitizeSectionHTML(trRaw,meta.id,sec.path);
+
+     if(sec.imageOnly){
+      sec.html=sec.fallbackHtmlTr||sec.sourceHtmlEn;
+      sec.mozhiState='ready';
+      sec.translationSource=sec.fallbackHtmlTr?'builtin':'media';
+     }else{
+      sec.html='<p>Çeviri hazırlanıyor…</p>';
+      if(!sec.sourceHtmlEn&&sec.fallbackHtmlTr){
+       sec.html=sec.fallbackHtmlTr;
+       sec.mozhiState='fallback';
+       sec.translationSource='builtin'
+      }else if(!sec.sourceHtmlEn&&!sec.fallbackHtmlTr){
+       throw new Error('No English source or Turkish fallback')
+      }
+     }
     }
    }catch(e){
-    sec.html=`<p>${esc(t('sectionLoadError'))}</p><p>${esc(e.message)}</p>`
+    if(wantsMozhi&&sec.fallbackHtmlTr){
+     sec.html=sec.fallbackHtmlTr;sec.mozhiState='fallback';sec.translationSource='builtin'
+    }else{
+     sec.html=`<p>${esc(t('sectionLoadError'))}</p><p>${esc(e.message)}</p>`;
+     sec.mozhiState=wantsMozhi?'failed':'off'
+    }
    }
    done++;
    setLoaderProgress(26+done/Math.max(1,sections.length)*56,t('loadingBook',{done,total:sections.length}))
@@ -4921,7 +5030,51 @@ async function hydrateBookSections(meta){
  return sections
 }
 
-function webNovelCurationRank(s){
+async function ensureLnSectionTranslated(index){
+ if(uiLanguage!=='tr'||!BOOK||BOOK.kind!=='epub'||index<0||index>=BOOK.sections.length)return;
+ const sec=BOOK.sections[index];
+ if(sec.imageOnly||['ready','fallback','failed'].includes(sec.mozhiState))return;
+ if(sec.mozhiPromise)return sec.mozhiPromise;
+
+ sec.mozhiState='loading';
+ sec.mozhiPromise=(async()=>{
+  try{
+   if(!sec.sourceHtmlEn)throw new Error('English source unavailable for Mozhi');
+   if(!window.ReaderMozhi?.translateHTML)throw new Error('Mozhi runtime unavailable');
+   const html=await ReaderMozhi.translateHTML(sec.sourceHtmlEn,{
+    source:'en',target:'tr',cacheKey:`ln:${BOOK.id}:${sec.path}`
+   });
+   if(!html.trim())throw new Error('Mozhi returned empty HTML');
+   sec.html=html;
+   sec.contentLanguage='tr';
+   sec.mozhiState='ready';
+   sec.translationSource='mozhi'
+  }catch(e){
+   if(sec.fallbackHtmlTr){
+    sec.html=sec.fallbackHtmlTr;
+    sec.contentLanguage='tr';
+    sec.mozhiState='fallback';
+    sec.translationSource='builtin';
+    console.warn('[reader-mozhi] LN fallback to packaged Turkish',sec.path,e)
+   }else{
+    sec.html=`<p>${esc(t('sectionLoadError'))}</p><p>${esc(e.message)}</p>`;
+    sec.contentLanguage='tr';
+    sec.mozhiState='failed';
+    sec.translationSource='error'
+   }
+  }finally{
+   sec.mozhiPromise=null
+  }
+ })();
+ return sec.mozhiPromise
+}
+
+function prefetchLnMozhi(index){
+ if(uiLanguage!=='tr'||!BOOK||BOOK.kind!=='epub')return;
+ const next=index+1;
+ if(next<BOOK.sections.length)ensureLnSectionTranslated(next).catch(()=>{})
+}
+function webNovelCurationRank(s){function webNovelCurationRank(s){
  const tier=String(s?.curation_tier||'');
  if(tier==='elite')return 0;
  if(tier==='strong')return 1;
@@ -5146,7 +5299,7 @@ async function openBook(id){
   // previous book's DOM before assigning the new BOOK, otherwise section 0 of
   // two different books can be mistaken for the same already-rendered page.
   resetReaderForBookSwitch();
-  BOOK={id:meta.id,title:meta.title||meta.filename,series:meta.series_name||meta.series||(uiLanguage==='tr'?'Roman':'Novel'),seriesPath:meta.series,author:meta.author||'',publisher:meta.publisher||'',translated:!!meta.translated,contentLanguage:(uiLanguage==='tr'&&meta.translated)?'tr':'en',cover:coverURLFor(meta.id),sections,kind:meta.kind||'epub',estimatedWords:+meta.estimated_word_count||0};
+  BOOK={id:meta.id,title:meta.title||meta.filename,series:meta.series_name||meta.series||(uiLanguage==='tr'?'Roman':'Novel'),seriesPath:meta.series,author:meta.author||'',publisher:meta.publisher||'',translated:!!meta.translated,contentLanguage:uiLanguage==='tr'?'tr':'en',cover:coverURLFor(meta.id),sections,kind:meta.kind||'epub',estimatedWords:+meta.estimated_word_count||0};
   // Layout is one shared reader preference for both EPUB and web-novel content.
   state.mode=loadModeForKind(BOOK.kind);
   // Reading position is shared across languages; only word-anchor reuse is language-specific.
@@ -5155,6 +5308,10 @@ async function openBook(id){
   state.section=0;state.page=0;state.pages=1;state._target=0;
   $('#drawerTitle').textContent=BOOK.title;$('#drawerAuthor').textContent=BOOK.author;
   const p=getSavedProgress();
+  if(BOOK.kind==='epub'&&uiLanguage==='tr'){
+   setLoaderProgress(88,'Mozhi ile çevriliyor…');
+   await ensureLnSectionTranslated(p.section)
+  }
   if(BOOK.kind==='webnovel'){
    setLoaderProgress(74,t('loadingBook',{done:Math.min(BOOK.sections.length,p.section+1),total:BOOK.sections.length}));
    await ensureWebSectionLoaded(p.section);
@@ -5787,8 +5944,17 @@ function setSectionMarkup(){
   const requested=state.section,requestedBookId=BOOK.id;
   ensureWebSectionLoaded(requested).then(()=>{if(BOOK?.kind==='webnovel'&&BOOK.id===requestedBookId&&state.section===requested)setSectionMarkup()}).catch(()=>{})
  }
- if(BOOK?.kind==='webnovel'&&sec.contentLanguage)BOOK.contentLanguage=sec.contentLanguage;
- resetImageZoom(false);host.classList.toggle('imageMode',sec.imageOnly);prose.innerHTML='';imgStage.innerHTML='';if(sec.imageOnly){state.wordCount=0;state.pageAnchors=[];const temp=document.createElement('div');temp.innerHTML=sec.html;const img=temp.querySelector('img');if(img){img.removeAttribute('style');img.removeAttribute('width');img.removeAttribute('height');img.alt=sec.title||'Illustration';guardReaderImage(img,sec,BOOK?.id);imgStage.appendChild(img)}}else{prose.innerHTML=sec.html;prose.querySelectorAll('[style]').forEach(x=>x.removeAttribute('style'));prose.querySelectorAll('img').forEach(x=>{x.removeAttribute('width');x.removeAttribute('height')});decorateChapterOpening(prose)}state.renderedBookId=BOOK?.id??null;state.renderedSection=state.section;prepareBookMedia(host);applyReadingClasses();const resume=state._resumeProgress;const resumeAnchor=state._resumeAnchor;state._resumeProgress=null;state._resumeAnchor=null;applyLayout(resume,resumeAnchor);buildToc();updateHud();if(BOOK?.kind==='webnovel'&&sec.loaded)prefetchWebSections(state.section)
+ if(BOOK?.kind==='epub'&&uiLanguage==='tr'&&!sec.imageOnly&&!['ready','fallback','failed'].includes(sec.mozhiState)){
+  const requested=state.section,requestedBookId=BOOK.id;
+  ensureLnSectionTranslated(requested).then(()=>{
+   if(BOOK?.kind==='epub'&&BOOK.id===requestedBookId&&state.section===requested){
+    state.renderedSection=-1;
+    setSectionMarkup()
+   }
+  }).catch(()=>{})
+ }
+ if(sec.contentLanguage)BOOK.contentLanguage=sec.contentLanguage;
+ resetImageZoom(false);host.classList.toggle('imageMode',sec.imageOnly);prose.innerHTML='';imgStage.innerHTML='';if(sec.imageOnly){state.wordCount=0;state.pageAnchors=[];const temp=document.createElement('div');temp.innerHTML=sec.html;const img=temp.querySelector('img');if(img){img.removeAttribute('style');img.removeAttribute('width');img.removeAttribute('height');img.alt=sec.title||'Illustration';guardReaderImage(img,sec,BOOK?.id);imgStage.appendChild(img)}}else{prose.innerHTML=sec.html;prose.querySelectorAll('[style]').forEach(x=>x.removeAttribute('style'));prose.querySelectorAll('img').forEach(x=>{x.removeAttribute('width');x.removeAttribute('height')});decorateChapterOpening(prose)}state.renderedBookId=BOOK?.id??null;state.renderedSection=state.section;prepareBookMedia(host);applyReadingClasses();const resume=state._resumeProgress;const resumeAnchor=state._resumeAnchor;state._resumeProgress=null;state._resumeAnchor=null;applyLayout(resume,resumeAnchor);buildToc();updateHud();if(BOOK?.kind==='webnovel'&&sec.loaded)prefetchWebSections(state.section);if(BOOK?.kind==='epub'&&uiLanguage==='tr')prefetchLnMozhi(state.section)
 }
 
 function stylePreviewProse(prose){
