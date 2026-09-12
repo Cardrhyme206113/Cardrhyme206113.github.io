@@ -3657,6 +3657,57 @@ body.reader-active #themeQuickBtn{
   #continueSection::before{top:-145px;width:170vw;height:540px;filter:blur(30px)}
 }
 </style>
+<style id="wn-catalog-split-v1">
+.libraryCatalogDivider{
+  margin:68px 0 28px!important;
+  padding-top:22px!important;
+  border-top:1px solid var(--line)!important;
+}
+@media(max-width:640px){
+  #library.virtualLibrary>.libraryVirtualChunk.wnCatalogChunk.cardGrid{
+    grid-template-columns:repeat(3,minmax(0,1fr))!important;
+    gap:24px 8px!important;
+  }
+  #library.virtualLibrary>.libraryVirtualChunk.wnCatalogChunk .cardTitle{
+    font-size:11.5px!important;
+    line-height:1.24!important;
+  }
+  #library.virtualLibrary>.libraryVirtualChunk.wnCatalogChunk .cardMeta,
+  #library.virtualLibrary>.libraryVirtualChunk.wnCatalogChunk .cardLatest{
+    font-size:7.2px!important;
+  }
+  .libraryCatalogDivider{
+    margin:46px 0 20px!important;
+    padding-top:16px!important;
+  }
+}
+@media(max-width:860px){
+  body:not(.reader-active) .topbar{
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    align-items:center!important;
+    justify-content:stretch!important;
+    gap:0!important;
+    padding-left:max(4px,env(safe-area-inset-left))!important;
+    padding-right:max(4px,env(safe-area-inset-right))!important;
+  }
+  body:not(.reader-active) .railNav{
+    display:contents!important;
+  }
+  body:not(.reader-active) .railNav::after,
+  body:not(.reader-active) .railRule,
+  body:not(.reader-active) .topbar .spacer{
+    display:none!important;
+  }
+  body:not(.reader-active) .topbar .topIcon{
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    margin:0!important;
+    justify-self:stretch!important;
+  }
+}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -4099,7 +4150,7 @@ function applyLanguage(){
  $('#sourceSwitch').setAttribute('aria-label',t('libraryType'));
  $('#sourceBoth').textContent=t('both');$('#sourceLight').textContent=t('lightNovels');$('#sourceWeb').textContent=t('webNovelsTitle');
  syncLibrarySortOptions();
- setText('#continueHeading','continueReading');setText('#continueBlurb','discoveryContinueBlurb');setText('#continueBtn','continue');setText('#allNovelsHeading',state.librarySource==='epub'?'allLightNovels':state.librarySource==='webnovel'?'allWebNovels':'allNovels');
+ setText('#continueHeading','continueReading');setText('#continueBlurb','discoveryContinueBlurb');setText('#continueBtn','continue');if(state.librarySource==='both')$('#allNovelsHeading').textContent=t('lightNovels');else setText('#allNovelsHeading',state.librarySource==='epub'?'allLightNovels':'allWebNovels');document.querySelectorAll('.libraryCatalogDivider .sourceGroupTitle').forEach(x=>x.textContent=t('webNovelsTitle'));
  setText('#lnMostHeading','lnMostShelf');setText('#lnMostBlurb','lnMostShelfBlurb');setText('#lnRecentHeading','lnRecentShelf');setText('#lnRecentBlurb','lnRecentShelfBlurb');setText('#lnTranslatedHeading','lnTranslatedShelf');setText('#lnTranslatedBlurb','lnTranslatedShelfBlurb');$('#lnGroupHead .sourceGroupTitle').textContent=t('lightNovels');$('#wnGroupHead .sourceGroupTitle').textContent=t('webNovelsTitle');setText('#genreHeading','browseGenre');setText('#genreBlurb','browseGenreBlurb');setText('#eliteHeading','eliteShelf');setText('#eliteBlurb','eliteShelfBlurb');setText('#strongHeading','strongShelf');setText('#strongBlurb','strongShelfBlurb');setText('#popularHeading','popularShelf');setText('#popularBlurb','popularShelfBlurb');setAttr('#themeQuickBtn','aria-label','toggleTheme');setAttr('#themeQuickBtn','title','toggleTheme');
  setText('#volumesHeading',state.series?.kind==='webnovel'?'webNovel':'volumes');setText('#drawerContentsLabel','contents');
  setText('#settingsHeading','settings');setText('#settingsTextTitle','text');setText('#settingsPageTitle','page');
@@ -4463,7 +4514,18 @@ async function hydrateBookSections(meta){
  return sections
 }
 
-function sortLibrary(rows){const a=[...rows],k=state.librarySort;if(k==='source')return a;a.sort((x,y)=>{if(k==='chapters_desc')return(y.chapter_count||0)-(x.chapter_count||0)||x.name.localeCompare(y.name);if(k==='chapters_asc')return(x.chapter_count||0)-(y.chapter_count||0)||x.name.localeCompare(y.name);if(k==='volumes_desc')return y.volume_count-x.volume_count||x.name.localeCompare(y.name);if(k==='volumes_asc')return x.volume_count-y.volume_count||x.name.localeCompare(y.name);if(k==='name_za')return y.name.localeCompare(x.name);if(k==='name_az')return x.name.localeCompare(y.name);if(k==='lastvol_desc')return(y.last_volume??-1)-(x.last_volume??-1)||x.name.localeCompare(y.name);if(k==='size_desc')return(y.total_size||0)-(x.total_size||0)||x.name.localeCompare(y.name);if(k==='updated_desc')return(y.updated_ns||0)-(x.updated_ns||0)||x.name.localeCompare(y.name);return 0});return a}
+function webNovelCurationRank(s){
+ const tier=String(s?.curation_tier||'');
+ if(tier==='elite')return 0;
+ if(tier==='strong')return 1;
+ if(tier==='popular_staples')return 2;
+ if(s?.curated||tier)return 3;
+ return 4
+}
+function sortWebNovelsCuratedFirst(rows){
+ return [...rows].sort((a,b)=>webNovelCurationRank(a)-webNovelCurationRank(b)||String(a.name||'').localeCompare(String(b.name||''),undefined,{sensitivity:'base'}))
+}
+function sortLibrary(rows){const a=[...rows],k=state.librarySort;if(k==='source'){const ln=a.filter(x=>x.kind!=='webnovel'),wn=sortWebNovelsCuratedFirst(a.filter(x=>x.kind==='webnovel'));return[...ln,...wn]}a.sort((x,y)=>{if(k==='chapters_desc')return(y.chapter_count||0)-(x.chapter_count||0)||x.name.localeCompare(y.name);if(k==='chapters_asc')return(x.chapter_count||0)-(y.chapter_count||0)||x.name.localeCompare(y.name);if(k==='volumes_desc')return y.volume_count-x.volume_count||x.name.localeCompare(y.name);if(k==='volumes_asc')return x.volume_count-y.volume_count||x.name.localeCompare(y.name);if(k==='name_za')return y.name.localeCompare(x.name);if(k==='name_az')return x.name.localeCompare(y.name);if(k==='lastvol_desc')return(y.last_volume??-1)-(x.last_volume??-1)||x.name.localeCompare(y.name);if(k==='size_desc')return(y.total_size||0)-(x.total_size||0)||x.name.localeCompare(y.name);if(k==='updated_desc')return(y.updated_ns||0)-(x.updated_ns||0)||x.name.localeCompare(y.name);return 0});return a}
 function makeLibraryCard(s,{shelf=false}={}){
  const p=seriesProgress(s),card=document.createElement('article');card.className='card';card.tabIndex=0;
  const range=s.kind==='webnovel'?'':(s.last_volume!=null&&s.last_volume>1?` · ${t('through')} ${fmtVol(s.last_volume)}`:'');
@@ -4545,7 +4607,7 @@ async function loadLibrary(q=''){
  }
  if(state.librarySource==='both'&&!state.webnovelsAvailable)state.librarySource='epub';
  const epubRows=(epubData?.series||[]).map(s=>({...s,kind:'epub'}));
- const webRows=(webData?.library_source==='webnovel'?webData.series||[]:[]).map(s=>({...s,kind:'webnovel'}));
+ const webRows=sortWebNovelsCuratedFirst((webData?.library_source==='webnovel'?webData.series||[]:[]).map(s=>({...s,kind:'webnovel'})));
  if(epubData){state.libraryBySource.epub=epubRows;state.libraryTotals.epubVolumes=+epubData.total_volumes||0}else if(state.librarySource!=='both')state.libraryBySource.epub=[];
  if(webData){state.libraryBySource.webnovel=webRows;state.libraryTotals.webnovelChapters=+webData.total_webnovel_chapters||0}else if(state.librarySource!=='both')state.libraryBySource.webnovel=[];
  if(state.librarySource==='epub')state.libraryData=epubRows;
@@ -6391,33 +6453,44 @@ addEventListener('resize',()=>{
 
 
 const LIBRARY_CHUNK_SIZE=200;
-const libraryVirtual={rows:[],chunks:[],loaded:new Set(),observer:null,avgRowHeight:360,cols:4,resizeTimer:0};
+const libraryVirtual={
+ rows:[],chunks:[],loaded:new Set(),observer:null,resizeTimer:0,
+ metrics:{epub:{avgRowHeight:360,cols:4},webnovel:{avgRowHeight:360,cols:4}}
+};
+function virtualKind(kind){return kind==='webnovel'?'webnovel':'epub'}
+function virtualMetrics(kind){
+ const k=virtualKind(kind);
+ return libraryVirtual.metrics[k]||(libraryVirtual.metrics[k]={avgRowHeight:360,cols:4})
+}
 function destroyVirtualLibrary(){
  libraryVirtual.observer?.disconnect();libraryVirtual.observer=null;
  libraryVirtual.rows=[];libraryVirtual.chunks=[];libraryVirtual.loaded.clear();
  clearTimeout(libraryVirtual.resizeTimer);libraryVirtual.resizeTimer=0
 }
-function estimatedVirtualHeight(count){
- const cols=Math.max(1,libraryVirtual.cols||4),rows=Math.max(1,Math.ceil(count/cols));
- return Math.max(120,Math.round(rows*(libraryVirtual.avgRowHeight||360)))
+function estimatedVirtualHeight(count,kind='epub'){
+ const m=virtualMetrics(kind);
+ const forcedMobileCols=kind==='webnovel'&&matchMedia('(max-width:640px)').matches?3:0;
+ const cols=Math.max(1,forcedMobileCols||m.cols||4),rows=Math.max(1,Math.ceil(count/cols));
+ return Math.max(120,Math.round(rows*(m.avgRowHeight||360)))
 }
 function measureVirtualChunk(index){
  const chunk=libraryVirtual.chunks[index];if(!chunk||chunk.dataset.hydrated!=='1')return;
  const cards=[...chunk.querySelectorAll(':scope>.card')];if(!cards.length)return;
  const firstTop=cards[0].offsetTop,cols=Math.max(1,cards.filter(x=>x.offsetTop===firstTop).length);
  const tops=[];for(const card of cards){const y=card.offsetTop;if(!tops.includes(y))tops.push(y)}
- const rows=Math.max(1,tops.length),h=chunk.getBoundingClientRect().height;
- if(h>0){libraryVirtual.cols=cols;libraryVirtual.avgRowHeight=Math.max(120,h/rows);chunk.dataset.measuredHeight=String(h)}
+ const rows=Math.max(1,tops.length),h=chunk.getBoundingClientRect().height,m=virtualMetrics(chunk.dataset.kind);
+ if(h>0){m.cols=cols;m.avgRowHeight=Math.max(120,h/rows);chunk.dataset.measuredHeight=String(h)}
 }
 function dehydrateVirtualChunk(index){
  const chunk=libraryVirtual.chunks[index];if(!chunk||chunk.dataset.hydrated!=='1')return;
- const h=Math.max(1,Math.round(chunk.getBoundingClientRect().height||+chunk.dataset.measuredHeight||estimatedVirtualHeight(+chunk.dataset.count||LIBRARY_CHUNK_SIZE)));
+ const kind=chunk.dataset.kind||'epub';
+ const h=Math.max(1,Math.round(chunk.getBoundingClientRect().height||+chunk.dataset.measuredHeight||estimatedVirtualHeight(+chunk.dataset.count||LIBRARY_CHUNK_SIZE,kind)));
  chunk.dataset.measuredHeight=String(h);chunk.replaceChildren();chunk.classList.remove('cardGrid');chunk.classList.add('libraryVirtualPlaceholder');chunk.style.height=h+'px';chunk.dataset.hydrated='0';libraryVirtual.loaded.delete(index)
 }
 function refreshVirtualPlaceholderHeights(){
  for(const chunk of libraryVirtual.chunks){
   if(chunk.dataset.hydrated==='1')continue;
-  chunk.style.height=(+chunk.dataset.measuredHeight||estimatedVirtualHeight(+chunk.dataset.count||LIBRARY_CHUNK_SIZE))+'px'
+  chunk.style.height=(+chunk.dataset.measuredHeight||estimatedVirtualHeight(+chunk.dataset.count||LIBRARY_CHUNK_SIZE,chunk.dataset.kind||'epub'))+'px'
  }
 }
 function pruneVirtualChunks(center){
@@ -6425,20 +6498,43 @@ function pruneVirtualChunks(center){
 }
 function hydrateVirtualChunk(index){
  const chunk=libraryVirtual.chunks[index];if(!chunk||chunk.dataset.hydrated==='1')return;
- const from=index*LIBRARY_CHUNK_SIZE,to=Math.min(libraryVirtual.rows.length,from+LIBRARY_CHUNK_SIZE),frag=document.createDocumentFragment();
+ const from=+chunk.dataset.start||0,to=Math.min(libraryVirtual.rows.length,+chunk.dataset.end||0),frag=document.createDocumentFragment();
  chunk.classList.remove('libraryVirtualPlaceholder');chunk.classList.add('cardGrid');chunk.style.height='';chunk.dataset.hydrated='1';
  for(let i=from;i<to;i++)frag.appendChild(makeLibraryCard(libraryVirtual.rows[i]));
  chunk.replaceChildren(frag);libraryVirtual.loaded.add(index);
  requestAnimationFrame(()=>{measureVirtualChunk(index);pruneVirtualChunks(index);refreshVirtualPlaceholderHeights()})
 }
-function initVirtualLibrary(root,rows){
- destroyVirtualLibrary();libraryVirtual.rows=rows;root.innerHTML='';root.classList.add('virtualLibrary');
- const count=Math.ceil(rows.length/LIBRARY_CHUNK_SIZE),frag=document.createDocumentFragment();
- for(let i=0;i<count;i++){
-  const chunk=document.createElement('div');chunk.className='libraryVirtualChunk libraryVirtualPlaceholder';chunk.dataset.index=String(i);chunk.dataset.hydrated='0';chunk.dataset.count=String(Math.min(LIBRARY_CHUNK_SIZE,rows.length-i*LIBRARY_CHUNK_SIZE));chunk.style.height=estimatedVirtualHeight(+chunk.dataset.count)+'px';
-  libraryVirtual.chunks.push(chunk);frag.appendChild(chunk)
+function initVirtualLibrary(root,rows,{splitSources=false}={}){
+ destroyVirtualLibrary();root.innerHTML='';root.classList.add('virtualLibrary');
+ const groups=splitSources
+  ?[
+    {kind:'epub',rows:rows.filter(x=>x.kind!=='webnovel')},
+    {kind:'webnovel',rows:rows.filter(x=>x.kind==='webnovel')}
+   ].filter(g=>g.rows.length)
+  :[{kind:rows.every(x=>x.kind==='webnovel')?'webnovel':'epub',rows:[...rows]}];
+ libraryVirtual.rows=groups.flatMap(g=>g.rows);
+ const frag=document.createDocumentFragment();let rowOffset=0,chunkIndex=0;
+ for(let g=0;g<groups.length;g++){
+  const group=groups[g];
+  if(splitSources&&group.kind==='webnovel'&&rowOffset>0){
+   const divider=document.createElement('div');
+   divider.className='sourceGroupHead libraryCatalogDivider';
+   divider.innerHTML='<span class="sourceGroupTitle">'+esc(t('webNovelsTitle'))+'</span><span class="sourceGroupTag">WN</span>';
+   frag.appendChild(divider)
+  }
+  for(let local=0;local<group.rows.length;local+=LIBRARY_CHUNK_SIZE){
+   const count=Math.min(LIBRARY_CHUNK_SIZE,group.rows.length-local),start=rowOffset+local,end=start+count;
+   const chunk=document.createElement('div');
+   chunk.className='libraryVirtualChunk libraryVirtualPlaceholder '+(group.kind==='webnovel'?'wnCatalogChunk':'lnCatalogChunk');
+   chunk.dataset.index=String(chunkIndex);chunk.dataset.start=String(start);chunk.dataset.end=String(end);
+   chunk.dataset.kind=group.kind;chunk.dataset.hydrated='0';chunk.dataset.count=String(count);
+   chunk.style.height=estimatedVirtualHeight(count,group.kind)+'px';
+   libraryVirtual.chunks.push(chunk);frag.appendChild(chunk);chunkIndex++
+  }
+  rowOffset+=group.rows.length
  }
- root.appendChild(frag);hydrateVirtualChunk(0);
+ root.appendChild(frag);
+ if(libraryVirtual.chunks.length)hydrateVirtualChunk(0);
  libraryVirtual.observer=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting)hydrateVirtualChunk(+entry.target.dataset.index)},{root:null,rootMargin:'1800px 0px',threshold:0});
  for(const chunk of libraryVirtual.chunks)libraryVirtual.observer.observe(chunk);
  if(!root.dataset.virtualResizeBound){
@@ -6454,7 +6550,7 @@ renderLibrary=function(){
  $('#lnGroupHead').classList.toggle('hidden',!isBoth);
  $('#wnGroupHead').classList.toggle('hidden',!isBoth);
  $('#genreSection').classList.toggle('hidden',!isWN);
- const lnRows=rowsForSource('epub'),wnRows=rowsForSource('webnovel');
+ const lnRows=rowsForSource('epub'),wnRows=sortWebNovelsCuratedFirst(rowsForSource('webnovel'));
  fillDiscoveryShelf('#lnMostShelf',[...lnRows].sort((a,b)=>(b.volume_count||0)-(a.volume_count||0)||a.name.localeCompare(b.name)).slice(0,24));
  fillDiscoveryShelf('#lnRecentShelf',[...lnRows].sort((a,b)=>(b.updated_ns||0)-(a.updated_ns||0)||a.name.localeCompare(b.name)).slice(0,24));
  fillDiscoveryShelf('#lnTranslatedShelf',lnRows.filter(s=>s.translated).sort((a,b)=>(b.translated_count||0)-(a.translated_count||0)||(b.volume_count||0)-(a.volume_count||0)).slice(0,24));
@@ -6467,8 +6563,10 @@ renderLibrary=function(){
  let rows=sortLibrary(state.libraryData);
  if(isWN&&state.discoveryGenre!=='All')rows=rows.filter(s=>(s.genres||[]).some(g=>String(g).localeCompare(state.discoveryGenre,undefined,{sensitivity:'accent'})===0));
  if(!rows.length){root.innerHTML='<div class="emptyShelf">'+esc(t('noNovels'))+'</div>';updateContinueCard();return}
- initVirtualLibrary(root,rows);
- setText('#allNovelsHeading',isLN?'allLightNovels':isWN?'allWebNovels':'allNovels');
+ const hasLN=rows.some(x=>x.kind!=='webnovel'),hasWN=rows.some(x=>x.kind==='webnovel'),splitSources=isBoth&&hasLN&&hasWN;
+ initVirtualLibrary(root,rows,{splitSources});
+ if(splitSources)$('#allNovelsHeading').textContent=t('lightNovels');
+ else setText('#allNovelsHeading',isLN?'allLightNovels':isWN?'allWebNovels':'allNovels');
  updateContinueCard()
 };
 
