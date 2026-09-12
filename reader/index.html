@@ -5481,7 +5481,7 @@ async function selectLanguageChoice(choice){
 }
 
 async function switchLanguage(){
- return selectLanguageChoice(uiLanguage==='tr'?'en':activeLanguageChoice())
+ return selectLanguageChoice(uiLanguage==='tr'?'en':(turkishMode==='fallback'?'tr-fallback':'tr-online'))
 }
 
 $('#langBtn').onclick=()=>switchLanguage();
