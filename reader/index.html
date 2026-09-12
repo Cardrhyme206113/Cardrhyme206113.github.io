@@ -3933,95 +3933,7 @@ html.reader-loader-active #continueSection::before{
 }
 </style>
 
-<style id="mobile-dock-stable-v2">
-:root{--atlas-bottom-occlusion:0px}
 
-@media(max-width:860px){
-  body:not(.reader-active){
-    padding-bottom:calc(var(--dock) + var(--atlas-bottom-occlusion) + env(safe-area-inset-bottom))!important;
-  }
-
-  body:not(.reader-active) .topbar{
-    position:fixed!important;
-    top:auto!important;
-    left:0!important;
-    right:0!important;
-    bottom:calc(var(--atlas-bottom-occlusion) + env(safe-area-inset-bottom))!important;
-
-    width:auto!important;
-    max-width:none!important;
-    height:var(--dock)!important;
-    min-height:var(--dock)!important;
-    max-height:var(--dock)!important;
-
-    display:grid!important;
-    grid-template-columns:minmax(0,3fr) minmax(0,1fr) minmax(0,1fr)!important;
-    align-items:center!important;
-    gap:0!important;
-
-    padding:0 4px!important;
-    box-sizing:border-box!important;
-    z-index:100!important;
-  }
-
-  body:not(.reader-active) .topbar .brand,
-  body:not(.reader-active) .topbar .spacer,
-  body:not(.reader-active) .railRule{
-    display:none!important;
-  }
-
-  body:not(.reader-active) .railNav{
-    display:grid!important;
-    grid-template-columns:repeat(3,minmax(0,1fr))!important;
-    align-items:center!important;
-    justify-items:center!important;
-    width:100%!important;
-    height:100%!important;
-    min-width:0!important;
-    gap:0!important;
-    padding:0!important;
-    margin:0!important;
-    position:relative!important;
-  }
-
-  body:not(.reader-active) .railNav::after{
-    content:""!important;
-    display:block!important;
-    position:absolute!important;
-    right:0!important;
-    top:11px!important;
-    bottom:11px!important;
-    width:1px!important;
-    background:var(--line)!important;
-    opacity:.55!important;
-    pointer-events:none!important;
-  }
-
-  body:not(.reader-active) .topbar .topIcon{
-    width:44px!important;
-    min-width:44px!important;
-    max-width:44px!important;
-    height:44px!important;
-    min-height:44px!important;
-    max-height:44px!important;
-    margin:0!important;
-    padding:3px!important;
-    justify-self:center!important;
-    align-self:center!important;
-    box-sizing:border-box!important;
-  }
-
-  body:not(.reader-active) .topbar .topIcon svg{
-    width:19px!important;
-    height:19px!important;
-  }
-
-  body:not(.reader-active) #langBtn,
-  body:not(.reader-active) #themeQuickBtn{
-    justify-self:center!important;
-  }
-}
-</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -4048,9 +3960,6 @@ html.reader-loader-active #continueSection::before{
       </svg>
       <span class="railLabel">Contents</span>
     </button>
-  <button id="readingBtn" class="topIcon settingsIcon" aria-label="Reading settings" title="Reading settings">
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
-  <span class="railLabel">Reading</span></button>
   </nav>
 
   <div class="spacer"></div>
@@ -4061,7 +3970,9 @@ html.reader-loader-active #continueSection::before{
     <span id="langCode" class="langCode">EN</span>
   <span class="railLabel">Lang</span></button>
   <button id="themeQuickBtn" class="topIcon" aria-label="Toggle theme" title="Toggle theme"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.2 15.15A8.25 8.25 0 1 1 8.85 3.8a6.7 6.7 0 0 0 11.35 11.35Z" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="railLabel">Theme</span></button>
-  
+  <button id="readingBtn" class="topIcon settingsIcon" aria-label="Reading settings" title="Reading settings">
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.09a2 2 0 0 1 1 1.74v.5a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
+  <span class="railLabel">Reading</span></button>
 </header>
 
 <main id="libraryView" class="view">
@@ -7438,49 +7349,6 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
 })();
 </script>
 
-<script id="mobile-dock-occlusion-v2">
-(()=>{
-  const root=document.documentElement;
-  let raf=0;
 
-  const sync=()=>{
-    raf=0;
-    const vv=window.visualViewport;
-    if(!vv){
-      root.style.setProperty('--atlas-bottom-occlusion','0px');
-      return;
-    }
-
-    const layoutH=Math.max(
-      document.documentElement.clientHeight||0,
-      window.innerHeight||0
-    );
-
-    /* Convert the visual viewport's height back into layout coordinates so
-       browser chrome is measured, but pinch zoom itself is not mistaken for
-       a giant bottom toolbar. */
-    const scale=Math.max(1,Number(vv.scale)||1);
-    const visualBottom=(Number(vv.offsetTop)||0)+(Number(vv.height)||0)*scale;
-    let hidden=Math.max(0,layoutH-visualBottom);
-
-    /* Keyboard occlusion is much larger than browser chrome. Do not launch
-       the navigation bar hundreds of pixels upward when an input is focused. */
-    if(hidden>140)hidden=0;
-
-    root.style.setProperty('--atlas-bottom-occlusion',Math.round(hidden)+'px');
-  };
-
-  const queue=()=>{
-    if(raf)return;
-    raf=requestAnimationFrame(sync);
-  };
-
-  sync();
-  addEventListener('resize',queue,{passive:true});
-  addEventListener('orientationchange',queue,{passive:true});
-  window.visualViewport?.addEventListener('resize',queue,{passive:true});
-  window.visualViewport?.addEventListener('scroll',queue,{passive:true});
-})();
-</script>
 </body>
 </html>
