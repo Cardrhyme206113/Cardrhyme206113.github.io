@@ -19,7 +19,7 @@ window.__READER_STORAGE__ = Object.freeze({
 (()=>{
   if(document.querySelector('script[data-reader-ui-debug]'))return;
   const d=document.createElement('script');
-  d.src='./reader-ui-debug.js?v=20260912-ui1';
+  d.src='./reader-ui-debug.js?v=20260912-ui2';
   d.dataset.readerUiDebug='1';
   document.head.appendChild(d);
 })();
@@ -29,7 +29,7 @@ window.__READER_STORAGE__ = Object.freeze({
 document.addEventListener('DOMContentLoaded',()=>{
   if(document.querySelector('script[data-reader-translation-engine]'))return;
   const s=document.createElement('script');
-  s.src='./reader-translation.js?v=20260912-engine7';
+  s.src='./reader-translation.js?v=20260912-engine8';
   s.dataset.readerTranslationEngine='1';
   document.head.appendChild(s);
 },{once:true});
