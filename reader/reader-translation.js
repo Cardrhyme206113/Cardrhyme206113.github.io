@@ -17,7 +17,8 @@ const SOURCE_LANG='en';
 const TARGET_LANG='tr';
 const GOOGLE_ENDPOINT='https://translate.googleapis.com/translate_a/single';
 const GOOGLE_TIMEOUT_MS=6500;
-const GOOGLE_RETRY_DELAY_MS=180;
+const GOOGLE_RETRY_DELAY_MS=3000;
+const GOOGLE_MAX_RETRIES=3;
 const GOOGLE_CHUNK_LIMIT=4200;
 const BATCH_CHAR_LIMIT=3400;
 const BUFFER_PAGES=1;
@@ -144,14 +145,14 @@ async function googleTranslate(text){
   const out=[];
   for(const chunk of chunks){
     let lastError=null;
-    for(let attempt=0;attempt<2;attempt++){
+    for(let attempt=0;attempt<=GOOGLE_MAX_RETRIES;attempt++){
       try{
         out.push(await googleRequest(chunk));
         lastError=null;
         break
       }catch(err){
         lastError=err;
-        if(attempt===0)await new Promise(r=>setTimeout(r,GOOGLE_RETRY_DELAY_MS))
+        if(attempt<GOOGLE_MAX_RETRIES)await new Promise(r=>setTimeout(r,GOOGLE_RETRY_DELAY_MS))
       }
     }
     if(lastError)throw lastError
@@ -636,6 +637,6 @@ window.ReaderTranslation={
   simulateGoogleFailure(count=1){forcedFailureCount=Math.max(1,+count||1);queueSync()},
   simulateFallback(){return activateFallback(new Error('Simulated Google fallback'))},
   clearMemoryCache(){memCache.clear()},
-  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:BUFFER_PAGES,googleTimeoutMs:GOOGLE_TIMEOUT_MS,googleRetryDelayMs:GOOGLE_RETRY_DELAY_MS,batchCharLimit:BATCH_CHAR_LIMIT}
+  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:BUFFER_PAGES,googleTimeoutMs:GOOGLE_TIMEOUT_MS,googleRetryDelayMs:GOOGLE_RETRY_DELAY_MS,googleMaxRetries:GOOGLE_MAX_RETRIES,batchCharLimit:BATCH_CHAR_LIMIT}
 };
 })();
