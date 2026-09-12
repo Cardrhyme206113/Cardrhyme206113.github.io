@@ -7612,29 +7612,30 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
 </script>
 
 
-<script id="firefox-android-browser-class-v2">
+<script id="firefox-android-browser-class-v3">
 (()=>{
   const ua=navigator.userAgent||'';
   if(!(/Android/i.test(ua)&&/Firefox\//i.test(ua)))return;
 
   const root=document.documentElement;
   root.classList.add('firefox-android');
+  let dock=parseFloat(getComputedStyle(root).getPropertyValue('--dock'))||60;
 
-  let raf=0;
   const syncFirefoxDock=()=>{
-    cancelAnimationFrame(raf);
-    raf=requestAnimationFrame(()=>{
-      const vv=window.visualViewport;
-      const viewportTop=vv?vv.offsetTop:0;
-      const viewportHeight=vv?vv.height:window.innerHeight;
-      const dock=parseFloat(getComputedStyle(root).getPropertyValue('--dock'))||60;
-      root.style.setProperty('--firefox-dock-top',Math.max(0,viewportTop+viewportHeight-dock)+'px');
-    });
+    const vv=window.visualViewport;
+    const viewportTop=vv?vv.offsetTop:0;
+    const viewportHeight=vv?vv.height:window.innerHeight;
+    root.style.setProperty('--firefox-dock-top',Math.max(0,viewportTop+viewportHeight-dock)+'px');
+  };
+
+  const resyncFirefoxDock=()=>{
+    dock=parseFloat(getComputedStyle(root).getPropertyValue('--dock'))||60;
+    syncFirefoxDock();
   };
 
   syncFirefoxDock();
-  addEventListener('resize',syncFirefoxDock,{passive:true});
-  addEventListener('orientationchange',syncFirefoxDock,{passive:true});
+  addEventListener('resize',resyncFirefoxDock,{passive:true});
+  addEventListener('orientationchange',resyncFirefoxDock,{passive:true});
   if(window.visualViewport){
     visualViewport.addEventListener('resize',syncFirefoxDock,{passive:true});
     visualViewport.addEventListener('scroll',syncFirefoxDock,{passive:true});
