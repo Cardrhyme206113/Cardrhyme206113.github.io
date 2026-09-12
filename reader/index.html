@@ -4082,6 +4082,30 @@ body:not(.reader-active){
   }
 }
 </style>
+
+<style id="mobile-dock-bottom-anchor-v1">
+/* Canonical mobile dock anchor. Do not derive the dock's Y position from
+   100dvh: Firefox Android changes its dynamic viewport while browser chrome
+   expands/collapses, which can strand the fixed dock in the middle of the page. */
+@media(max-width:860px){
+  body:not(.reader-active) .topbar,
+  html.firefox-android body:not(.reader-active) .topbar{
+    position:fixed!important;
+    top:auto!important;
+    bottom:0!important;
+    left:0!important;
+    right:auto!important;
+    width:100dvw!important;
+    max-width:100dvw!important;
+    min-width:0!important;
+    height:calc(var(--dock) + env(safe-area-inset-bottom))!important;
+    max-height:none!important;
+    padding-bottom:env(safe-area-inset-bottom)!important;
+    transform:none!important;
+    box-sizing:border-box!important;
+  }
+}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
