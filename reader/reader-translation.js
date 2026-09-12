@@ -16,7 +16,8 @@ const FALLBACK_ENGINE='builtin';
 const SOURCE_LANG='en';
 const TARGET_LANG='tr';
 const GOOGLE_ENDPOINT='https://translate.googleapis.com/translate_a/single';
-const GOOGLE_TIMEOUT_MS=4000;
+const GOOGLE_TIMEOUT_MS=6500;
+const GOOGLE_RETRY_DELAY_MS=180;
 const GOOGLE_CHUNK_LIMIT=4200;
 const BATCH_CHAR_LIMIT=3400;
 const BUFFER_PAGES=1;
@@ -40,8 +41,6 @@ let changingEngine=false;
 let fallbackActive=false;
 let fallbackBusy=false;
 let forcedFailureCount=0;
-let toast=null;
-let toastTimer=0;
 
 function trUI(){
   try{return uiLanguage==='tr'}catch(_){return document.documentElement.lang==='tr'}
@@ -143,7 +142,20 @@ function splitText(text,limit=GOOGLE_CHUNK_LIMIT){
 async function googleTranslate(text){
   const chunks=splitText(text);
   const out=[];
-  for(const chunk of chunks)out.push(await googleRequest(chunk));
+  for(const chunk of chunks){
+    let lastError=null;
+    for(let attempt=0;attempt<2;attempt++){
+      try{
+        out.push(await googleRequest(chunk));
+        lastError=null;
+        break
+      }catch(err){
+        lastError=err;
+        if(attempt===0)await new Promise(r=>setTimeout(r,GOOGLE_RETRY_DELAY_MS))
+      }
+    }
+    if(lastError)throw lastError
+  }
   return cleanText(out.join('\n\n'))
 }
 registerProvider({
@@ -392,21 +404,10 @@ function installStyles(){
     '#proseContent.readerTranslationSwapping{opacity:.28}',
     '#readerTranslationSettings .readerTranslationSeg{min-width:0}',
     '#readerTranslationSettings .readerTranslationSeg button{min-width:0;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-    '#readerTranslationSettings .readerTranslationHint{margin-top:8px;color:var(--muted);font-size:9.5px;line-height:1.45}',
-    '#readerTranslationToast{position:absolute;z-index:18;right:12px;bottom:12px;max-width:min(340px,calc(100% - 24px));padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:color-mix(in srgb,var(--surface) 94%,transparent);color:var(--muted);font:600 9px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 6px 20px rgba(0,0,0,.15);pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .15s ease,transform .15s ease}',
-    '#readerTranslationToast.open{opacity:.96;transform:none}',
-    '#readerTranslationToast.error{color:#d46d62}'
+    '#readerTranslationSettings .readerTranslationHint{margin-top:8px;color:var(--muted);font-size:9.5px;line-height:1.45}'
   ].join('\n');
   document.head.appendChild(s)
 }
-function showToast(text,error=false,ms=1700){
-  const stage=document.querySelector('#readerStage');
-  if(!stage)return;
-  if(!toast){toast=document.createElement('div');toast.id='readerTranslationToast';stage.appendChild(toast)}
-  toast.textContent=text;toast.classList.toggle('error',!!error);toast.classList.add('open');
-  clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast?.classList.remove('open'),ms)
-}
-
 async function applyTranslations(items,translations,anchorBlockId){
   if(!items.length||!translations.size)return;
   const prose=document.querySelector('#proseContent');
@@ -442,7 +443,6 @@ async function activateFallback(reason){
   if(fallbackActive||fallbackBusy||preferredEngine()!=='google')return;
   fallbackBusy=true;fallbackActive=true;syncTicket++;
   refreshSettingsUI();
-  showToast(trUI()?'Google yanıt vermedi · yerleşik çeviriye geçildi':'Google did not respond · switched to built-in translation',true,3600);
   console.warn('[reader-translation] Google fallback',reason);
   try{
     if(typeof saveReadingProgress==='function'&&BOOK&&state?.view==='reader')saveReadingProgress();
@@ -636,6 +636,6 @@ window.ReaderTranslation={
   simulateGoogleFailure(count=1){forcedFailureCount=Math.max(1,+count||1);queueSync()},
   simulateFallback(){return activateFallback(new Error('Simulated Google fallback'))},
   clearMemoryCache(){memCache.clear()},
-  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:BUFFER_PAGES,googleTimeoutMs:GOOGLE_TIMEOUT_MS,batchCharLimit:BATCH_CHAR_LIMIT}
+  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:BUFFER_PAGES,googleTimeoutMs:GOOGLE_TIMEOUT_MS,googleRetryDelayMs:GOOGLE_RETRY_DELAY_MS,batchCharLimit:BATCH_CHAR_LIMIT}
 };
 })();
