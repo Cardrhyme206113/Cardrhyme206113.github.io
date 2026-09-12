@@ -5113,7 +5113,7 @@ function prefetchLnMozhi(index){
  const next=index+1;
  if(next<BOOK.sections.length)ensureLnSectionTranslated(next).catch(()=>{})
 }
-function webNovelCurationRank(s){function webNovelCurationRank(s){
+function webNovelCurationRank(s){
  const tier=String(s?.curation_tier||'');
  if(tier==='elite')return 0;
  if(tier==='strong')return 1;
