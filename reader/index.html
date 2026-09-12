@@ -3836,6 +3836,59 @@ body.reader-active #themeQuickBtn{
   #continueCarousel>.continuePagerCount{top:6px!important}
 }
 </style>
+<style id="library-label-and-continue-fit-v1">
+/* Library source selector: slightly larger and easier to read. */
+.libraryBar .sourceTab{
+  font-size:9.25px!important;
+  letter-spacing:.085em!important;
+}
+@media(max-width:640px){
+  .libraryBar .sourceTab{
+    font-size:9.6px!important;
+    letter-spacing:.065em!important;
+  }
+
+  /* Continue Reading: keep title/meta strictly inside the available text cell. */
+  .continueCard{
+    grid-template-columns:66px minmax(0,1fr)!important;
+    column-gap:14px!important;
+  }
+  .continueCard img{
+    width:66px!important;
+    max-width:66px!important;
+  }
+  .continueText{
+    min-width:0!important;
+    max-width:100%!important;
+    overflow:hidden!important;
+  }
+  .continueText h3{
+    width:100%!important;
+    max-width:100%!important;
+    margin:0 0 8px!important;
+    font-size:clamp(17px,5vw,20px)!important;
+    line-height:1.1!important;
+    white-space:normal!important;
+    overflow:hidden!important;
+    text-overflow:clip!important;
+    overflow-wrap:anywhere!important;
+    word-break:normal!important;
+    display:-webkit-box!important;
+    -webkit-box-orient:vertical!important;
+    -webkit-line-clamp:2!important;
+  }
+  .continueText p{
+    width:100%!important;
+    max-width:100%!important;
+    margin:0 0 11px!important;
+    font-size:8.2px!important;
+    line-height:1.55!important;
+    letter-spacing:.105em!important;
+    white-space:normal!important;
+    overflow-wrap:anywhere!important;
+  }
+}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
