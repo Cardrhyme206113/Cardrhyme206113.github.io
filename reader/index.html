@@ -3887,6 +3887,62 @@ html.reader-noimg .readerStage.imageMode #scrollHost{background:var(--paper)!imp
   -webkit-box-orient:initial;
 }
 </style>
+<style id="mobile-horizontal-overflow-fix">
+@media(max-width:860px){
+  html,
+  body:not(.reader-active){
+    width:100%!important;
+    max-width:100%!important;
+    overflow-x:clip!important;
+  }
+
+  body:not(.reader-active) > .view,
+  body:not(.reader-active) #libraryView,
+  body:not(.reader-active) #searchView,
+  body:not(.reader-active) #seriesView,
+  body:not(.reader-active) #settings.settingsPage{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    overflow-x:clip!important;
+  }
+
+  /* Horizontal scrolling remains local to shelves/chip rows only. */
+  body:not(.reader-active) .discoveryShelf,
+  body:not(.reader-active) .chipRow{
+    max-width:100%!important;
+    overflow-x:auto!important;
+    overscroll-behavior-x:contain!important;
+  }
+
+  /* Preserve the full-width ambient effect without creating document width. */
+  #continueSection{
+    max-width:100%!important;
+    overflow-x:clip!important;
+  }
+  #continueSection::before{
+    width:100vw!important;
+    left:50%!important;
+    transform:translateX(-50%)!important;
+  }
+}
+</style>
+<script id="mobile-horizontal-scroll-reset">
+(()=>{
+  const resetX=()=>{
+    if(innerWidth<=860 && !document.body.classList.contains('reader-active') && window.scrollX!==0){
+      window.scrollTo(0,window.scrollY);
+    }
+  };
+  addEventListener('pageshow',resetX,{passive:true});
+  addEventListener('resize',resetX,{passive:true});
+  addEventListener('orientationchange',resetX,{passive:true});
+  window.visualViewport?.addEventListener('resize',resetX,{passive:true});
+  requestAnimationFrame(resetX);
+})();
+</script>
 <style id="mobile-dock-visual-viewport-fix">
 :root{
   --mobile-vv-top:0px;
