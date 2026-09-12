@@ -66,14 +66,28 @@
     if(storageRevision)u.searchParams.set('rsv',storageRevision);
     return u.href;
   }
-  // v18 static media does not rely on a service worker.  Older reader-static
-  // builds did; unregister only that legacy worker so a stale controller cannot
-  // keep intercepting /api/res/ after an upgrade.
+  // v18 static media does not rely on a service worker. Older reader-static
+  // builds did. Merely unregistering is insufficient for the CURRENT document:
+  // an already-controlled tab stays controlled until the next navigation.
+  // If that legacy worker still owns this page, unregister it and reload once.
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.getRegistrations().then(regs=>{
+    const legacyController=/\/reader-static-sw\.js(?:$|\?)/.test(navigator.serviceWorker.controller?.scriptURL||'');
+    navigator.serviceWorker.getRegistrations().then(async regs=>{
+      let removed=false;
       for(const reg of regs){
         const u=reg.active?.scriptURL||reg.waiting?.scriptURL||reg.installing?.scriptURL||'';
-        if(/\/reader-static-sw\.js(?:$|\?)/.test(u))reg.unregister().catch(()=>{});
+        if(/\/reader-static-sw\.js(?:$|\?)/.test(u)){
+          try{removed=(await reg.unregister())||removed}catch(_){}
+        }
+      }
+      if(legacyController&&removed){
+        const key='reader-legacy-sw-reload-v1';
+        if(sessionStorage.getItem(key)!=='1'){
+          sessionStorage.setItem(key,'1');
+          location.reload();
+        }
+      }else if(!legacyController){
+        sessionStorage.removeItem('reader-legacy-sw-reload-v1');
       }
     }).catch(()=>{});
   }
@@ -84,19 +98,53 @@
   const fold = s => String(s ?? '').toLocaleLowerCase();
   const includesFold = (a,b) => fold(a).includes(fold(b));
 
+  function metadataMirrorURL(input){
+    try{
+      const u=new URL(String(input));
+      if(u.hostname!=='raw.githubusercontent.com')return null;
+      const parts=u.pathname.split('/').filter(Boolean);
+      if(parts.length<4)return null;
+      const owner=parts.shift(),repo=parts.shift(),ref=parts.shift();
+      const path=parts.join('/');
+      // jsDelivr is only a fallback when raw.githubusercontent.com stalls/fails.
+      // The existing rsv query is unnecessary because @ref already scopes it.
+      return `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${ref}/${path}`
+    }catch(_){return null}
+  }
+
+  async function fetchMetadataFully(url,options={},timeoutMs=12000){
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),timeoutMs);
+    try{
+      const r=await nativeFetch(url,{...options,cache:'force-cache',signal:controller.signal});
+      // IMPORTANT: consume the entire body before clearing the timeout.
+      // fetch() itself only waits for response headers.
+      const bytes=await r.arrayBuffer();
+      return new Response(bytes,{
+        status:r.status,
+        statusText:r.statusText,
+        headers:new Headers(r.headers)
+      })
+    }finally{
+      clearTimeout(timer)
+    }
+  }
+
   async function resilientMetadataFetch(url,options={}){
+    const routes=[String(url)];
+    const mirror=metadataMirrorURL(url);
+    if(mirror&&mirror!==routes[0])routes.push(mirror);
+
     let last=null;
-    for(let attempt=0;attempt<2;attempt++){
-      const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),10000);
+    for(let i=0;i<routes.length;i++){
       try{
-        const r=await nativeFetch(url,{...options,cache:'force-cache',signal:controller.signal});
-        clearTimeout(timer);
+        const r=await fetchMetadataFully(routes[i],options,12000);
+        if(!r.ok)throw new Error(`metadata HTTP ${r.status} via ${new URL(routes[i]).hostname}`);
         return r
       }catch(e){
-        clearTimeout(timer);
         last=e;
-        if(attempt===0)await new Promise(r=>setTimeout(r,250))
+        console.warn('[reader-static] metadata route failed',routes[i],e);
+        if(i+1<routes.length)await new Promise(r=>setTimeout(r,180))
       }
     }
     throw last||new Error('metadata fetch failed')
