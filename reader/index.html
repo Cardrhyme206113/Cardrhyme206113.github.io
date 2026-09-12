@@ -3706,7 +3706,7 @@ body.reader-active #themeQuickBtn{
 .shelfWrap>.shelfArrow{
   position:absolute!important;
   z-index:12!important;
-  top:50%!important;
+  top:var(--shelf-cover-mid,50%)!important;
   transform:translateY(-50%)!important;
   display:grid!important;
   place-items:center!important;
@@ -7066,6 +7066,17 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
      const apply=()=>{
        const {max}=metrics();
        shelf.style.setProperty('--shelf-offset',String(Math.round(offset)));
+
+       /* Align arrows to the actual cover art, not the full card including
+          title/meta below it. This stays correct across LN/WN card sizes. */
+       const cover=q('.card .cover',shelf)||q('.cover',shelf);
+       if(cover){
+         const wr=wrap.getBoundingClientRect();
+         const cr=cover.getBoundingClientRect();
+         const mid=(cr.top-wr.top)+(cr.height/2);
+         if(Number.isFinite(mid)&&mid>0)wrap.style.setProperty('--shelf-cover-mid',mid+'px');
+       }
+
        left.disabled=offset<=1;
        right.disabled=offset>=max-1||max<=1;
      };
