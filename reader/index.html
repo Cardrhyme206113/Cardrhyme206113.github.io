@@ -3897,19 +3897,23 @@ html.reader-loader-active #continueSection::before{
 </style>
 
 
-<style id="firefox-android-bottom-dock-v2">
+<style id="mobile-visual-viewport-dock-v4">
 @media(max-width:860px){
-  html.firefox-android body:not(.reader-active) .topbar{
+  body:not(.reader-active) .topbar{
     position:fixed!important;
     left:0!important;
-    right:0!important;
-    top:calc(100dvh - var(--dock))!important;
+    right:auto!important;
+    top:var(--mobile-dock-top,calc(100dvh - var(--dock)))!important;
     bottom:auto!important;
+    width:100dvw!important;
+    max-width:100dvw!important;
     height:var(--dock)!important;
     max-height:var(--dock)!important;
     padding-bottom:0!important;
+    transform:none!important;
+    box-sizing:border-box!important;
   }
-  html.firefox-android body:not(.reader-active){
+  body:not(.reader-active){
     padding-bottom:calc(var(--dock) + env(safe-area-inset-bottom))!important;
   }
 }
@@ -4083,33 +4087,24 @@ body:not(.reader-active){
 }
 </style>
 
-<style id="mobile-dock-bottom-anchor-v2">
-/* Normal mobile browsers can use a true bottom anchor. Firefox Android is
-   special: its bottom browser toolbar can overlay bottom:0, so Firefox gets a
-   measured visual-viewport top coordinate instead. */
+<style id="mobile-dock-bottom-anchor-v4">
+/* Chrome and Firefox both anchor the dock to the visible visual viewport.
+   This avoids browser-toolbar show/hide changing bottom:0 behavior differently. */
 @media(max-width:860px){
   body:not(.reader-active) .topbar{
     position:fixed!important;
-    top:auto!important;
-    bottom:0!important;
+    top:var(--mobile-dock-top,calc(100dvh - var(--dock)))!important;
+    bottom:auto!important;
     left:0!important;
     right:auto!important;
     width:100dvw!important;
     max-width:100dvw!important;
     min-width:0!important;
-    height:calc(var(--dock) + env(safe-area-inset-bottom))!important;
-    max-height:none!important;
-    padding-bottom:env(safe-area-inset-bottom)!important;
-    transform:none!important;
-    box-sizing:border-box!important;
-  }
-
-  html.firefox-android body:not(.reader-active) .topbar{
-    top:var(--firefox-dock-top,calc(100dvh - var(--dock)))!important;
-    bottom:auto!important;
     height:var(--dock)!important;
     max-height:var(--dock)!important;
     padding-bottom:0!important;
+    transform:none!important;
+    box-sizing:border-box!important;
   }
 }
 </style>
@@ -7612,33 +7607,37 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
 </script>
 
 
-<script id="firefox-android-browser-class-v3">
+<script id="mobile-visual-viewport-dock-v4">
 (()=>{
-  const ua=navigator.userAgent||'';
-  if(!(/Android/i.test(ua)&&/Firefox\//i.test(ua)))return;
-
   const root=document.documentElement;
-  root.classList.add('firefox-android');
-  let dock=parseFloat(getComputedStyle(root).getPropertyValue('--dock'))||60;
+  let dock=60;
+  let raf=0;
 
-  const syncFirefoxDock=()=>{
+  const syncDock=()=>{
+    raf=0;
+    if(!matchMedia('(max-width:860px)').matches){
+      root.style.removeProperty('--mobile-dock-top');
+      return;
+    }
+    dock=parseFloat(getComputedStyle(root).getPropertyValue('--dock'))||60;
     const vv=window.visualViewport;
     const viewportTop=vv?vv.offsetTop:0;
     const viewportHeight=vv?vv.height:window.innerHeight;
-    root.style.setProperty('--firefox-dock-top',Math.max(0,viewportTop+viewportHeight-dock)+'px');
+    root.style.setProperty('--mobile-dock-top',Math.max(0,viewportTop+viewportHeight-dock)+'px');
   };
 
-  const resyncFirefoxDock=()=>{
-    dock=parseFloat(getComputedStyle(root).getPropertyValue('--dock'))||60;
-    syncFirefoxDock();
+  const queueSync=()=>{
+    if(raf)return;
+    raf=requestAnimationFrame(syncDock);
   };
 
-  syncFirefoxDock();
-  addEventListener('resize',resyncFirefoxDock,{passive:true});
-  addEventListener('orientationchange',resyncFirefoxDock,{passive:true});
+  syncDock();
+  addEventListener('resize',queueSync,{passive:true});
+  addEventListener('orientationchange',queueSync,{passive:true});
+  addEventListener('pageshow',queueSync,{passive:true});
   if(window.visualViewport){
-    visualViewport.addEventListener('resize',syncFirefoxDock,{passive:true});
-    visualViewport.addEventListener('scroll',syncFirefoxDock,{passive:true});
+    visualViewport.addEventListener('resize',queueSync,{passive:true});
+    visualViewport.addEventListener('scroll',queueSync,{passive:true});
   }
 })();
 </script>
