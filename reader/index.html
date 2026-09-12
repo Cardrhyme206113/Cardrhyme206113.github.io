@@ -3978,6 +3978,30 @@ html.reader-loader-active #continueSection::before{
   }
 }
 </style>
+<style id="library-desktop-overflow-fix-v1">
+/* Decorative Continue Reading ambience must never widen the document.
+   This matters especially in desktop-site / fit-to-page browser modes. */
+#libraryView #continueSection{
+  overflow-x:clip!important;
+}
+#libraryView #continueSection::before{
+  width:100%!important;
+  max-width:100%!important;
+  left:0!important;
+  right:0!important;
+  transform:none!important;
+}
+
+/* Keep Library desktop canvas aligned with Advanced Search geometry. */
+@media(min-width:861px){
+  #libraryView.discoveryMode{
+    width:100%!important;
+    max-width:1240px!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+  }
+}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
