@@ -4108,6 +4108,35 @@ body:not(.reader-active){
   }
 }
 </style>
+<style id="library-native-shelf-swipe-v1">
+/* Library carousels are real horizontal scroll containers again.
+   Arrow buttons remain available and drive the same scroll position. */
+.shelfWrap{
+  position:relative!important;
+  overflow:hidden!important;
+  touch-action:auto!important;
+}
+.discoveryShelf{
+  overflow-x:auto!important;
+  overflow-y:hidden!important;
+  overscroll-behavior-x:contain!important;
+  overscroll-behavior-y:auto!important;
+  scroll-snap-type:x proximity!important;
+  scrollbar-width:none!important;
+  touch-action:auto!important;
+  -webkit-overflow-scrolling:touch!important;
+  transform:none!important;
+  transition:none!important;
+  will-change:auto!important;
+}
+.discoveryShelf>*,
+.discoveryShelf .card,
+.discoveryShelf img{
+  touch-action:auto!important;
+}
+.discoveryShelf .card{scroll-snap-align:start!important}
+.discoveryShelf::-webkit-scrollbar{display:none!important}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -4398,7 +4427,7 @@ body:not(.reader-active){
 <aside id="drawer" class="drawer" aria-modal="true" role="dialog"><div class="drawerHead"><div class="panelHeadRow"><div class="panelHeadText"><h3 id="drawerTitle"></h3><p id="drawerAuthor"></p></div><button id="drawerClose" class="panelClose" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6.5 6.5 11 11m0-11-11 11" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button></div><div id="drawerContentsLabel" class="drawerSectionLabel">Contents</div></div><div id="toc" class="toc"></div></aside>
 
 <script src="./reader-storage-config.js?v=20260912-pretranslate-clean1"></script>
-<script src="./reader-static-adapter.js?v=20260912-mozhi1"></script>
+<script src="./reader-static-adapter.js?v=20260912-catalogfix2"></script>
 <script src="./reader-mozhi.js?v=20260912-auto1"></script>
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
@@ -7402,27 +7431,15 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
      let right=q('.shelfArrow.right',wrap)||wrap.previousElementSibling?.querySelector?.('.shelfPager .shelfArrow.right');
      if(!shelf||!left||!right)return;
 
-     /* Controls belong to the carousel itself, not the header. */
      wrap.prepend(left);
      wrap.append(right);
      wrap.previousElementSibling?.querySelector?.('.shelfPager')?.remove();
 
-     let offset=0;
+     const sync=()=>{
+       const max=Math.max(0,shelf.scrollWidth-shelf.clientWidth);
+       left.disabled=shelf.scrollLeft<=1;
+       right.disabled=shelf.scrollLeft>=max-1||max<=1;
 
-     const metrics=()=>{
-       const viewport=wrap.clientWidth;
-       const content=shelf.scrollWidth;
-       const max=Math.max(0,content-viewport);
-       offset=Math.max(0,Math.min(max,offset));
-       return {viewport,content,max};
-     };
-
-     const apply=()=>{
-       const {max}=metrics();
-       shelf.style.setProperty('--shelf-offset',String(Math.round(offset)));
-
-       /* Align arrows to the actual cover art, not the full card including
-          title/meta below it. This stays correct across LN/WN card sizes. */
        const cover=q('.card .cover',shelf)||q('.cover',shelf);
        if(cover){
          const wr=wrap.getBoundingClientRect();
@@ -7430,28 +7447,19 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
          const mid=(cr.top-wr.top)+(cr.height/2);
          if(Number.isFinite(mid)&&mid>0)wrap.style.setProperty('--shelf-cover-mid',mid+'px');
        }
-
-       left.disabled=offset<=1;
-       right.disabled=offset>=max-1||max<=1;
      };
 
      const move=dir=>{
-       const {viewport,max}=metrics();
-       const step=Math.max(120,Math.floor(viewport*.92));
-       offset=Math.max(0,Math.min(max,offset+dir*step));
-       apply();
+       const step=Math.max(120,Math.floor(shelf.clientWidth*.92));
+       shelf.scrollBy({left:dir*step,behavior:'smooth'})
      };
 
      left.onclick=e=>{e.preventDefault();e.stopPropagation();move(-1)};
      right.onclick=e=>{e.preventDefault();e.stopPropagation();move(1)};
-
-     new ResizeObserver(apply).observe(wrap);
-     new MutationObserver(()=>{
-       offset=0;
-       apply();
-     }).observe(shelf,{childList:true});
-
-     apply();
+     shelf.addEventListener('scroll',sync,{passive:true});
+     new ResizeObserver(sync).observe(wrap);
+     new MutationObserver(()=>requestAnimationFrame(sync)).observe(shelf,{childList:true});
+     requestAnimationFrame(sync);
    });
  }
 
