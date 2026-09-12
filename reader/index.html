@@ -5280,7 +5280,7 @@ $('#backBtn').onclick=async()=>{
 };
 $('#search').oninput=e=>{if(state.librarySource==='webnovel'){state.discoveryGenre='All';storage.set('reader-discovery-genre','All')}clearTimeout(state.searchTimer);state.searchTimer=setTimeout(()=>loadLibrary(e.target.value),150)};
 $('#advancedSearchBtn').onclick=()=>openAdvancedSearch();
-$('#advRun').onclick=()=>runAdvancedSearch(1);$('#advReset').onclick=()=>resetAdvancedSearch(true);$('#advResetTop').onclick=()=>resetAdvancedSearch(true);$('#advPrev').onclick=()=>runAdvancedSearch(Math.max(1,state.advancedPage-1));$('#advNext').onclick=()=>runAdvancedSearch(state.advancedPage+1);$('#advSaveBtn').onclick=()=>saveAdvancedSearch();$('#advGenreSearch').oninput=()=>renderAdvancedGenres();$('#advSourceSwitch .sourceTab').forEach(b=>b.onclick=()=>setAdvancedSource(b.dataset.source));$('#advQuery').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runAdvancedSearch(1)}});
+$('#advRun').onclick=()=>runAdvancedSearch(1);$('#advReset').onclick=()=>resetAdvancedSearch(true);$('#advResetTop').onclick=()=>resetAdvancedSearch(true);$('#advPrev').onclick=()=>runAdvancedSearch(Math.max(1,state.advancedPage-1));$('#advNext').onclick=()=>runAdvancedSearch(state.advancedPage+1);$('#advSaveBtn').onclick=()=>saveAdvancedSearch();$('#advGenreSearch').oninput=()=>renderAdvancedGenres();document.querySelectorAll('#advSourceSwitch .sourceTab').forEach(b=>b.onclick=()=>setAdvancedSource(b.dataset.source));$('#advQuery').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();runAdvancedSearch(1)}});
 let advancedAutoSearchTimer=0;
 function scheduleAdvancedAutoSearch(immediate=false){
  if(state.view!=='search')return;
