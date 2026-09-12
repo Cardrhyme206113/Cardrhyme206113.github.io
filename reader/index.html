@@ -3620,6 +3620,23 @@ body.reader-active #themeQuickBtn{
 }
 </style>
 
+
+<style id="reader-library-windowing-v21">
+#library.virtualLibrary{display:block!important;contain:layout style}
+#library.virtualLibrary>.libraryVirtualChunk{width:100%;margin:0 0 42px}
+#library.virtualLibrary>.libraryVirtualChunk.cardGrid{display:grid}
+#library.virtualLibrary>.libraryVirtualPlaceholder{display:block;min-height:1px;contain:layout paint style}
+#library.virtualLibrary .card{content-visibility:auto;contain-intrinsic-size:240px 390px}
+.continueCarousel{width:100%;overflow:hidden;position:relative;touch-action:pan-y;outline:none}
+.continueTrack{display:flex;width:100%;will-change:transform;transform:translate3d(0,0,0)}
+.continueSlide{flex:0 0 100%;width:100%;box-sizing:border-box}
+.continuePager{display:flex;align-items:center;gap:7px;margin-left:auto}
+.continuePager button{width:34px;height:34px;padding:0;border:1px solid var(--line);background:var(--control);color:var(--text);border-radius:8px;cursor:pointer;font-size:18px;line-height:1}
+.continuePager button:hover{background:var(--controlHover)}
+.continuePager button:disabled{opacity:.35;cursor:default}
+.continuePagerCount{min-width:42px;text-align:center;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
+@media(max-width:640px){#library.virtualLibrary>.libraryVirtualChunk{margin-bottom:24px}.continuePager button{width:32px;height:32px}.continuePagerCount{min-width:36px}}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -3699,12 +3716,17 @@ body.reader-active #themeQuickBtn{
 
   <div id="status" class="statusLine"></div>
   <section id="continueSection" class="hidden">
-    <div class="discoveryHead"><div class="discoveryHeadText"><div id="continueHeading" class="discoveryTitle">Continue reading</div><div id="continueBlurb" class="discoveryBlurb">Pick up exactly where you left off.</div></div></div>
-    <article id="continueCard" class="continueCard" tabindex="0">
-      <img id="continueCover" alt="">
-      <div class="continueText"><h3 id="continueTitle"></h3><p id="continueMeta"></p><div class="miniProgress"><i id="continueProgressBar"></i></div></div>
-      <button id="continueBtn" class="btn primary">Continue</button>
-    </article>
+    <div class="discoveryHead">
+      <div class="discoveryHeadText"><div id="continueHeading" class="discoveryTitle">Continue reading</div><div id="continueBlurb" class="discoveryBlurb">Pick up exactly where you left off.</div></div>
+      <div class="continuePager" aria-label="Continue reading navigation">
+        <button id="continuePrev" type="button" aria-label="Previous">‹</button>
+        <span id="continuePagerCount" class="continuePagerCount">1 / 1</span>
+        <button id="continueNext" type="button" aria-label="Next">›</button>
+      </div>
+    </div>
+    <div id="continueCarousel" class="continueCarousel" tabindex="0" aria-live="polite">
+      <div id="continueTrack" class="continueTrack"></div>
+    </div>
   </section>
 
   <div id="lnDiscoverySections" class="sourceDiscoveryGroup hidden">
@@ -3893,11 +3915,11 @@ body.reader-active #themeQuickBtn{
 </section>
 
 
-<div id="bookLoader" class="bookLoader" role="status" aria-live="polite" aria-hidden="true">
+<div id="bookLoader" class="bookLoader open" role="status" aria-live="polite" aria-hidden="false" data-boot-loading="1">
  <div class="loaderPanel">
   <div class="loaderBrand"><img class="loaderBook" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA2NCA2NCIgcm9sZT0iaW1nIiBhcmlhLWxhYmVsPSJSZWFkZXIiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJwYWdlIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iI2ZmZmVmYiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiNlOWU2ZGYiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImFjY2VudCIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiNlN2FhYTEiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjYjc2ZjY3Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KICA8cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSIxNSIgZmlsbD0iIzM0MzgzZCIvPgogIDxwYXRoIGQ9Ik0xMCAxNy40YzcuNi0yLjEgMTQuNC0uOCAyMC41IDMuN3YyOS4xYy02LjEtNC40LTEyLjktNS44LTIwLjUtMy43eiIgZmlsbD0idXJsKCNwYWdlKSIgc3Ryb2tlPSIjMTcxOTFjIiBzdHJva2Utd2lkdGg9IjIuNCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxwYXRoIGQ9Ik01NCAxNy40Yy03LjYtMi4xLTE0LjQtLjgtMjAuNSAzLjd2MjkuMWM2LjEtNC40IDEyLjktNS44IDIwLjUtMy43eiIgZmlsbD0idXJsKCNhY2NlbnQpIiBzdHJva2U9IiMxNzE5MWMiIHN0cm9rZS13aWR0aD0iMi40IiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CiAgPHBhdGggZD0iTTMyIDIwLjZ2MzAuMyIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMTcxOTFjIiBzdHJva2Utd2lkdGg9IjIuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPHBhdGggZD0iTTE0LjggMjIuMmM0LjQtLjggOC4yLjEgMTEuNyAyLjVNMTQuOCAyOGM0LjQtLjggOC4yLjEgMTEuNyAyLjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2FhYTlhNiIgc3Ryb2tlLXdpZHRoPSIxLjgiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgb3BhY2l0eT0iLjciLz4KICA8cGF0aCBkPSJNNDkuMiAyMi4yYy00LjQtLjgtOC4yLjEtMTEuNyAyLjVNNDkuMiAyOGMtNC40LS44LTguMi4xLTExLjcgMi41IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ZTUwNGEiIHN0cm9rZS13aWR0aD0iMS44IiBzdHJva2UtbGluZWNhcD0icm91bmQiIG9wYWNpdHk9Ii43NSIvPgo8L3N2Zz4K" alt=""><b>Reader</b></div>
-  <div id="loaderTitle" class="loaderTitle">Opening book</div>
-  <div id="loaderStatus" class="loaderStatus">Preparing volume…</div>
+  <div id="loaderTitle" class="loaderTitle">Loading library</div>
+  <div id="loaderStatus" class="loaderStatus">Preparing catalog…</div>
   <div class="loaderRow"><div class="loaderTrack"><i id="loaderBar"></i></div><span id="loaderPct">0%</span></div>
  </div>
 </div>
@@ -6347,7 +6369,149 @@ addEventListener('resize',()=>{
 });
 
 
-$('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSort;syncSettings();applyLanguage();setView('library');loadLibrary();refreshStatus();
+
+const LIBRARY_CHUNK_SIZE=200;
+const libraryVirtual={rows:[],chunks:[],loaded:new Set(),observer:null,avgRowHeight:360,cols:4,resizeTimer:0};
+function destroyVirtualLibrary(){
+ libraryVirtual.observer?.disconnect();libraryVirtual.observer=null;
+ libraryVirtual.rows=[];libraryVirtual.chunks=[];libraryVirtual.loaded.clear();
+ clearTimeout(libraryVirtual.resizeTimer);libraryVirtual.resizeTimer=0
+}
+function estimatedVirtualHeight(count){
+ const cols=Math.max(1,libraryVirtual.cols||4),rows=Math.max(1,Math.ceil(count/cols));
+ return Math.max(120,Math.round(rows*(libraryVirtual.avgRowHeight||360)))
+}
+function measureVirtualChunk(index){
+ const chunk=libraryVirtual.chunks[index];if(!chunk||chunk.dataset.hydrated!=='1')return;
+ const cards=[...chunk.querySelectorAll(':scope>.card')];if(!cards.length)return;
+ const firstTop=cards[0].offsetTop,cols=Math.max(1,cards.filter(x=>x.offsetTop===firstTop).length);
+ const tops=[];for(const card of cards){const y=card.offsetTop;if(!tops.includes(y))tops.push(y)}
+ const rows=Math.max(1,tops.length),h=chunk.getBoundingClientRect().height;
+ if(h>0){libraryVirtual.cols=cols;libraryVirtual.avgRowHeight=Math.max(120,h/rows);chunk.dataset.measuredHeight=String(h)}
+}
+function dehydrateVirtualChunk(index){
+ const chunk=libraryVirtual.chunks[index];if(!chunk||chunk.dataset.hydrated!=='1')return;
+ const h=Math.max(1,Math.round(chunk.getBoundingClientRect().height||+chunk.dataset.measuredHeight||estimatedVirtualHeight(+chunk.dataset.count||LIBRARY_CHUNK_SIZE)));
+ chunk.dataset.measuredHeight=String(h);chunk.replaceChildren();chunk.classList.remove('cardGrid');chunk.classList.add('libraryVirtualPlaceholder');chunk.style.height=h+'px';chunk.dataset.hydrated='0';libraryVirtual.loaded.delete(index)
+}
+function refreshVirtualPlaceholderHeights(){
+ for(const chunk of libraryVirtual.chunks){
+  if(chunk.dataset.hydrated==='1')continue;
+  chunk.style.height=(+chunk.dataset.measuredHeight||estimatedVirtualHeight(+chunk.dataset.count||LIBRARY_CHUNK_SIZE))+'px'
+ }
+}
+function pruneVirtualChunks(center){
+ for(const i of [...libraryVirtual.loaded])if(Math.abs(i-center)>1)dehydrateVirtualChunk(i)
+}
+function hydrateVirtualChunk(index){
+ const chunk=libraryVirtual.chunks[index];if(!chunk||chunk.dataset.hydrated==='1')return;
+ const from=index*LIBRARY_CHUNK_SIZE,to=Math.min(libraryVirtual.rows.length,from+LIBRARY_CHUNK_SIZE),frag=document.createDocumentFragment();
+ chunk.classList.remove('libraryVirtualPlaceholder');chunk.classList.add('cardGrid');chunk.style.height='';chunk.dataset.hydrated='1';
+ for(let i=from;i<to;i++)frag.appendChild(makeLibraryCard(libraryVirtual.rows[i]));
+ chunk.replaceChildren(frag);libraryVirtual.loaded.add(index);
+ requestAnimationFrame(()=>{measureVirtualChunk(index);pruneVirtualChunks(index);refreshVirtualPlaceholderHeights()})
+}
+function initVirtualLibrary(root,rows){
+ destroyVirtualLibrary();libraryVirtual.rows=rows;root.innerHTML='';root.classList.add('virtualLibrary');
+ const count=Math.ceil(rows.length/LIBRARY_CHUNK_SIZE),frag=document.createDocumentFragment();
+ for(let i=0;i<count;i++){
+  const chunk=document.createElement('div');chunk.className='libraryVirtualChunk libraryVirtualPlaceholder';chunk.dataset.index=String(i);chunk.dataset.hydrated='0';chunk.dataset.count=String(Math.min(LIBRARY_CHUNK_SIZE,rows.length-i*LIBRARY_CHUNK_SIZE));chunk.style.height=estimatedVirtualHeight(+chunk.dataset.count)+'px';
+  libraryVirtual.chunks.push(chunk);frag.appendChild(chunk)
+ }
+ root.appendChild(frag);hydrateVirtualChunk(0);
+ libraryVirtual.observer=new IntersectionObserver(entries=>{for(const entry of entries)if(entry.isIntersecting)hydrateVirtualChunk(+entry.target.dataset.index)},{root:null,rootMargin:'1800px 0px',threshold:0});
+ for(const chunk of libraryVirtual.chunks)libraryVirtual.observer.observe(chunk);
+ if(!root.dataset.virtualResizeBound){
+  root.dataset.virtualResizeBound='1';addEventListener('resize',()=>{clearTimeout(libraryVirtual.resizeTimer);libraryVirtual.resizeTimer=setTimeout(()=>{for(const x of libraryVirtual.chunks)x.dataset.measuredHeight='';for(const i of [...libraryVirtual.loaded])measureVirtualChunk(i);refreshVirtualPlaceholderHeights()},140)},{passive:true})
+ }
+}
+renderLibrary=function(){
+ const root=$('#library');destroyVirtualLibrary();root.innerHTML='';root.classList.remove('virtualLibrary');
+ const isWN=state.librarySource==='webnovel',isLN=state.librarySource==='epub',isBoth=state.librarySource==='both';
+ $('#libraryView').classList.toggle('discoveryMode',true);
+ $('#lnDiscoverySections').classList.toggle('hidden',isWN);
+ $('#wnDiscoverySections').classList.toggle('hidden',isLN);
+ $('#lnGroupHead').classList.toggle('hidden',!isBoth);
+ $('#wnGroupHead').classList.toggle('hidden',!isBoth);
+ $('#genreSection').classList.toggle('hidden',!isWN);
+ const lnRows=rowsForSource('epub'),wnRows=rowsForSource('webnovel');
+ fillDiscoveryShelf('#lnMostShelf',[...lnRows].sort((a,b)=>(b.volume_count||0)-(a.volume_count||0)||a.name.localeCompare(b.name)).slice(0,24));
+ fillDiscoveryShelf('#lnRecentShelf',[...lnRows].sort((a,b)=>(b.updated_ns||0)-(a.updated_ns||0)||a.name.localeCompare(b.name)).slice(0,24));
+ fillDiscoveryShelf('#lnTranslatedShelf',lnRows.filter(s=>s.translated).sort((a,b)=>(b.translated_count||0)-(a.translated_count||0)||(b.volume_count||0)-(a.volume_count||0)).slice(0,24));
+ if(!isLN){
+  if(isWN)renderGenreChips();
+  fillDiscoveryShelf('#eliteShelf',wnRows.filter(s=>s.curation_tier==='elite'));
+  fillDiscoveryShelf('#strongShelf',wnRows.filter(s=>s.curation_tier==='strong'));
+  fillDiscoveryShelf('#popularShelf',wnRows.filter(s=>s.curation_tier==='popular_staples'))
+ }
+ let rows=sortLibrary(state.libraryData);
+ if(isWN&&state.discoveryGenre!=='All')rows=rows.filter(s=>(s.genres||[]).some(g=>String(g).localeCompare(state.discoveryGenre,undefined,{sensitivity:'accent'})===0));
+ if(!rows.length){root.innerHTML='<div class="emptyShelf">'+esc(t('noNovels'))+'</div>';updateContinueCard();return}
+ initVirtualLibrary(root,rows);
+ setText('#allNovelsHeading',isLN?'allLightNovels':isWN?'allWebNovels':'allNovels');
+ updateContinueCard()
+};
+
+let continueCarouselIndex=0,continueCarouselKey='',continueSwipeSuppressUntil=0;
+function setContinueCarouselIndex(index,animate=true){
+ const track=$('#continueTrack'),slides=track?[...track.children]:[];if(!track||!slides.length)return;
+ continueCarouselIndex=Math.max(0,Math.min(slides.length-1,index));
+ track.style.transition=animate?'transform .34s cubic-bezier(.22,.74,.2,1)':'none';
+ track.style.transform='translate3d('+(-continueCarouselIndex*100)+'%,0,0)';
+ $('#continuePagerCount').textContent=(continueCarouselIndex+1)+' / '+slides.length;
+ $('#continuePrev').disabled=continueCarouselIndex<=0;$('#continueNext').disabled=continueCarouselIndex>=slides.length-1
+}
+function moveContinueCarousel(dir){setContinueCarouselIndex(continueCarouselIndex+dir,true)}
+function installContinueCarouselGestures(){
+ const root=$('#continueCarousel'),track=$('#continueTrack');if(!root||!track||root.dataset.swipeBound)return;root.dataset.swipeBound='1';
+ let startX=0,startY=0,dx=0,pointer=null,dragging=false;
+ root.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;pointer=e.pointerId;startX=e.clientX;startY=e.clientY;dx=0;dragging=false;track.style.transition='none';try{root.setPointerCapture(pointer)}catch(_){}});
+ root.addEventListener('pointermove',e=>{if(pointer!==e.pointerId)return;dx=e.clientX-startX;const dy=e.clientY-startY;if(!dragging&&Math.abs(dx)>8&&Math.abs(dx)>Math.abs(dy)*1.15)dragging=true;if(dragging){e.preventDefault();track.style.transform='translate3d(calc('+(-continueCarouselIndex*100)+'% + '+dx+'px),0,0)'}});
+ root.addEventListener('pointerup',e=>{if(pointer!==e.pointerId)return;const dy=e.clientY-startY;pointer=null;if(dragging&&Math.abs(dx)>48&&Math.abs(dx)>Math.abs(dy)*1.15){continueSwipeSuppressUntil=Date.now()+350;moveContinueCarousel(dx<0?1:-1)}else setContinueCarouselIndex(continueCarouselIndex,true);dragging=false;dx=0});
+ root.addEventListener('pointercancel',()=>{pointer=null;dragging=false;dx=0;setContinueCarouselIndex(continueCarouselIndex,true)});
+ root.addEventListener('keydown',e=>{if(e.key==='ArrowRight'){e.preventDefault();moveContinueCarousel(1)}else if(e.key==='ArrowLeft'){e.preventDefault();moveContinueCarousel(-1)}});
+ $('#continuePrev').onclick=e=>{e.stopPropagation();moveContinueCarousel(-1)};$('#continueNext').onclick=e=>{e.stopPropagation();moveContinueCarousel(1)}
+}
+updateContinueCard=function(){
+ const sec=$('#continueSection'),track=$('#continueTrack');if(!sec||!track)return;
+ const entries=[];
+ for(const s of state.libraryData)for(const id of s.book_ids||[]){if(!hasMeaningfulRead(id))continue;const p=readStoredProgress(id);if(p.updated&&p.global>.001)entries.push({id:id,series:s,updated:p.updated,global:p.global})}
+ entries.sort((a,b)=>b.updated-a.updated);
+ const seen=new Set(),recent=[];for(const x of entries){if(seen.has(x.id))continue;seen.add(x.id);recent.push(x);if(recent.length>=10)break}
+ if(!recent.length){sec.classList.add('hidden');track.replaceChildren();continueCarouselKey='';return}
+ sec.classList.remove('hidden');installContinueCarouselGestures();
+ const key=recent.map(x=>x.id+':'+x.updated).join('|');if(key===continueCarouselKey){setContinueCarouselIndex(Math.min(continueCarouselIndex,recent.length-1),false);return}
+ continueCarouselKey=key;continueCarouselIndex=0;const frag=document.createDocumentFragment();
+ for(const item of recent){
+  const kind=progressKindForId(item.id),card=document.createElement('article');card.className='continueCard continueSlide';card.tabIndex=0;
+  const img=document.createElement('img');img.loading='lazy';img.alt='';img.src=coverURLFor(item.id);
+  const text=document.createElement('div');text.className='continueText';
+  const h=document.createElement('h3');h.textContent=item.series?.name||t('continueReading');
+  const p=document.createElement('p');p.textContent=(kind==='webnovel'?'WN':'LN')+' · '+formatPct(item.global,kind)+' '+t('read')+' · '+relativeTime(item.updated);
+  const prog=document.createElement('div');prog.className='miniProgress';const bar=document.createElement('i');bar.style.width=(item.global*100)+'%';prog.appendChild(bar);
+  text.append(h,p,prog);
+  const btn=document.createElement('button');btn.className='btn primary';btn.type='button';btn.textContent=t('continue');
+  const open=()=>{if(Date.now()<continueSwipeSuppressUntil)return;openBook(item.id)};
+  card.onclick=open;card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}};btn.onclick=e=>{e.stopPropagation();open()};
+  card.append(img,text,btn);frag.appendChild(card)
+ }
+ track.replaceChildren(frag);requestAnimationFrame(()=>setContinueCarouselIndex(0,false))
+};
+
+async function bootInitialLibrary(){
+ const l=$('#bookLoader');state.loading=true;l.dataset.bootLoading='1';l.classList.add('open');l.setAttribute('aria-hidden','false');
+ $('#loaderTitle').textContent=uiLanguage==='tr'?'Kütüphane yükleniyor':'Loading library';
+ setLoaderProgress(8,uiLanguage==='tr'?'Katalog hazırlanıyor…':'Preparing catalog…');
+ try{
+  await loadLibrary();
+  setLoaderProgress(92,uiLanguage==='tr'?'Kapaklar hazırlanıyor…':'Preparing covers…');
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  delete l.dataset.bootLoading;await hideBookLoader()
+ }catch(e){
+  console.error(e);delete l.dataset.bootLoading;$('#loaderTitle').textContent=uiLanguage==='tr'?'Kütüphane açılamadı':'Could not load library';$('#loaderStatus').textContent=String(e?.message||e);state.loading=false
+ }
+}
+$('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSort;syncSettings();applyLanguage();setView('library');bootInitialLibrary();refreshStatus();
 </script>
 
 
