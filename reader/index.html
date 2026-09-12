@@ -4445,7 +4445,7 @@ if(mobileReaderDefaults && storage.get('reader-mobile-type-v16')!=='1'){
 function bget(k,d){const v=storage.get(k);return v==null?d:v==='true'?true:v==='false'?false:v}
 
 const LANG_KEY='reader-language';
-let uiLanguage=storage.get(LANG_KEY)==='tr'?'tr':'en';
+let uiLanguage=storage.get(LANG_KEY)==='en'?'en':'tr';
 const I18N={
  en:{
   library:'Library',local:'Local',scanning:'Scanning library…',search:'Search novels',sortLibrary:'Sort library',both:'Both',lightNovels:'Light novels',webNovelsTitle:'Web novels',libraryType:'Library type',defaultOrder:'Default order',mostChapters:'Most chapters',fewestChapters:'Fewest chapters',
