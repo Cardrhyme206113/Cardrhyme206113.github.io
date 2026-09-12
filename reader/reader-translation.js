@@ -134,6 +134,45 @@ registerProvider({
   async translate(text){return googleTranslate(text)}
 });
 
+function buildMockGooglePayload(text){
+  // Same outer shape consumed by parseGooglePayload(): data[0][n][0] is translated text.
+  // The visible prefix makes it impossible to confuse this diagnostic provider with real Google.
+  const translated='⟦YEREL API TESTİ⟧ '+String(text||'');
+  return [[[translated,String(text||''),null,null,1]],null,SOURCE_LANG]
+}
+
+async function mockGoogleRequest(text){
+  // No DNS, CORS, remote server or Google dependency. Keep an async boundary so this
+  // still exercises the provider/request/render pipeline like a network translation.
+  await new Promise(r=>setTimeout(r,60));
+  const payload=buildMockGooglePayload(text);
+
+  // Exercise the same JSON serialization/deserialization boundary an HTTP response has.
+  const response=new Response(JSON.stringify(payload),{
+    status:200,
+    headers:{'Content-Type':'application/json;charset=UTF-8'}
+  });
+  if(!response.ok)throw new Error('Mock HTTP '+response.status);
+  return parseGooglePayload(await response.json())
+}
+
+async function mockGoogleTranslate(text){
+  const chunks=splitText(text);
+  const out=[];
+  for(const chunk of chunks)out.push(await mockGoogleRequest(chunk));
+  return out.join('\n\n')
+}
+
+registerProvider({
+  id:'google-local-mock',
+  label:{en:'Local API Test',tr:'Yerel API Testi'},
+  description:{
+    en:'Diagnostic Google-API simulator. Runs entirely in this browser; no Google, DNS, CORS, or external network request.',
+    tr:'Tanılama amaçlı Google API simülatörü. Tamamen bu tarayıcıda çalışır; Google, DNS, CORS veya dış ağ isteği kullanmaz.'
+  },
+  async translate(text){return mockGoogleTranslate(text)}
+});
+
 function openDB(){
   if(dbPromise)return dbPromise;
   if(!('indexedDB' in window))return Promise.resolve(null);
@@ -572,6 +611,6 @@ window.ReaderTranslation={
   setEngine,
   refresh:queueVisibleSync,
   clearMemoryCache(){memCache.clear()},
-  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:1}
+  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:1,mockProvider:'google-local-mock'}
 };
 })();
