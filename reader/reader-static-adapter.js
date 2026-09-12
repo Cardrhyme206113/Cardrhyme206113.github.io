@@ -84,6 +84,24 @@
   const fold = s => String(s ?? '').toLocaleLowerCase();
   const includesFold = (a,b) => fold(a).includes(fold(b));
 
+  async function resilientMetadataFetch(url,options={}){
+    let last=null;
+    for(let attempt=0;attempt<2;attempt++){
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),10000);
+      try{
+        const r=await nativeFetch(url,{...options,cache:'force-cache',signal:controller.signal});
+        clearTimeout(timer);
+        return r
+      }catch(e){
+        clearTimeout(timer);
+        last=e;
+        if(attempt===0)await new Promise(r=>setTimeout(r,250))
+      }
+    }
+    throw last||new Error('metadata fetch failed')
+  }
+
   function requestReaderPassword(){
     // Temporary client-side auto-unlock. This keyword is intentionally shipped
     // with the viewer and therefore must not be treated as server-side access control.
@@ -216,7 +234,7 @@
   }
   async function loadCryptoConfig(){
     if(!cryptoConfigPromise)cryptoConfigPromise=(async()=>{
-      const r=await nativeFetch(storageURL('data/crypto.json',{mutable:true}),{cache:'no-cache'});
+      const r=await resilientMetadataFetch(storageURL('data/crypto.json',{mutable:true}));
       if(r.status===404)return {encrypted:false};
       if(!r.ok)throw new Error(`reader-static crypto config HTTP ${r.status}`);
       const c=await r.json();return c&&c.encrypted?c:{encrypted:false};
@@ -267,7 +285,7 @@
     if(!catalogPromise){
       catalogPromise=(async()=>{
         const cfg=await loadCryptoConfig();
-        const r=await nativeFetch(storageURL(cfg.encrypted?'data/catalog.rse':'data/catalog.json',{mutable:true}),{cache:'no-cache'});
+        const r=await resilientMetadataFetch(storageURL(cfg.encrypted?'data/catalog.rse':'data/catalog.json',{mutable:true}));
         if(!r.ok) throw new Error(`reader-static catalog HTTP ${r.status}`);
         let c=cfg.encrypted?await decodeProtectedJSON(r):await r.json();
         if(c?.__readerCorruptCipher)c=syntheticCatalog(c.__readerCorruptCipher);
