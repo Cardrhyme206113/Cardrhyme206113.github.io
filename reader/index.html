@@ -3868,6 +3868,25 @@ html.reader-noimg .readerStage.imageMode #scrollHost{background:var(--paper)!imp
   html.reader-noimg #volumeGrid.cardGrid{grid-template-columns:1fr!important}
 }
 </style>
+<style id="continue-title-fit">
+/* Global: never truncate Continue Reading titles. */
+.continueText{
+  min-width:0;
+  max-width:100%;
+}
+.continueText h3{
+  display:block;
+  max-width:100%;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  text-wrap:balance;
+  -webkit-line-clamp:unset;
+  -webkit-box-orient:initial;
+}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
