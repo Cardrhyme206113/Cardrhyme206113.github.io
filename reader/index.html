@@ -3887,6 +3887,58 @@ html.reader-noimg .readerStage.imageMode #scrollHost{background:var(--paper)!imp
   -webkit-box-orient:initial;
 }
 </style>
+<style id="mobile-dock-visual-viewport-fix">
+:root{
+  --mobile-vv-top:0px;
+  --mobile-vv-height:100dvh;
+}
+@media(max-width:860px){
+  body:not(.reader-active){
+    padding-bottom:calc(var(--dock) + env(safe-area-inset-bottom) + 8px)!important;
+  }
+  body:not(.reader-active) .topbar{
+    /* Anchor the whole dock to the bottom of the *visual* viewport.
+       Android Chrome can keep layout-viewport bottom behind its browser UI. */
+    inset:auto 0 auto 0!important;
+    top:calc(
+      var(--mobile-vv-top) +
+      var(--mobile-vv-height) -
+      var(--dock) -
+      env(safe-area-inset-bottom)
+    )!important;
+    bottom:auto!important;
+    height:calc(var(--dock) + env(safe-area-inset-bottom))!important;
+    max-height:calc(var(--dock) + env(safe-area-inset-bottom))!important;
+    box-sizing:border-box!important;
+  }
+}
+</style>
+<script id="mobile-dock-visual-viewport-runtime">
+(()=>{
+  const root=document.documentElement;
+  let raf=0;
+  const sync=()=>{
+    raf=0;
+    const vv=window.visualViewport;
+    if(vv){
+      root.style.setProperty('--mobile-vv-top',Math.max(0,Math.round(vv.offsetTop))+'px');
+      root.style.setProperty('--mobile-vv-height',Math.max(1,Math.round(vv.height))+'px');
+    }else{
+      root.style.setProperty('--mobile-vv-top','0px');
+      root.style.setProperty('--mobile-vv-height',Math.max(1,window.innerHeight)+'px');
+    }
+  };
+  const queue=()=>{
+    if(raf)return;
+    raf=requestAnimationFrame(sync);
+  };
+  sync();
+  addEventListener('resize',queue,{passive:true});
+  addEventListener('orientationchange',queue,{passive:true});
+  window.visualViewport?.addEventListener('resize',queue,{passive:true});
+  window.visualViewport?.addEventListener('scroll',queue,{passive:true});
+})();
+</script>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
