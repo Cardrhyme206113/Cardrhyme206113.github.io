@@ -44,6 +44,7 @@ let fallbackBusy=false;
 let forcedFailureCount=0;
 const debugEvents=[];
 let lastFailure=null;
+let diagnosticsOpen=false;
 function debugEvent(stage,data={}){
   const e={time:new Date().toISOString(),stage,...data};
   debugEvents.push(e);
@@ -452,7 +453,16 @@ function installStyles(){
     '#proseContent.readerTranslationSwapping{opacity:.28}',
     '#readerTranslationSettings .readerTranslationSeg{min-width:0}',
     '#readerTranslationSettings .readerTranslationSeg button{min-width:0;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-    '#readerTranslationSettings .readerTranslationHint{margin-top:8px;color:var(--muted);font-size:9.5px;line-height:1.45}'
+    '#readerTranslationSettings .readerTranslationHint{margin-top:8px;color:var(--muted);font-size:9.5px;line-height:1.45}',
+    '#readerTranslationSettings .readerTranslationDiagRow{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}',
+    '#readerTranslationSettings .readerTranslationDiagBtn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--readingText);border-radius:7px;padding:6px 9px;font:600 9px/1.2 inherit}',
+    '#readerTranslationSettings .readerTranslationDiag{margin-top:8px;border:1px solid var(--line);border-radius:8px;background:color-mix(in srgb,var(--surface) 88%,transparent);overflow:hidden}',
+    '#readerTranslationSettings .readerTranslationDiagHead{padding:7px 8px;border-bottom:1px solid var(--line);font:700 9px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted)}',
+    '#readerTranslationSettings .readerTranslationDiagList{max-height:220px;overflow:auto;padding:4px 0}',
+    '#readerTranslationSettings .readerTranslationDiagItem{padding:5px 8px;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent);font:500 8.5px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}',
+    '#readerTranslationSettings .readerTranslationDiagItem:first-child{border-top:0}',
+    '#readerTranslationSettings .readerTranslationDiagItem.fail{color:#d46d62}',
+    '#readerTranslationSettings .readerTranslationDiagTime{opacity:.66;margin-right:5px}'
   ].join('\n');
   document.head.appendChild(s)
 }
@@ -572,6 +582,27 @@ function installSettingsUI(){
   }
   refreshSettingsUI()
 }
+function formatDiagEvent(e){
+  const t=String(e.time||'').slice(11,19);
+  const parts=[e.stage||'event'];
+  if(e.attempt)parts.push((trUI()?'deneme ':'attempt ')+e.attempt+'/'+(e.total||'?'));
+  if(Number.isFinite(e.ms))parts.push(e.ms+' ms');
+  if(Number.isFinite(e.status))parts.push('HTTP '+e.status);
+  if(e.via)parts.push(e.via);
+  if(Number.isFinite(e.delayMs))parts.push((trUI()?'bekle ':'wait ')+(e.delayMs/1000)+' s');
+  if(e.name||e.message)parts.push([e.name,e.message].filter(Boolean).join(': '));
+  return '<div class="readerTranslationDiagItem '+((String(e.stage).includes('fail')||String(e.stage).includes('error'))?'fail':'')+'"><span class="readerTranslationDiagTime">'+esc(t)+'</span>'+esc(parts.join(' · '))+'</div>'
+}
+function renderDiagnostics(){
+  const events=debugEvents.slice(-16).reverse();
+  const status=fallbackActive
+    ?(trUI()?'Yerleşik yedek aktif':'Built-in fallback active')
+    :(effectiveEngine()==='google'?(trUI()?'Google aktif':'Google active'):(trUI()?'Yerleşik aktif':'Built-in active'));
+  return '<div class="readerTranslationDiag" '+(diagnosticsOpen?'':'hidden')+'>'+
+    '<div class="readerTranslationDiagHead">'+esc(status)+' · '+esc((trUI()?'son ':'last ')+events.length+(trUI()?' olay':' events'))+'</div>'+
+    '<div class="readerTranslationDiagList">'+(events.length?events.map(formatDiagEvent).join(''):'<div class="readerTranslationDiagItem">'+esc(trUI()?'Henüz tanılama olayı yok.':'No diagnostic events yet.')+'</div>')+'</div>'+
+    '</div>'
+}
 function refreshSettingsUI(){
   if(!settingsSection)return;
   const current=preferredEngine();
@@ -595,8 +626,15 @@ function refreshSettingsUI(){
       const suffix=p.id==='google'?(trUI()?' · Önerilen':' · Recommended'):'';
       return '<button type="button" data-translation-engine="'+esc(p.id)+'" class="'+(on?'on':'')+'" aria-pressed="'+(on?'true':'false')+'" title="'+esc(localized(p,'description'))+'">'+esc(localized(p,'label')+suffix)+'</button>'
     }).join('')+
-    '</div></div><div class="readerTranslationHint">'+esc(hint)+'</div>';
-  settingsSection.querySelectorAll('[data-translation-engine]').forEach(btn=>btn.addEventListener('click',()=>setEngine(btn.dataset.translationEngine)))
+    '</div></div><div class="readerTranslationHint">'+esc(hint)+'</div>'+
+    '<div class="readerTranslationDiagRow"><button type="button" class="readerTranslationDiagBtn" data-translation-diagnostics>'+
+      esc(diagnosticsOpen?(trUI()?'Ayrıntıları gizle':'Hide details'):(trUI()?'Hata ayrıntıları':'Failure details'))+
+    '</button>'+
+    (fallbackActive&&current==='google'?'<button type="button" class="readerTranslationDiagBtn" data-translation-retry>'+esc(trUI()?'Google\'ı tekrar dene':'Retry Google')+'</button>':'')+
+    '</div>'+renderDiagnostics();
+  settingsSection.querySelectorAll('[data-translation-engine]').forEach(btn=>btn.addEventListener('click',()=>setEngine(btn.dataset.translationEngine)));
+  settingsSection.querySelector('[data-translation-diagnostics]')?.addEventListener('click',()=>{diagnosticsOpen=!diagnosticsOpen;refreshSettingsUI()});
+  settingsSection.querySelector('[data-translation-retry]')?.addEventListener('click',()=>window.ReaderTranslation?.retryGoogle?.())
 }
 async function setEngine(id){
   if(changingEngine||!providers.has(id))return;
