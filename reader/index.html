@@ -4027,6 +4027,58 @@ html.reader-loader-active #continueSection::before{
   }
 }
 </style>
+<style id="reader-popup-topbar-series-polish-v1">
+/* Reader Settings: match the Contents drawer with a real off-canvas slide. */
+body.reader-active #settings.settingsPage.readerPopup{
+  transform:translate3d(102%,0,0)!important;
+  transition:transform .22s cubic-bezier(.2,.75,.25,1)!important;
+  will-change:transform!important;
+}
+body.reader-active #settings.settingsPage.readerPopup.open{
+  transform:translate3d(0,0,0)!important;
+}
+
+/* Desktop Reader chrome: every control shares the 56px topbar centerline.
+   Mobile positions are intentionally untouched. */
+@media(min-width:801px){
+  body.reader-active #navLibraryBtn,
+  body.reader-active #contentsBtn,
+  body.reader-active #langBtn,
+  body.reader-active #readingBtn{
+    top:6px!important;
+  }
+
+  body.reader-active .readerTopStats,
+  body.reader-active .readerHud{
+    top:9px!important;
+  }
+
+  body.reader-active .readerBookTitle{
+    top:0!important;
+    height:56px!important;
+    align-items:center!important;
+  }
+}
+
+/* Series overview: give the hero some breathing room from the page top. */
+#seriesView .seriesHero{
+  margin-top:18px!important;
+}
+
+@media(max-width:760px){
+  #seriesView .seriesHero{
+    grid-template-columns:116px minmax(0,1fr)!important;
+    gap:18px!important;
+    margin-top:16px!important;
+  }
+  #seriesView .heroCoverWrap{
+    width:116px!important;
+  }
+  #seriesView .heroCover{
+    width:100%!important;
+  }
+}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -5244,14 +5296,24 @@ function buildToc(force=false){
 function syncBackdrop(){const s=$('#settings');const open=$('#drawer').classList.contains('open')||(s.classList.contains('readerPopup')&&s.classList.contains('open'));$('#backdrop').classList.toggle('open',open);document.body.classList.toggle('panel-open',open)}
 function openDrawer(){closeSettings(false);buildToc(true);$('#drawer').classList.add('open');syncBackdrop();if(state.view==='reader')setChrome(true,true)}
 function closeDrawer(sync=true){$('#drawer').classList.remove('open');if(sync)syncBackdrop()}
+let settingsPopupCloseTimer=0;
 function openSettings(){
  closeDrawer(false);
  const s=$('#settings');
+ clearTimeout(settingsPopupCloseTimer);
  if(state.view==='reader'){
-  s.classList.remove('hidden');
-  s.classList.add('readerPopup','open');
+  /* Paint the off-screen popup for one frame before opening it.
+     Without this, hidden -> readerPopup+open happens atomically and there is
+     no transition for the browser to animate. */
+  s.classList.remove('hidden','open');
+  s.classList.add('readerPopup');
   syncSettings();
-  syncBackdrop();
+  void s.offsetWidth;
+  requestAnimationFrame(()=>{
+   if(state.view!=='reader'||!s.classList.contains('readerPopup'))return;
+   s.classList.add('open');
+   syncBackdrop()
+  });
   setChrome(true,true);
  }else{
   s.classList.remove('readerPopup','open');
@@ -5261,9 +5323,21 @@ function openSettings(){
 }
 function closeSettings(sync=true){
  const s=$('#settings');
+ clearTimeout(settingsPopupCloseTimer);
  if(s.classList.contains('readerPopup')){
-  s.classList.remove('open','readerPopup');
-  if(state.view!=='settings')s.classList.add('hidden')
+  if(!sync){
+   s.classList.remove('open','readerPopup');
+   if(state.view!=='settings')s.classList.add('hidden');
+   return
+  }
+  s.classList.remove('open');
+  settingsPopupCloseTimer=setTimeout(()=>{
+   if(s.classList.contains('open'))return;
+   s.classList.remove('readerPopup');
+   if(state.view!=='settings')s.classList.add('hidden');
+   syncBackdrop()
+  },240);
+  return
  }else{
   s.classList.remove('open')
  }
