@@ -13,16 +13,28 @@ const ENGINE_KEY='reader-translation-engine';
 const CACHE_DB='reader-translation-cache-v1';
 const CACHE_STORE='pages';
 const CACHE_VERSION=1;
-const DEFAULT_ENGINE='builtin';
+const BUILTIN_ENGINE='builtin';
+const DEFAULT_ENGINE='lingva';
 const SOURCE_LANG='en';
 const TARGET_LANG='tr';
 const GOOGLE_ENDPOINT='https://translate.googleapis.com/translate_a/single';
 const GOOGLE_CHUNK_LIMIT=4200;
+const LINGVA_CHUNK_LIMIT=4800;
+const LINGVA_TIMEOUT_MS=8500;
+const LINGVA_BAD_INSTANCE_MS=5*60*1000;
+const LINGVA_INSTANCES=[
+  'https://lingva.ml',
+  'https://translate.plausibility.cloud',
+  'https://lingva.lunar.icu',
+  'https://translate.projectsegfau.lt',
+  'https://translate.jae.fi'
+];
 const CACHE_MAX_ENTRIES=2500;
 
 const providers=new Map();
 const inflight=new Map();
 const memCache=new Map();
+const lingvaBadUntil=new Map();
 let dbPromise=null;
 let syncTicket=0;
 let overlay=null;
@@ -40,7 +52,7 @@ function readEngine(){
   return providers.has(v)?v:DEFAULT_ENGINE;
 }
 function activeProvider(){return providers.get(readEngine())||providers.get(DEFAULT_ENGINE)}
-function usesLiveTranslation(){return trUI()&&readEngine()!==DEFAULT_ENGINE}
+function usesLiveTranslation(){return trUI()&&readEngine()!==BUILTIN_ENGINE}
 function escHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function hashText(s){
   let h=0x811c9dc5;
@@ -132,6 +144,67 @@ registerProvider({
     tr:'İngilizce sayfaları ihtiyaç oldukça Google Translate ile çevirir. Resmî olmayan uç nokta; hız sınırı uygulanabilir.'
   },
   async translate(text){return googleTranslate(text)}
+});
+
+async function lingvaRequest(text){
+  const errors=[];
+  const now=Date.now();
+  const candidates=LINGVA_INSTANCES
+    .map((base,index)=>({base,index,badUntil:lingvaBadUntil.get(base)||0}))
+    .sort((a,b)=>{
+      const ag=a.badUntil>now?1:0,bg=b.badUntil>now?1:0;
+      return ag-bg||a.index-b.index
+    });
+
+  for(const {base} of candidates){
+    if((lingvaBadUntil.get(base)||0)>Date.now())continue;
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),LINGVA_TIMEOUT_MS);
+    try{
+      const r=await fetch(base+'/api/v1/'+SOURCE_LANG+'/'+TARGET_LANG,{
+        method:'POST',
+        mode:'cors',
+        credentials:'omit',
+        signal:controller.signal,
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({query:text})
+      });
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const data=await r.json();
+      if(data?.error)throw new Error(String(data.error));
+      const translated=String(data?.translation||'').trim();
+      if(!translated)throw new Error('Empty Lingva translation');
+      clearTimeout(timer);
+      return translated
+    }catch(err){
+      clearTimeout(timer);
+      lingvaBadUntil.set(base,Date.now()+LINGVA_BAD_INSTANCE_MS);
+      errors.push(base.replace(/^https?:\/\//,'')+': '+(err?.name||'Error')+' '+(err?.message||err))
+    }
+  }
+  // If every instance is cooling down, allow one immediate retry of the primary
+  // on the next user-triggered call instead of locking the engine for five minutes.
+  if(LINGVA_INSTANCES.every(base=>(lingvaBadUntil.get(base)||0)>Date.now())){
+    lingvaBadUntil.delete(LINGVA_INSTANCES[0])
+  }
+  throw new Error('All Lingva instances failed · '+errors.join(' | '))
+}
+
+async function lingvaTranslate(text){
+  const chunks=splitText(text,LINGVA_CHUNK_LIMIT);
+  const out=[];
+  for(const chunk of chunks)out.push(await lingvaRequest(chunk));
+  return out.join('\n\n')
+}
+
+registerProvider({
+  id:'lingva',
+  label:{en:'Lingva',tr:'Lingva'},
+  description:{
+    en:'Keyless Google-backed translation through public Lingva instances. Uses up to ~4,800 characters per request and automatically fails over between instances.',
+    tr:'Genel Lingva sunucuları üzerinden anahtarsız, Google tabanlı çeviri. İstek başına yaklaşık 4.800 karakter kullanır ve sunucular arasında otomatik geçiş yapar.'
+  },
+  async translate(text){return lingvaTranslate(text)}
 });
 
 function buildMockGooglePayload(text){
@@ -423,8 +496,9 @@ async function syncVisiblePage(){
     }catch(err){
       if(ticket!==syncTicket)return;
       hideOverlay();
-      showTransientStatus(trUI()?'Google Translate kullanılamıyor · İngilizce gösteriliyor':'Google Translate unavailable · showing English',true);
-      console.warn('[reader-translation] Google translation failed',err)
+      const providerName=localizeProviderLabel(activeProvider())||'Translation';
+      showTransientStatus(providerName+' · '+(trUI()?'kullanılamıyor · İngilizce gösteriliyor':'unavailable · showing English'),true);
+      console.warn('[reader-translation] translation failed',readEngine(),err)
     }
   }
 
@@ -447,7 +521,7 @@ function showTransientStatus(text,error=false){
 function renderTranslation(text,cached){
   ensureOverlay();if(!overlay)return;
   overlay.hidden=false;overlay.classList.remove('error');overlay.classList.add('ready');
-  overlayStatus.textContent=cached?(trUI()?'Önbellek':'Cached'):'Google';
+  overlayStatus.textContent=cached?(trUI()?'Önbellek':'Cached'):(localizeProviderLabel(activeProvider())||'Translation');
   overlayBody.textContent=text;
   placeOverlay();
   requestAnimationFrame(()=>{placeOverlay();fitOverlayText()})
@@ -492,15 +566,16 @@ function refreshSettingsUI(){
   const title=trUI()?'Çeviri':'Translation';
   const label=trUI()?'Çeviri motoru':'Translation engine';
   const hint=trUI()
-    ?'Türkçe seçiliyken kullanılır. Google yalnızca açık sayfayı ve sonraki 1 sayfayı çevirir; tamamlanan sayfalar bu cihazda önbelleğe alınır.'
-    :'Used when Türkçe is selected. Google translates only the visible page plus a 1-page buffer; completed pages are cached on this device.';
+    ?'Türkçe seçiliyken kullanılır. Lingva anahtarsızdır; yaklaşık 4.800 karakterlik parçalara kadar çevirir, açık sayfa + sonraki 1 sayfayı hazırlar ve sonucu bu cihazda önbelleğe alır.'
+    :'Used when Türkçe is selected. Lingva is keyless, translates chunks up to about 4,800 characters, keeps the visible page + 1 page ready, and caches results on this device.';
   settingsSection.innerHTML=`
     <div class="settingsGroupTitle">${escHtml(title)}</div>
     <div class="setting two">
       <label>${escHtml(label)}</label>
       <div class="seg readerTranslationSeg" id="readerTranslationEngine">${[...providers.values()].map(p=>{
         const on=p.id===current;
-        return `<button type="button" data-translation-engine="${escHtml(p.id)}" class="${on?'on':''}" aria-pressed="${on?'true':'false'}" title="${escHtml(localizeProviderDescription(p))}">${escHtml(localizeProviderLabel(p))}</button>`
+        const suffix=p.id==='lingva'?(trUI()?' · Önerilen':' · Recommended'):'';
+        return `<button type="button" data-translation-engine="${escHtml(p.id)}" class="${on?'on':''}" aria-pressed="${on?'true':'false'}" title="${escHtml(localizeProviderDescription(p))}">${escHtml(localizeProviderLabel(p)+suffix)}</button>`
       }).join('')}</div>
     </div>
     <div class="readerTranslationHint">${escHtml(hint)}</div>`;
@@ -594,6 +669,14 @@ function patchReader(){
 }
 
 function boot(){
+  try{
+    const migrationKey='reader-translation-lingva-default-v1';
+    if(!localStorage.getItem(migrationKey)){
+      const old=localStorage.getItem(ENGINE_KEY);
+      if(!old||old==='google'||old==='google-local-mock')localStorage.setItem(ENGINE_KEY,'lingva');
+      localStorage.setItem(migrationKey,'1')
+    }
+  }catch(_){}
   installSettingsUI();
   ensureOverlay();
   patchReader();
@@ -611,6 +694,6 @@ window.ReaderTranslation={
   setEngine,
   refresh:queueVisibleSync,
   clearMemoryCache(){memCache.clear()},
-  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:1,mockProvider:'google-local-mock'}
+  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:1,mockProvider:'google-local-mock',lingvaChunkLimit:LINGVA_CHUNK_LIMIT,lingvaInstances:[...LINGVA_INSTANCES]}
 };
 })();
