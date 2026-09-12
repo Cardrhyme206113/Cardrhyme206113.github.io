@@ -19,8 +19,7 @@ const GOOGLE_ENDPOINT='https://translate.googleapis.com/translate_a/single';
 const GOOGLE_TIMEOUT_MS=6500;
 const GOOGLE_RETRY_DELAY_MS=3000;
 const GOOGLE_MAX_RETRIES=3;
-const GOOGLE_CHUNK_LIMIT=4200;
-const GOOGLE_GET_CHUNK_LIMIT=900;
+const GOOGLE_CHUNK_LIMIT=1200;
 const BATCH_CHAR_LIMIT=3400;
 const BUFFER_PAGES=1;
 const CACHE_DB='reader-translation-block-cache-v2';
@@ -45,7 +44,6 @@ let fallbackBusy=false;
 let forcedFailureCount=0;
 const debugEvents=[];
 let lastFailure=null;
-let diagnosticsOpen=false;
 function debugEvent(stage,data={}){
   const e={time:new Date().toISOString(),stage,...data};
   debugEvents.push(e);
@@ -113,92 +111,56 @@ function parseGooglePayload(data){
   if(!Array.isArray(data)||!Array.isArray(data[0]))throw new Error('Unexpected Google Translate response');
   return cleanText(data[0].map(x=>Array.isArray(x)?(x[0]||''):'').join(''))
 }
-function timeoutError(ms){
-  const e=new Error('Google request timed out after '+ms+' ms');
-  e.name='TimeoutError';
-  return e
-}
-function withTimeout(promise,ms){
-  let timer;
-  return Promise.race([
-    promise,
-    new Promise((_,reject)=>{timer=setTimeout(()=>reject(timeoutError(ms)),ms)})
-  ]).finally(()=>clearTimeout(timer))
-}
-async function googleGetSmall(text,params){
-  const pieces=splitText(text,GOOGLE_GET_CHUNK_LIMIT);
-  const out=[];
-  for(let i=0;i<pieces.length;i++){
-    const piece=pieces[i];
-    const u=GOOGLE_ENDPOINT+'?'+params.toString()+'&q='+encodeURIComponent(piece);
-    const started=performance.now();
-    try{
-      const r=await withTimeout(fetch(u,{mode:'cors',credentials:'omit'}),GOOGLE_TIMEOUT_MS);
-      if(!r.ok){
-        const e=new Error('GET HTTP '+r.status);
-        e.httpStatus=r.status;e.method='GET';throw e
-      }
-      const translated=parseGooglePayload(await r.json());
-      debugEvent('google.get.ok',{
-        ms:Math.round(performance.now()-started),
-        status:r.status,
-        chars:piece.length,
-        encodedUrlChars:u.length,
-        chunk:i+1,
-        chunks:pieces.length
-      });
-      out.push(translated)
-    }catch(err){
-      const info={
-        ms:Math.round(performance.now()-started),
-        chars:piece.length,
-        encodedUrlChars:u.length,
-        chunk:i+1,
-        chunks:pieces.length,
-        ...normalizeError(err)
-      };
-      debugEvent('google.get.fail',info);
-      throw err
-    }
-  }
-  return cleanText(out.join('\n\n'))
-}
 async function googleRequest(text){
   if(forcedFailureCount>0){forcedFailureCount--;throw new Error('Simulated Google failure')}
   const params=new URLSearchParams({client:'gtx',sl:SOURCE_LANG,tl:TARGET_LANG,dt:'t'});
+  const body=new URLSearchParams({q:text});
   const started=performance.now();
+  let response;
+  let via='POST';
   try{
     try{
-      // Keep the exact transport shape from the first working revision:
-      // no AbortController/signal on the cross-origin request.
-      const r=await withTimeout(fetch(GOOGLE_ENDPOINT+'?'+params.toString(),{
+      response=await fetch(`${GOOGLE_ENDPOINT}?${params}`,{
         method:'POST',
         mode:'cors',
         credentials:'omit',
         headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
-        body:new URLSearchParams({q:text})
-      }),GOOGLE_TIMEOUT_MS);
-      if(!r.ok){
-        const e=new Error('POST HTTP '+r.status);
-        e.httpStatus=r.status;e.method='POST';throw e
+        body
+      });
+      if(!response.ok){
+        const e=new Error(`HTTP ${response.status}`);
+        e.httpStatus=response.status;
+        e.method='POST';
+        throw e
       }
-      const parsed=parseGooglePayload(await r.json());
-      debugEvent('google.post.ok',{ms:Math.round(performance.now()-started),status:r.status,chars:text.length});
-      debugEvent('google.request.ok',{ms:Math.round(performance.now()-started),chars:text.length,via:'POST'});
-      return parsed
+      debugEvent('google.post.ok',{ms:Math.round(performance.now()-started),status:response.status,chars:text.length})
     }catch(postError){
       debugEvent('google.post.fail',{ms:Math.round(performance.now()-started),chars:text.length,...normalizeError(postError)});
-      // The old overlay revision's GET fallback worked with small page payloads.
-      // New block batches can be much larger once URL-encoded, so split only
-      // the GET transport into small chunks while preserving the logical batch.
-      const translated=await googleGetSmall(text,params);
-      debugEvent('google.request.ok',{ms:Math.round(performance.now()-started),chars:text.length,via:'GET-chunked'});
-      return translated
+      via='GET';
+      const url=`${GOOGLE_ENDPOINT}?${params}&q=${encodeURIComponent(text)}`;
+      const getStarted=performance.now();
+      response=await fetch(url,{mode:'cors',credentials:'omit'});
+      if(!response.ok){
+        const e=new Error(`HTTP ${response.status}`);
+        e.httpStatus=response.status;
+        e.method='GET';
+        throw e
+      }
+      debugEvent('google.get.ok',{
+        ms:Math.round(performance.now()-getStarted),
+        status:response.status,
+        chars:text.length,
+        encodedUrlChars:url.length
+      })
     }
+    const translated=parseGooglePayload(await response.json());
+    debugEvent('google.request.ok',{ms:Math.round(performance.now()-started),chars:text.length,via});
+    return translated
   }catch(err){
-    const info={ms:Math.round(performance.now()-started),chars:text.length,...normalizeError(err)};
+    const info={ms:Math.round(performance.now()-started),chars:text.length,via,...normalizeError(err)};
     lastFailure={stage:'google.request',...info};
     debugEvent('google.request.fail',info);
+    try{window.ReaderUIDebug?.probeGoogle?.()}catch(_){}
     throw err
   }
 }
@@ -497,17 +459,7 @@ function installStyles(){
     '#proseContent.readerTranslationSwapping{opacity:.28}',
     '#readerTranslationSettings .readerTranslationSeg{min-width:0}',
     '#readerTranslationSettings .readerTranslationSeg button{min-width:0;padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-    '#readerTranslationSettings .readerTranslationHint{margin-top:8px;color:var(--muted);font-size:9.5px;line-height:1.45}',
-    '#readerTranslationSettings .readerTranslationDiagRow{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}',
-    '#readerTranslationSettings .readerTranslationDiagBtn{appearance:none;border:1px solid var(--line);background:var(--surface);color:var(--readingText);border-radius:7px;padding:6px 9px;font:600 9px/1.2 inherit}',
-    '#readerTranslationSettings .readerTranslationDiag{margin-top:8px;border:1px solid var(--line);border-radius:8px;background:color-mix(in srgb,var(--surface) 88%,transparent);overflow:hidden}',
-    '#readerTranslationSettings .readerTranslationDiagHead{padding:7px 8px;border-bottom:1px solid var(--line);font:700 9px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted)}',
-    '#readerTranslationSettings .readerTranslationDiagList{max-height:220px;overflow:auto;padding:4px 0}',
-    '#readerTranslationSettings .readerTranslationDiagItem{padding:5px 8px;border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent);font:500 8.5px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}',
-    '#readerTranslationSettings .readerTranslationDiagItem:first-child{border-top:0}',
-    '#readerTranslationSettings .readerTranslationDiagItem.fail{color:#d46d62}',
-    '#readerTranslationSettings .readerTranslationDiagTime{opacity:.66;margin-right:5px}'
-  ].join('\n');
+    '#readerTranslationSettings .readerTranslationHint{margin-top:8px;color:var(--muted);font-size:9.5px;line-height:1.45}',].join('\n');
   document.head.appendChild(s)
 }
 async function applyTranslations(items,translations,anchorBlockId){
@@ -626,41 +578,21 @@ function installSettingsUI(){
   }
   refreshSettingsUI()
 }
-function formatDiagEvent(e){
-  const t=String(e.time||'').slice(11,19);
-  const parts=[e.stage||'event'];
-  if(e.attempt)parts.push((trUI()?'deneme ':'attempt ')+e.attempt+'/'+(e.total||'?'));
-  if(Number.isFinite(e.ms))parts.push(e.ms+' ms');
-  if(Number.isFinite(e.status))parts.push('HTTP '+e.status);
-  if(e.via)parts.push(e.via);
-  if(Number.isFinite(e.delayMs))parts.push((trUI()?'bekle ':'wait ')+(e.delayMs/1000)+' s');
-  if(e.name||e.message)parts.push([e.name,e.message].filter(Boolean).join(': '));
-  return '<div class="readerTranslationDiagItem '+((String(e.stage).includes('fail')||String(e.stage).includes('error'))?'fail':'')+'"><span class="readerTranslationDiagTime">'+esc(t)+'</span>'+esc(parts.join(' · '))+'</div>'
-}
-function renderDiagnostics(){
-  const events=debugEvents.slice(-16).reverse();
-  const status=fallbackActive
-    ?(trUI()?'Yerleşik yedek aktif':'Built-in fallback active')
-    :(effectiveEngine()==='google'?(trUI()?'Google aktif':'Google active'):(trUI()?'Yerleşik aktif':'Built-in active'));
-  return '<div class="readerTranslationDiag" '+(diagnosticsOpen?'':'hidden')+'>'+
-    '<div class="readerTranslationDiagHead">'+esc(status)+' · '+esc((trUI()?'son ':'last ')+events.length+(trUI()?' olay':' events'))+'</div>'+
-    '<div class="readerTranslationDiagList">'+(events.length?events.map(formatDiagEvent).join(''):'<div class="readerTranslationDiagItem">'+esc(trUI()?'Henüz tanılama olayı yok.':'No diagnostic events yet.')+'</div>')+'</div>'+
-    '</div>'
-}
 function refreshSettingsUI(){
   if(!settingsSection)return;
   const current=preferredEngine();
   const title=trUI()?'Çeviri':'Translation';
   const label=trUI()?'Çeviri motoru':'Translation engine';
   let hint=trUI()
-    ?'Google varsayılandır. Mevcut sayfa çevresindeki metin bloklarını toplu çevirir, +1 sayfa önden gider ve sonucu bu cihazda önbelleğe alır.'
-    :'Google is the default. It batch-translates text blocks around the current page, keeps a +1 page buffer, and caches results on this device.';
-  if(fallbackActive&&current==='google')hint+=(trUI()?' Google bu oturumda yanıt vermediği için yerleşik yedek aktif.':' Built-in fallback is active for this session because Google did not respond.');
+    ?'Google varsayılandır. Metin gerçek okuyucu içeriği olarak değiştirilir ve sayfalama yeniden hesaplanır.'
+    :'Google is the default. Text is replaced in the real reader content and pagination is recalculated.';
+  if(fallbackActive&&current==='google'){
+    hint+=' '+(trUI()?'Google yanıt vermediği için bu oturumda yerleşik yedek aktif.':'Built-in fallback is active for this session because Google did not respond.')
+  }
   if(lastFailure){
     const detail=(lastFailure.name?lastFailure.name+': ':'')+(lastFailure.message||'');
-    hint+=' '+(trUI()?'Son hata':'Last error')+': '+lastFailure.stage+' · '+detail;
-    if(lastFailure.attempt)hint+=' · '+(trUI()?'deneme ':'attempt ')+lastFailure.attempt+'/'+lastFailure.total;
-    if(Number.isFinite(lastFailure.ms))hint+=' · '+lastFailure.ms+' ms'
+    hint+=' '+(trUI()?'Son hata':'Last error')+': '+detail;
+    if(lastFailure.attempt)hint+=' · '+(trUI()?'deneme ':'attempt ')+lastFailure.attempt+'/'+lastFailure.total
   }
   settingsSection.innerHTML=
     '<div class="settingsGroupTitle">'+esc(title)+'</div>'+
@@ -670,15 +602,8 @@ function refreshSettingsUI(){
       const suffix=p.id==='google'?(trUI()?' · Önerilen':' · Recommended'):'';
       return '<button type="button" data-translation-engine="'+esc(p.id)+'" class="'+(on?'on':'')+'" aria-pressed="'+(on?'true':'false')+'" title="'+esc(localized(p,'description'))+'">'+esc(localized(p,'label')+suffix)+'</button>'
     }).join('')+
-    '</div></div><div class="readerTranslationHint">'+esc(hint)+'</div>'+
-    '<div class="readerTranslationDiagRow"><button type="button" class="readerTranslationDiagBtn" data-translation-diagnostics>'+
-      esc(diagnosticsOpen?(trUI()?'Ayrıntıları gizle':'Hide details'):(trUI()?'Hata ayrıntıları':'Failure details'))+
-    '</button>'+
-    (fallbackActive&&current==='google'?'<button type="button" class="readerTranslationDiagBtn" data-translation-retry>'+esc(trUI()?'Google\'ı tekrar dene':'Retry Google')+'</button>':'')+
-    '</div>'+renderDiagnostics();
-  settingsSection.querySelectorAll('[data-translation-engine]').forEach(btn=>btn.addEventListener('click',()=>setEngine(btn.dataset.translationEngine)));
-  settingsSection.querySelector('[data-translation-diagnostics]')?.addEventListener('click',()=>{diagnosticsOpen=!diagnosticsOpen;refreshSettingsUI()});
-  settingsSection.querySelector('[data-translation-retry]')?.addEventListener('click',()=>window.ReaderTranslation?.retryGoogle?.())
+    '</div></div><div class="readerTranslationHint">'+esc(hint)+'</div>';
+  settingsSection.querySelectorAll('[data-translation-engine]').forEach(btn=>btn.addEventListener('click',()=>setEngine(btn.dataset.translationEngine)))
 }
 async function setEngine(id){
   if(changingEngine||!providers.has(id))return;
@@ -790,6 +715,6 @@ window.ReaderTranslation={
   simulateGoogleFailure(count=1){forcedFailureCount=Math.max(1,+count||1);queueSync()},
   simulateFallback(){return activateFallback(new Error('Simulated Google fallback'))},
   clearMemoryCache(){memCache.clear()},
-  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:BUFFER_PAGES,googleTimeoutMs:GOOGLE_TIMEOUT_MS,googleRetryDelayMs:GOOGLE_RETRY_DELAY_MS,googleMaxRetries:GOOGLE_MAX_RETRIES,googleGetChunkLimit:GOOGLE_GET_CHUNK_LIMIT,batchCharLimit:BATCH_CHAR_LIMIT}
+  constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:BUFFER_PAGES,googleTimeoutMs:GOOGLE_TIMEOUT_MS,googleRetryDelayMs:GOOGLE_RETRY_DELAY_MS,googleMaxRetries:GOOGLE_MAX_RETRIES,batchCharLimit:BATCH_CHAR_LIMIT}
 };
 })();
