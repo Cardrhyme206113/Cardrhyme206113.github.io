@@ -3627,6 +3627,22 @@ body.reader-active #themeQuickBtn{
 #library.virtualLibrary>.libraryVirtualChunk.cardGrid{display:grid}
 #library.virtualLibrary>.libraryVirtualPlaceholder{display:block;min-height:1px;contain:layout paint style}
 #library.virtualLibrary .card{content-visibility:auto;contain-intrinsic-size:240px 390px}
+#continueSection::before{
+  content:"";position:absolute;z-index:-1;pointer-events:none;
+  left:50%;top:-175px;width:160vw;height:600px;transform:translateX(-50%);
+  background:
+    radial-gradient(ellipse 78% 82% at 42% 36%,
+      color-mix(in srgb,var(--accent) 17%,transparent) 0%,
+      color-mix(in srgb,var(--accent) 9%,transparent) 38%,
+      color-mix(in srgb,var(--accent) 4%,transparent) 64%,
+      transparent 86%),
+    linear-gradient(100deg,
+      color-mix(in srgb,var(--accent) 10%,transparent) 0%,
+      color-mix(in srgb,var(--accent) 5%,transparent) 48%,
+      transparent 88%);
+  filter:blur(32px);opacity:1;
+}
+#continueSection .continueCard::before{display:none!important}
 .continueCarousel{width:100%;overflow:hidden;position:relative;touch-action:pan-y;outline:none}
 .continueTrack{display:flex;width:100%;will-change:transform;transform:translate3d(0,0,0)}
 .continueSlide{flex:0 0 100%;width:100%;box-sizing:border-box}
@@ -3635,7 +3651,11 @@ body.reader-active #themeQuickBtn{
 .continuePager button:hover{background:var(--controlHover)}
 .continuePager button:disabled{opacity:.35;cursor:default}
 .continuePagerCount{min-width:42px;text-align:center;font-size:10px;color:var(--muted);font-variant-numeric:tabular-nums}
-@media(max-width:640px){#library.virtualLibrary>.libraryVirtualChunk{margin-bottom:24px}.continuePager button{width:32px;height:32px}.continuePagerCount{min-width:36px}}
+@media(max-width:640px){
+  #library.virtualLibrary>.libraryVirtualChunk{margin-bottom:24px}
+  .continuePager button{width:32px;height:32px}.continuePagerCount{min-width:36px}
+  #continueSection::before{top:-145px;width:170vw;height:540px;filter:blur(30px)}
+}
 </style>
 </head>
 <body>
@@ -4450,7 +4470,7 @@ function makeLibraryCard(s,{shelf=false}={}){
  const latest=fmtReleaseDate(s.latest_release_date),badge=(s.curated?curatedBadgeHTML():'')+(s.translated?translationBadgeHTML(s.kind):'');
  const shelfCount=s.kind==='webnovel'?`${s.chapter_count||0} ${t('chaptersLower')}`:`${s.volume_count} ${s.volume_count===1?t('volume'):t('volumesLower')}${range}`,kindLabel=s.kind==='webnovel'?'WN':'LN';
  const showRead=seriesHasMeaningfulRead(s);
- card.innerHTML=`<div class="cover"><img loading="lazy" src="${coverURLFor(s.cover_book_id)}" alt="">${badge}</div><div class="cardTitle">${esc(s.name)}</div><div class="cardMeta"><span class="cardKindMeta"><span class="kindBadge ${s.kind==='webnovel'?'wn':'ln'}">${kindLabel}</span><span>${shelfCount}</span></span><span class="readPct ${showRead?'':'hidden'}" data-series-progress="${esc(s.path)}">${showRead?formatPct(p,s.kind)+' '+t('read'):''}</span></div>${latest?`<div class="cardLatest">${t('latestRelease')} · ${esc(latest)}</div>`:''}<div class="cardProgress ${showRead?'':'hidden'}"><i data-series-progress-bar="${esc(s.path)}" style="width:${p*100}%"></i></div>`;
+ card.innerHTML=`<div class="cover"><img loading="lazy" data-reader-cover-anime4k="${s.kind==='webnovel'?'1':'0'}" src="${coverURLFor(s.cover_book_id)}" alt="">${badge}</div><div class="cardTitle">${esc(s.name)}</div><div class="cardMeta"><span class="cardKindMeta"><span class="kindBadge ${s.kind==='webnovel'?'wn':'ln'}">${kindLabel}</span><span>${shelfCount}</span></span><span class="readPct ${showRead?'':'hidden'}" data-series-progress="${esc(s.path)}">${showRead?formatPct(p,s.kind)+' '+t('read'):''}</span></div>${latest?`<div class="cardLatest">${t('latestRelease')} · ${esc(latest)}</div>`:''}<div class="cardProgress ${showRead?'':'hidden'}"><i data-series-progress-bar="${esc(s.path)}" style="width:${p*100}%"></i></div>`;
  card.querySelector('img').onerror=e=>{e.currentTarget.style.display='none';e.currentTarget.parentElement.insertAdjacentHTML('beforeend',`<div class="coverMissing">${esc(t('noCover'))}</div>`)};
  const openShelfItem=()=>{
   if(s.kind==='webnovel'){
@@ -4594,7 +4614,7 @@ async function openSeries(path,silent=false){
  const ordered=[...d.volumes].sort((a,b)=>(a.volume===1?0:1)-(b.volume===1?0:1)||(a.volume??1e12)-(b.volume??1e12)||a.filename.localeCompare(b.filename));
  const cover=ordered.find(v=>v.id===d.series.hero_book_id)||ordered[0];
  const heroUrl=cover?coverURLFor(cover.id):'';
- $('#heroCover').src=heroUrl;
+ const heroCoverImg=$('#heroCover');if(d.series.kind==='webnovel')heroCoverImg.dataset.readerCoverAnime4k='1';else delete heroCoverImg.dataset.readerCoverAnime4k;heroCoverImg.src=heroUrl;
  $('#seriesHeroBg').style.backgroundImage=heroUrl?`url("${heroUrl}")`:'none';
  $('#seriesView').style.setProperty('--series-ambient-image',heroUrl?`url("${heroUrl}")`:'none');
  $('#heroTranslateBadge').classList.toggle('hidden',!d.series.translated);
@@ -6484,7 +6504,7 @@ updateContinueCard=function(){
  continueCarouselKey=key;continueCarouselIndex=0;const frag=document.createDocumentFragment();
  for(const item of recent){
   const kind=progressKindForId(item.id),card=document.createElement('article');card.className='continueCard continueSlide';card.tabIndex=0;
-  const img=document.createElement('img');img.loading='lazy';img.alt='';img.src=coverURLFor(item.id);
+  const img=document.createElement('img');img.loading='lazy';img.alt='';if(item.series?.kind==='webnovel')img.dataset.readerCoverAnime4k='1';img.src=coverURLFor(item.id);
   const text=document.createElement('div');text.className='continueText';
   const h=document.createElement('h3');h.textContent=item.series?.name||t('continueReading');
   const p=document.createElement('p');p.textContent=(kind==='webnovel'?'WN':'LN')+' · '+formatPct(item.global,kind)+' '+t('read')+' · '+relativeTime(item.updated);
