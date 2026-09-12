@@ -4006,6 +4006,27 @@ html.reader-loader-active #continueSection::before{
   }
 }
 </style>
+<style id="desktop-settings-width-v1">
+/* Full-page Settings should read like the other main pages on desktop,
+   but with a narrower measure appropriate for controls/forms. */
+@media(min-width:861px){
+  body:not(.reader-active) #settings.settingsPage{
+    width:100%!important;
+    max-width:980px!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    padding-left:28px!important;
+    padding-right:28px!important;
+    box-sizing:border-box!important;
+  }
+
+  body:not(.reader-active) #settings.settingsPage .settingsGroup,
+  body:not(.reader-active) #settings.settingsPage .settingsMoreWrap{
+    width:100%!important;
+    max-width:none!important;
+  }
+}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
