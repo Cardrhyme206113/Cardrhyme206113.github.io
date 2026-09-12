@@ -5030,6 +5030,14 @@ async function hydrateBookSections(meta){
  return sections
 }
 
+function syncLnTranslatedTitle(sec){
+ if(!sec?.html)return;
+ const d=document.createElement('div');
+ d.innerHTML=sec.html;
+ const candidate=d.querySelector('h1,h2,h3,h4')?.textContent?.replace(/\s+/g,' ').trim();
+ if(candidate&&candidate.length<180)sec.title=candidate
+}
+
 async function ensureLnSectionTranslated(index){
  if(uiLanguage!=='tr'||!BOOK||BOOK.kind!=='epub'||index<0||index>=BOOK.sections.length)return;
  const sec=BOOK.sections[index];
@@ -5048,13 +5056,15 @@ async function ensureLnSectionTranslated(index){
    sec.html=html;
    sec.contentLanguage='tr';
    sec.mozhiState='ready';
-   sec.translationSource='mozhi'
+   sec.translationSource='mozhi';
+   syncLnTranslatedTitle(sec)
   }catch(e){
    if(sec.fallbackHtmlTr){
     sec.html=sec.fallbackHtmlTr;
     sec.contentLanguage='tr';
     sec.mozhiState='fallback';
     sec.translationSource='builtin';
+    syncLnTranslatedTitle(sec);
     console.warn('[reader-mozhi] LN fallback to packaged Turkish',sec.path,e)
    }else{
     sec.html=`<p>${esc(t('sectionLoadError'))}</p><p>${esc(e.message)}</p>`;
