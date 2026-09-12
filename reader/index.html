@@ -3679,9 +3679,9 @@ html.reader-noimg #seriesView .viewHead,
 html.reader-noimg #advancedSearchView .viewHead{
   margin-bottom:34px!important;
 }
-html.reader-noimg .catalogHead{margin-top:58px!important;margin-bottom:22px!important}
-html.reader-noimg .discoverySection{margin-bottom:44px!important}
-html.reader-noimg .discoveryHead{margin-bottom:14px!important}
+html.reader-noimg .catalogHead{margin-top:82px!important;margin-bottom:32px!important}
+html.reader-noimg .discoverySection{margin-bottom:64px!important}
+html.reader-noimg .discoveryHead{margin-bottom:22px!important}
 
 /* Library cards become roomy editorial text cards instead of collapsed cover cards. */
 html.reader-noimg #library.cardGrid,
@@ -3692,8 +3692,8 @@ html.reader-noimg #library.virtualLibrary .libraryVirtualChunk.cardGrid{
 html.reader-noimg #library .card,
 html.reader-noimg #library.virtualLibrary .card,
 html.reader-noimg .discoveryShelf .card{
-  min-height:118px!important;
-  padding:17px 18px 16px!important;
+  min-height:142px!important;
+  padding:24px 24px 22px!important;
   border:1px solid var(--line)!important;
   border-top:.5px solid color-mix(in srgb,var(--text) 78%,transparent)!important;
   background:color-mix(in srgb,var(--surface) 94%,var(--accentSoft) 6%)!important;
@@ -3706,65 +3706,35 @@ html.reader-noimg .card:hover{
   background:color-mix(in srgb,var(--surface) 88%,var(--accentSoft) 12%)!important;
 }
 html.reader-noimg .cardTitle{
-  margin:0 0 10px!important;
+  margin:0 0 18px!important;
   font-family:var(--ae-display,inherit)!important;
   font-size:clamp(18px,1.65vw,24px)!important;
   line-height:1.16!important;
   letter-spacing:-.025em!important;
 }
-html.reader-noimg .cardMeta{margin-top:auto!important;padding-top:0!important;gap:9px!important}
-html.reader-noimg .cardLatest{margin-top:6px!important}
-html.reader-noimg .cardProgress{margin-top:8px!important}
+html.reader-noimg .cardMeta{margin-top:auto!important;padding-top:4px!important;gap:14px!important}
+html.reader-noimg .cardLatest{margin-top:10px!important}
+html.reader-noimg .cardProgress{margin-top:14px!important}
 html.reader-noimg .discoveryShelf{
-  gap:14px!important;
-  padding:0 0 5px!important;
-  align-items:stretch!important;
-}
-html.reader-noimg .discoveryShelf > .card{
-  flex:0 0 clamp(190px,23vw,230px)!important;
-  width:clamp(190px,23vw,230px)!important;
-  height:164px!important;
-  min-height:164px!important;
-  padding:16px 16px 14px!important;
-  overflow:hidden!important;
-}
-html.reader-noimg .discoveryShelf .cardTitle{
-  font-size:18px!important;
-  line-height:1.15!important;
-  margin:0 0 9px!important;
-  -webkit-line-clamp:2!important;
-}
-html.reader-noimg .discoveryShelf .cardMeta{
-  margin-top:auto!important;
-  line-height:1.45!important;
-  gap:7px!important;
+  grid-auto-columns:minmax(270px,34vw)!important;
+  gap:20px!important;
+  padding-bottom:10px!important;
 }
 
 /* Continue reading becomes a full-width reading strip with more breathing room. */
-html.reader-noimg #continueSection{margin-top:16px!important;margin-bottom:52px!important}
-html.reader-noimg #continueSection .discoveryHead{
-  width:100%!important;
-  display:grid!important;
-  grid-template-columns:minmax(0,1fr) auto!important;
-  align-items:center!important;
-  gap:12px!important;
-  padding-right:0!important;
-}
-html.reader-noimg #continueSection .continuePager{
-  justify-self:end!important;
-  margin:0!important;
-}
+html.reader-noimg #continueSection{margin-top:20px!important;margin-bottom:78px!important}
 html.reader-noimg .continueCard{
   grid-template-columns:minmax(0,1fr) auto!important;
-  gap:18px!important;
-  padding:20px 0 22px!important;
-  min-height:126px!important;
+  gap:32px!important;
+  padding:30px 32px!important;
+  min-height:150px!important;
 }
 html.reader-noimg .continueText h3{
   font-size:clamp(22px,2.6vw,34px)!important;
-  margin-bottom:9px!important;
+  margin-bottom:14px!important;
 }
-html.reader-noimg .continueText p{margin-bottom:12px!important}
+html.reader-noimg .continueText p{margin-bottom:20px!important}
+html.reader-noimg .continuePager{margin-top:12px!important}
 
 /* Series page no longer reserves a cover-shaped visual column. */
 html.reader-noimg .seriesHero{
@@ -3887,60 +3857,25 @@ html.reader-noimg .readerStage.imageMode #scrollHost{background:var(--paper)!imp
   -webkit-box-orient:initial;
 }
 </style>
-<style id="mobile-horizontal-overflow-fix">
+
+
+<style id="mobile-continue-ambient-width-fix">
 @media(max-width:860px){
-  html,
-  body:not(.reader-active){
-    width:100%!important;
-    max-width:100%!important;
-    overflow-x:clip!important;
-  }
-
-  body:not(.reader-active) > .view,
-  body:not(.reader-active) #libraryView,
-  body:not(.reader-active) #searchView,
-  body:not(.reader-active) #seriesView,
-  body:not(.reader-active) #settings.settingsPage{
-    width:100%!important;
-    max-width:100%!important;
-    min-width:0!important;
-    margin-left:auto!important;
-    margin-right:auto!important;
-    overflow-x:clip!important;
-  }
-
-  /* Horizontal scrolling remains local to shelves/chip rows only. */
-  body:not(.reader-active) .discoveryShelf,
-  body:not(.reader-active) .chipRow{
-    max-width:100%!important;
-    overflow-x:auto!important;
-    overscroll-behavior-x:contain!important;
-  }
-
-  /* Preserve the full-width ambient effect without creating document width. */
-  #continueSection{
-    max-width:100%!important;
-    overflow-x:clip!important;
-  }
   #continueSection::before{
     width:100vw!important;
-    left:50%!important;
-    transform:translateX(-50%)!important;
+    max-width:100vw!important;
   }
 }
 </style>
-<script id="mobile-horizontal-scroll-reset">
+<script id="mobile-scrollx-sanity">
 (()=>{
-  const resetX=()=>{
-    if(innerWidth<=860 && !document.body.classList.contains('reader-active') && window.scrollX!==0){
-      window.scrollTo(0,window.scrollY);
+  const reset=()=>{
+    if(innerWidth<=860 && !document.body.classList.contains('reader-active') && scrollX){
+      scrollTo(0,scrollY);
     }
   };
-  addEventListener('pageshow',resetX,{passive:true});
-  addEventListener('resize',resetX,{passive:true});
-  addEventListener('orientationchange',resetX,{passive:true});
-  window.visualViewport?.addEventListener('resize',resetX,{passive:true});
-  requestAnimationFrame(resetX);
+  addEventListener('pageshow',reset,{passive:true});
+  requestAnimationFrame(reset);
 })();
 </script>
 <style id="mobile-dock-visual-viewport-fix">
