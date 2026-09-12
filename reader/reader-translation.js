@@ -235,13 +235,21 @@ function blockElements(){
 function assignBlockIds(blocks){
   blocks.forEach((el,i)=>{el.dataset.readerTranslationBlock=String(i)})
 }
+function sourceBlockText(el){
+  if(el?.classList?.contains('chapterTitle')){
+    const kicker=cleanText(el.querySelector('.chapterKicker')?.textContent||'');
+    const name=cleanText(el.querySelector('.chapterName')?.textContent||'');
+    return cleanText([kicker,(name&&name!==kicker)?name:''].filter(Boolean).join(': '))
+  }
+  return cleanText(el?.textContent||'')
+}
 function snapshotCurrentSection(){
   if(!BOOK||state?.view!=='reader'||current?.().imageOnly)return;
   const blocks=blockElements();
   assignBlockIds(blocks);
   const key=sectionKey();
   const texts=new Map();
-  for(const el of blocks)texts.set(el.dataset.readerTranslationBlock,cleanText(el.textContent));
+  for(const el of blocks)texts.set(el.dataset.readerTranslationBlock,sourceBlockText(el));
   sourceSnapshots.set(key,texts);
   const pos=snapshotOrder.indexOf(key);
   if(pos>=0)snapshotOrder.splice(pos,1);
@@ -626,6 +634,7 @@ window.ReaderTranslation={
   refresh:queueSync,
   retryGoogle(){fallbackActive=false;fallbackBusy=false;refreshSettingsUI();const id=currentBookId();return id&&state?.view==='reader'?openBook(id):Promise.resolve()},
   simulateGoogleFailure(count=1){forcedFailureCount=Math.max(1,+count||1);queueSync()},
+  simulateFallback(){return activateFallback(new Error('Simulated Google fallback'))},
   clearMemoryCache(){memCache.clear()},
   constants:{sourceLanguage:SOURCE_LANG,targetLanguage:TARGET_LANG,pageBuffer:BUFFER_PAGES,googleTimeoutMs:GOOGLE_TIMEOUT_MS,batchCharLimit:BATCH_CHAR_LIMIT}
 };
