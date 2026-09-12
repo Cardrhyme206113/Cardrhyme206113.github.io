@@ -3932,6 +3932,73 @@ html.reader-loader-active #continueSection::before{
   max-width:100vw!important;
 }
 </style>
+<style id="mobile-dock-final-fix-v1">
+:root{
+  --atlas-vv-top:0px;
+  --atlas-vv-height:100dvh;
+}
+@media(max-width:860px){
+  body:not(.reader-active){
+    padding-bottom:calc(var(--dock) + env(safe-area-inset-bottom))!important;
+  }
+
+  body:not(.reader-active) .topbar{
+    /* Five equal placement slots, but normal-sized buttons inside them. */
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    align-items:center!important;
+    justify-items:center!important;
+    gap:0!important;
+
+    /* Anchor to the actual visible Chrome viewport, not hidden layout bottom. */
+    position:fixed!important;
+    inset:auto 0 auto 0!important;
+    top:calc(
+      var(--atlas-vv-top) +
+      var(--atlas-vv-height) -
+      var(--dock)
+    )!important;
+    bottom:auto!important;
+
+    width:100%!important;
+    max-width:100%!important;
+    height:var(--dock)!important;
+    min-height:var(--dock)!important;
+    max-height:var(--dock)!important;
+    padding:0 max(4px,env(safe-area-inset-right)) 0 max(4px,env(safe-area-inset-left))!important;
+    box-sizing:border-box!important;
+    z-index:100!important;
+  }
+
+  body:not(.reader-active) .railNav{
+    display:contents!important;
+  }
+  body:not(.reader-active) .railNav::after,
+  body:not(.reader-active) .railRule,
+  body:not(.reader-active) .topbar .spacer{
+    display:none!important;
+  }
+
+  body:not(.reader-active) .topbar .topIcon{
+    width:48px!important;
+    min-width:48px!important;
+    max-width:48px!important;
+    height:48px!important;
+    min-height:48px!important;
+    max-height:48px!important;
+    margin:0!important;
+    padding:4px 2px!important;
+    justify-self:center!important;
+    align-self:center!important;
+    box-sizing:border-box!important;
+  }
+
+  body:not(.reader-active) .topbar .topIcon svg{
+    width:19px!important;
+    height:19px!important;
+  }
+}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -7344,6 +7411,35 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
   };
   new MutationObserver(sync).observe(loader,{attributes:true,attributeFilter:['class']});
   sync();
+})();
+</script>
+<script id="mobile-dock-visual-viewport-v1">
+(()=>{
+  const root=document.documentElement;
+  let raf=0;
+
+  const sync=()=>{
+    raf=0;
+    const vv=window.visualViewport;
+    if(vv){
+      root.style.setProperty('--atlas-vv-top',Math.max(0,vv.offsetTop)+'px');
+      root.style.setProperty('--atlas-vv-height',Math.max(1,vv.height)+'px');
+    }else{
+      root.style.setProperty('--atlas-vv-top','0px');
+      root.style.setProperty('--atlas-vv-height',Math.max(1,window.innerHeight)+'px');
+    }
+  };
+
+  const queue=()=>{
+    if(raf)return;
+    raf=requestAnimationFrame(sync);
+  };
+
+  sync();
+  addEventListener('resize',queue,{passive:true});
+  addEventListener('orientationchange',queue,{passive:true});
+  window.visualViewport?.addEventListener('resize',queue,{passive:true});
+  window.visualViewport?.addEventListener('scroll',queue,{passive:true});
 })();
 </script>
 </body>
