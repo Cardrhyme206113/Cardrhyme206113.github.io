@@ -3679,9 +3679,9 @@ html.reader-noimg #seriesView .viewHead,
 html.reader-noimg #advancedSearchView .viewHead{
   margin-bottom:34px!important;
 }
-html.reader-noimg .catalogHead{margin-top:82px!important;margin-bottom:32px!important}
-html.reader-noimg .discoverySection{margin-bottom:64px!important}
-html.reader-noimg .discoveryHead{margin-bottom:22px!important}
+html.reader-noimg .catalogHead{margin-top:58px!important;margin-bottom:22px!important}
+html.reader-noimg .discoverySection{margin-bottom:44px!important}
+html.reader-noimg .discoveryHead{margin-bottom:14px!important}
 
 /* Library cards become roomy editorial text cards instead of collapsed cover cards. */
 html.reader-noimg #library.cardGrid,
@@ -3692,8 +3692,8 @@ html.reader-noimg #library.virtualLibrary .libraryVirtualChunk.cardGrid{
 html.reader-noimg #library .card,
 html.reader-noimg #library.virtualLibrary .card,
 html.reader-noimg .discoveryShelf .card{
-  min-height:142px!important;
-  padding:24px 24px 22px!important;
+  min-height:118px!important;
+  padding:17px 18px 16px!important;
   border:1px solid var(--line)!important;
   border-top:.5px solid color-mix(in srgb,var(--text) 78%,transparent)!important;
   background:color-mix(in srgb,var(--surface) 94%,var(--accentSoft) 6%)!important;
@@ -3706,35 +3706,65 @@ html.reader-noimg .card:hover{
   background:color-mix(in srgb,var(--surface) 88%,var(--accentSoft) 12%)!important;
 }
 html.reader-noimg .cardTitle{
-  margin:0 0 18px!important;
+  margin:0 0 10px!important;
   font-family:var(--ae-display,inherit)!important;
   font-size:clamp(18px,1.65vw,24px)!important;
   line-height:1.16!important;
   letter-spacing:-.025em!important;
 }
-html.reader-noimg .cardMeta{margin-top:auto!important;padding-top:4px!important;gap:14px!important}
-html.reader-noimg .cardLatest{margin-top:10px!important}
-html.reader-noimg .cardProgress{margin-top:14px!important}
+html.reader-noimg .cardMeta{margin-top:auto!important;padding-top:0!important;gap:9px!important}
+html.reader-noimg .cardLatest{margin-top:6px!important}
+html.reader-noimg .cardProgress{margin-top:8px!important}
 html.reader-noimg .discoveryShelf{
-  grid-auto-columns:minmax(270px,34vw)!important;
-  gap:20px!important;
-  padding-bottom:10px!important;
+  gap:14px!important;
+  padding:0 0 5px!important;
+  align-items:stretch!important;
+}
+html.reader-noimg .discoveryShelf > .card{
+  flex:0 0 clamp(190px,23vw,230px)!important;
+  width:clamp(190px,23vw,230px)!important;
+  height:164px!important;
+  min-height:164px!important;
+  padding:16px 16px 14px!important;
+  overflow:hidden!important;
+}
+html.reader-noimg .discoveryShelf .cardTitle{
+  font-size:18px!important;
+  line-height:1.15!important;
+  margin:0 0 9px!important;
+  -webkit-line-clamp:2!important;
+}
+html.reader-noimg .discoveryShelf .cardMeta{
+  margin-top:auto!important;
+  line-height:1.45!important;
+  gap:7px!important;
 }
 
 /* Continue reading becomes a full-width reading strip with more breathing room. */
-html.reader-noimg #continueSection{margin-top:20px!important;margin-bottom:78px!important}
+html.reader-noimg #continueSection{margin-top:16px!important;margin-bottom:52px!important}
+html.reader-noimg #continueSection .discoveryHead{
+  width:100%!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) auto!important;
+  align-items:center!important;
+  gap:12px!important;
+  padding-right:0!important;
+}
+html.reader-noimg #continueSection .continuePager{
+  justify-self:end!important;
+  margin:0!important;
+}
 html.reader-noimg .continueCard{
   grid-template-columns:minmax(0,1fr) auto!important;
-  gap:32px!important;
-  padding:30px 32px!important;
-  min-height:150px!important;
+  gap:18px!important;
+  padding:20px 0 22px!important;
+  min-height:126px!important;
 }
 html.reader-noimg .continueText h3{
   font-size:clamp(22px,2.6vw,34px)!important;
-  margin-bottom:14px!important;
+  margin-bottom:9px!important;
 }
-html.reader-noimg .continueText p{margin-bottom:20px!important}
-html.reader-noimg .continuePager{margin-top:12px!important}
+html.reader-noimg .continueText p{margin-bottom:12px!important}
 
 /* Series page no longer reserves a cover-shaped visual column. */
 html.reader-noimg .seriesHero{
@@ -3768,22 +3798,73 @@ html.reader-noimg .readerStage.imageMode #scrollHost{background:var(--paper)!imp
   html.reader-noimg body:not(.reader-active) .view{
     padding-left:20px!important;
     padding-right:20px!important;
-    padding-bottom:100px!important;
+    padding-bottom:86px!important;
   }
+  html.reader-noimg #libraryView .viewHead,
+  html.reader-noimg #seriesView .viewHead,
+  html.reader-noimg #advancedSearchView .viewHead{
+    margin-bottom:24px!important;
+  }
+  html.reader-noimg .catalogHead{margin-top:44px!important;margin-bottom:18px!important}
+  html.reader-noimg .discoverySection{margin-bottom:36px!important}
+  html.reader-noimg .discoveryHead{margin-bottom:12px!important}
+
   html.reader-noimg #library.cardGrid,
   html.reader-noimg #library.virtualLibrary .libraryVirtualChunk.cardGrid{
     grid-template-columns:1fr!important;
-    gap:16px!important;
+    gap:12px!important;
   }
   html.reader-noimg #library .card,
-  html.reader-noimg #library.virtualLibrary .card,
-  html.reader-noimg .discoveryShelf .card{
-    min-height:124px!important;
-    padding:21px 20px!important;
+  html.reader-noimg #library.virtualLibrary .card{
+    min-height:104px!important;
+    padding:15px 16px 14px!important;
   }
-  html.reader-noimg .discoveryShelf{grid-auto-columns:minmax(245px,82vw)!important}
-  html.reader-noimg .continueCard{padding:24px 20px!important;gap:18px!important}
-  html.reader-noimg .seriesHero{padding:28px 22px!important;margin-bottom:38px!important}
+
+  html.reader-noimg .discoveryShelf{
+    gap:12px!important;
+    padding:0 0 4px!important;
+  }
+  html.reader-noimg .discoveryShelf > .card{
+    flex:0 0 min(58vw,218px)!important;
+    width:min(58vw,218px)!important;
+    height:156px!important;
+    min-height:156px!important;
+    padding:14px 14px 12px!important;
+  }
+  html.reader-noimg .discoveryShelf .cardTitle{
+    font-size:17px!important;
+    line-height:1.14!important;
+    margin-bottom:8px!important;
+  }
+  html.reader-noimg .discoveryShelf .cardMeta{
+    font-size:8px!important;
+    line-height:1.42!important;
+    gap:6px!important;
+  }
+
+  html.reader-noimg #continueSection{
+    margin-top:12px!important;
+    margin-bottom:44px!important;
+  }
+  html.reader-noimg #continueSection .discoveryHead{
+    gap:8px!important;
+  }
+  html.reader-noimg #continueSection .continuePager{
+    justify-self:end!important;
+    margin-left:auto!important;
+  }
+  html.reader-noimg .continueCard{
+    padding:17px 0 19px!important;
+    gap:12px!important;
+    min-height:112px!important;
+  }
+  html.reader-noimg .continueText h3{
+    font-size:21px!important;
+    margin-bottom:8px!important;
+  }
+  html.reader-noimg .continueText p{margin-bottom:10px!important}
+
+  html.reader-noimg .seriesHero{padding:24px 18px!important;margin-bottom:32px!important}
   html.reader-noimg #volumeGrid.cardGrid{grid-template-columns:1fr!important}
 }
 </style>
