@@ -334,7 +334,7 @@ async function translateHTML(html,{source='en',target='tr',cacheKey='',priorityF
   // HTML is clean and identical in shape to ordinary translated markup.
   for(const e of entries){
     const span=e.pendingSpan;
-    if(span?.isConnected)span.replaceWith(document.createTextNode(span.textContent||''))
+    if(span?.parentNode)span.replaceWith(document.createTextNode(span.textContent||''))
   }
 
   const value=tpl.innerHTML;
