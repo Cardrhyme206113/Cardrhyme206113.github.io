@@ -4187,6 +4187,13 @@ body:not(.reader-active){
 @keyframes readerTranslationSpin{to{transform:rotate(360deg)}}
 #proseContent[dir="rtl"]{direction:rtl;text-align:right}
 </style>
+<style id="reader-language-globe-only-v2">
+/* The language control is always globe-only. Flags/emoji live in the picker. */
+#langBtn>.langCode,
+body.reader-active #langBtn>.langCode{display:none!important}
+#langBtn>svg,
+body.reader-active #langBtn>svg{display:block!important}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -4484,7 +4491,7 @@ body:not(.reader-active){
 <script src="./reader-static-adapter.js?v=20260912-catalogfix5"></script>
 <script src="./reader-mozhi.js?v=20260912-multilang1"></script>
 <script src="https://cdn.jsdelivr.net/npm/i18next@26.4.2/dist/umd/i18next.min.js"></script>
-<script src="./reader-i18n-locales.js?v=20260913-static1"></script>\n<script src="./reader-i18n.js?v=20260913-static1"></script>
+<script src="./reader-i18n-locales.js?v=20260913-static2"></script>\n<script src="./reader-i18n.js?v=20260913-static2"></script>
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
 const mobileReaderDefaults=matchMedia('(max-width:640px)').matches;
