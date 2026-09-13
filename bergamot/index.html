@@ -3,56 +3,77 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Bergamot tiny EN → TR browser demo</title>
+  <title>Bergamot tiny EN → TR diagnostic</title>
   <style>
     :root { color-scheme: dark; font-family: system-ui, sans-serif; }
     * { box-sizing: border-box; }
-    body { margin: 0; background: #111; color: #eee; }
-    main { max-width: 980px; margin: 0 auto; padding: 28px 18px 80px; }
-    h1 { font-size: 24px; margin: 0 0 8px; }
-    .muted { color: #aaa; font-size: 14px; line-height: 1.45; }
-    .panel { margin: 18px 0; padding: 14px; border: 1px solid #333; border-radius: 12px; background: #181818; }
-    #headline { font-size: 16px; font-weight: 650; margin-bottom: 10px; }
-    progress { width: 100%; height: 14px; accent-color: #eee; }
-    #progressText { margin-top: 7px; font: 12px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; color: #bbb; white-space: pre-wrap; }
-    #phaseList { display: grid; gap: 5px; margin-top: 12px; font: 13px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
-    .phase { color: #888; }
+    body { margin: 0; background: #101010; color: #eee; }
+    main { max-width: 980px; margin: 0 auto; padding: 28px 18px 90px; }
+    h1 { font-size: 25px; margin: 0 0 8px; }
+    .muted { color: #aaa; font-size: 14px; line-height: 1.5; }
+    .panel { margin: 18px 0; padding: 14px; border: 1px solid #343434; border-radius: 12px; background: #181818; }
+    #headline { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
+    progress { width: 100%; height: 14px; }
+    #progressText { margin-top: 7px; font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; color: #bbb; white-space: pre-wrap; overflow-wrap:anywhere; }
+    #phaseList { display: grid; gap: 5px; margin-top: 12px; font: 13px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .phase { color: #777; }
     .phase.active { color: #fff; }
-    .phase.ok { color: #b9e6b9; }
-    .phase.fail { color: #ff9e9e; }
-    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-    textarea { width: 100%; min-height: 260px; resize: vertical; border: 1px solid #3a3a3a; border-radius: 10px; background: #181818; color: #eee; padding: 14px; font: 15px/1.5 system-ui,sans-serif; }
-    button { margin-top: 14px; padding: 10px 16px; border: 0; border-radius: 9px; cursor: pointer; font-weight: 650; }
-    button:disabled { opacity: .45; cursor: default; }
-    #stats { margin-top: 12px; font: 13px ui-monospace, SFMono-Regular, Consolas, monospace; color: #bbb; white-space: pre-wrap; }
-    details { margin-top: 16px; }
-    summary { cursor: pointer; color: #ccc; }
-    #log { margin-top: 10px; max-height: 300px; overflow: auto; padding: 10px; background: #0b0b0b; border: 1px solid #2b2b2b; border-radius: 8px; font: 11px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; color: #bbb; }
+    .phase.ok { color: #b5e4b5; }
+    .phase.fail { color: #ff9d9d; }
+    .trace-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
+    .trace-title { font-weight:700; font-size:14px; letter-spacing:.04em; }
+    #liveState { font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; color:#ccc; margin-bottom:8px; white-space:pre-wrap; }
+    #liveLog {
+      height: 330px; overflow:auto; padding:10px;
+      background:#090909; border:1px solid #2a2a2a; border-radius:8px;
+      font: 11px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
+      white-space:pre-wrap; overflow-wrap:anywhere; color:#c8c8c8;
+    }
+    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    textarea {
+      width:100%; min-height:250px; resize:vertical; border:1px solid #3a3a3a;
+      border-radius:10px; background:#181818; color:#eee; padding:14px;
+      font:15px/1.5 system-ui,sans-serif;
+    }
+    button { margin-top:14px; padding:10px 16px; border:0; border-radius:9px; cursor:pointer; font-weight:650; }
+    button:disabled { opacity:.45; cursor:default; }
+    .smallbtn { margin:0; padding:7px 10px; font-size:12px; }
     #retry { display:none; margin-left:8px; }
-    @media (max-width: 720px) {
-      .grid { grid-template-columns: 1fr; }
-      textarea { min-height: 190px; }
-      main { padding: 24px 18px 80px; }
+    #stats { margin-top:12px; font:13px ui-monospace, SFMono-Regular, Consolas, monospace; color:#bbb; white-space:pre-wrap; }
+    @media (max-width:720px) {
+      main { padding:24px 18px 90px; }
+      .grid { grid-template-columns:1fr; }
+      textarea { min-height:190px; }
+      #liveLog { height:360px; }
     }
   </style>
 </head>
 <body>
 <main>
   <h1>Bergamot tiny EN → TR</h1>
-  <div class="muted">Fully client-side WASM translation. Tiny Firefox/Bergamot EN→TR INT8 model. This diagnostic build exposes every download/load phase instead of silently hanging.</div>
+  <div class="muted">Deep diagnostic build. The worker is instrumented from boot, including its console, importScripts(), fetch(), WebAssembly compile/instantiate calls, Comlink messages, errors, and live transfer progress.</div>
 
   <section class="panel">
     <div id="headline">Starting…</div>
-    <progress id="progress" max="1" value="0"></progress>
-    <div id="progressText">0 B</div>
+    <progress id="progress"></progress>
+    <div id="progressText">Waiting for boot…</div>
     <div id="phaseList">
-      <div class="phase" id="p-runtime-files">○ runtime JS + WASM download</div>
-      <div class="phase" id="p-runtime-init">○ WASM runtime initialization</div>
-      <div class="phase" id="p-model-files">○ EN→TR model files download</div>
-      <div class="phase" id="p-model-init">○ model initialization</div>
+      <div class="phase" id="p-lib">○ browser wrapper import</div>
+      <div class="phase" id="p-worker">○ worker bootstrap</div>
+      <div class="phase" id="p-runtime">○ Bergamot JS + WASM initialization</div>
+      <div class="phase" id="p-model">○ EN→TR model download + construction</div>
       <div class="phase" id="p-ready">○ ready</div>
     </div>
     <button id="retry">Retry load</button>
+  </section>
+
+  <section class="panel">
+    <div class="trace-head">
+      <div class="trace-title">LIVE INIT TRACE</div>
+      <button id="copyLog" class="smallbtn">Copy log</button>
+    </div>
+    <div id="liveState">No worker yet.</div>
+    <div id="liveLog"></div>
   </section>
 
   <div class="grid">
@@ -67,272 +88,572 @@
   </div>
   <button id="translate" disabled>Translate</button>
   <div id="stats"></div>
-
-  <details open>
-    <summary>Debug log</summary>
-    <div id="log"></div>
-  </details>
 </main>
 
 <script type="module">
-  import { createBergamotWorker } from 'https://unpkg.com/@sign-mt/browsermt@0.0.2/build/bundled/index.js';
+const LIB_URL = 'https://unpkg.com/@sign-mt/browsermt@0.0.2/build/bundled/index.js';
+const WRAPPER_WORKER = 'https://unpkg.com/@sign-mt/browsermt@0.0.2/build/bundled/worker.js';
+const BERGAMOT_JS = 'https://unpkg.com/@browsermt/bergamot-translator@0.4.9/worker/bergamot-translator-worker.js';
+const BERGAMOT_WASM = 'https://unpkg.com/@browsermt/bergamot-translator@0.4.9/worker/bergamot-translator-worker.wasm';
+const MODEL_BASE = 'https://huggingface.co/TiberiuCristianLeon/Bergamot/resolve/main/tiny/entr';
+const MODEL = `${MODEL_BASE}/model.entr.intgemm.alphas.bin`;
+const LEX = `${MODEL_BASE}/lex.50.50.entr.s2t.bin`;
+const VOCAB = `${MODEL_BASE}/vocab.entr.spm`;
+const modelRegistry = { entr: {
+  model: { name: MODEL },
+  lex: { name: LEX },
+  vocab: { name: VOCAB },
+}};
 
-  const WRAPPER_WORKER = 'https://unpkg.com/@sign-mt/browsermt@0.0.2/build/bundled/worker.js';
-  const BERGAMOT_JS = 'https://unpkg.com/@browsermt/bergamot-translator@0.4.9/worker/bergamot-translator-worker.js';
-  const BERGAMOT_WASM = 'https://unpkg.com/@browsermt/bergamot-translator@0.4.9/worker/bergamot-translator-worker.wasm';
-  const MODEL_BASE = 'https://huggingface.co/TiberiuCristianLeon/Bergamot/resolve/main/tiny/entr';
-  const MODEL = `${MODEL_BASE}/model.entr.intgemm.alphas.bin`;
-  const LEX = `${MODEL_BASE}/lex.50.50.entr.s2t.bin`;
-  const VOCAB = `${MODEL_BASE}/vocab.entr.spm`;
+const NativeWorker = globalThis.Worker;
+const headline = document.querySelector('#headline');
+const bar = document.querySelector('#progress');
+const progressText = document.querySelector('#progressText');
+const liveLog = document.querySelector('#liveLog');
+const liveState = document.querySelector('#liveState');
+const retryBtn = document.querySelector('#retry');
+const copyBtn = document.querySelector('#copyLog');
+const btn = document.querySelector('#translate');
+const input = document.querySelector('#input');
+const output = document.querySelector('#output');
+const statsEl = document.querySelector('#stats');
 
-  const modelRegistry = { entr: {
-    model: { name: MODEL },
-    lex: { name: LEX },
-    vocab: { name: VOCAB },
-  }};
+let workerProxy = null;
+let createBergamotWorker = null;
+let bootGeneration = 0;
+let seq = 0;
+let bootT0 = performance.now();
+let stageT0 = performance.now();
+let stageName = 'boot';
+let lastWorkerEvent = 0;
+let workerEventCount = 0;
+let liveTimer = null;
 
-  const headline = document.querySelector('#headline');
-  const bar = document.querySelector('#progress');
-  const progressText = document.querySelector('#progressText');
-  const logEl = document.querySelector('#log');
-  const retryBtn = document.querySelector('#retry');
-  const btn = document.querySelector('#translate');
-  const input = document.querySelector('#input');
-  const output = document.querySelector('#output');
-  const statsEl = document.querySelector('#stats');
+const fmt = n => {
+  if (!Number.isFinite(n)) return '?';
+  if (n < 1024) return n + ' B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KiB';
+  return (n/1024/1024).toFixed(2) + ' MiB';
+};
 
-  let worker = null;
-  let bootGeneration = 0;
+const elapsed = t => ((performance.now() - t) / 1000).toFixed(3) + 's';
 
-  const fmt = n => {
-    if (!Number.isFinite(n)) return '?';
-    if (n < 1024) return n + ' B';
-    if (n < 1024*1024) return (n/1024).toFixed(1) + ' KiB';
-    return (n/1024/1024).toFixed(2) + ' MiB';
+function trace(kind, message, data) {
+  const t = performance.now();
+  const id = String(++seq).padStart(4, '0');
+  let tail = '';
+  if (data !== undefined) {
+    try { tail = ' ' + (typeof data === 'string' ? data : JSON.stringify(data)); }
+    catch { tail = ' ' + String(data); }
+  }
+  const line = `+${((t-bootT0)/1000).toFixed(3)}s #${id} [${kind}] ${message}${tail}`;
+  liveLog.textContent += line + '\n';
+  liveLog.scrollTop = liveLog.scrollHeight;
+  console.log(line);
+}
+
+function setStage(name) {
+  stageName = name;
+  stageT0 = performance.now();
+  trace('STAGE', name);
+}
+
+function setProgress(done, total, label) {
+  if (total > 0) {
+    bar.max = total;
+    bar.value = Math.min(done, total);
+    const pct = Math.min(100, done / total * 100);
+    progressText.textContent = `${label}\n${fmt(done)} / ${fmt(total)} · ${pct.toFixed(1)}%`;
+  } else {
+    bar.removeAttribute('value');
+    progressText.textContent = `${label}\n${fmt(done)} received`;
+  }
+}
+
+function phase(id, state, extra='') {
+  const el = document.querySelector('#'+id);
+  el.className = 'phase ' + (state || '');
+  const icon = state === 'ok' ? '✓' : state === 'fail' ? '✗' : state === 'active' ? '●' : '○';
+  const base = el.textContent.replace(/^[✓✗●○]\s*/, '').replace(/\s+—.*$/, '');
+  el.textContent = icon + ' ' + base + (extra ? ' — ' + extra : '');
+}
+
+function summarize(value, depth=0) {
+  if (depth > 2) return '[…]';
+  if (value == null) return value;
+  if (typeof value === 'string') return value.length > 280 ? value.slice(0,280) + '…' : value;
+  if (typeof value === 'number' || typeof value === 'boolean') return value;
+  if (value instanceof ArrayBuffer) return `ArrayBuffer(${fmt(value.byteLength)})`;
+  if (ArrayBuffer.isView(value)) return `${value.constructor.name}(${fmt(value.byteLength)})`;
+  if (value instanceof Blob) return `Blob(${fmt(value.size)}, ${value.type || '?'})`;
+  if (Array.isArray(value)) return value.slice(0,6).map(v => summarize(v, depth+1)).concat(value.length > 6 ? [`…+${value.length-6}`] : []);
+  if (typeof value === 'object') {
+    const out = {};
+    for (const k of Object.keys(value).slice(0,14)) {
+      try { out[k] = summarize(value[k], depth+1); } catch { out[k] = '[unreadable]'; }
+    }
+    return out;
+  }
+  return String(value);
+}
+
+function workerBootstrap(targetUrl) {
+  return `
+(() => {
+  const TARGET = ${JSON.stringify(targetUrl)};
+  const nativePostMessage = self.postMessage.bind(self);
+  const nativeImportScripts = self.importScripts.bind(self);
+  const nativeFetch = self.fetch.bind(self);
+  const t0 = performance.now();
+
+  function safe(v, depth=0) {
+    try {
+      if (depth > 2) return '[…]';
+      if (v == null || typeof v === 'number' || typeof v === 'boolean') return v;
+      if (typeof v === 'string') return v.length > 350 ? v.slice(0,350)+'…' : v;
+      if (v instanceof ArrayBuffer) return 'ArrayBuffer(' + v.byteLength + ')';
+      if (ArrayBuffer.isView(v)) return v.constructor.name + '(' + v.byteLength + ')';
+      if (v instanceof Error) return {name:v.name,message:v.message,stack:v.stack};
+      if (Array.isArray(v)) return v.slice(0,8).map(x => safe(x, depth+1));
+      if (typeof v === 'object') {
+        const o = {};
+        Object.keys(v).slice(0,16).forEach(k => { try { o[k] = safe(v[k], depth+1); } catch {} });
+        return o;
+      }
+      return String(v);
+    } catch (e) { return '[serialize failed: '+e+']'; }
+  }
+
+  function diag(type, data={}) {
+    try { nativePostMessage({__BERGAMOT_DIAG__: true, type, wt: performance.now()-t0, data:safe(data)}); } catch {}
+  }
+
+  ['debug','log','info','warn','error'].forEach(level => {
+    const orig = console[level] ? console[level].bind(console) : console.log.bind(console);
+    console[level] = (...args) => {
+      diag('console', {level, args});
+      try { orig(...args); } catch {}
+    };
+  });
+
+  self.addEventListener('error', e => {
+    diag('worker-error', {message:e.message, filename:e.filename, lineno:e.lineno, colno:e.colno, error:e.error});
+  });
+  self.addEventListener('unhandledrejection', e => {
+    diag('worker-unhandledrejection', {reason:e.reason});
+  });
+
+  self.importScripts = (...urls) => {
+    const s = performance.now();
+    diag('importScripts:start', {urls});
+    try {
+      const r = nativeImportScripts(...urls);
+      diag('importScripts:done', {urls, ms:performance.now()-s});
+      return r;
+    } catch (e) {
+      diag('importScripts:error', {urls, ms:performance.now()-s, error:e});
+      throw e;
+    }
   };
 
-  function log(...parts) {
-    const line = '[' + new Date().toLocaleTimeString() + '] ' + parts.map(x => {
-      if (x instanceof Error) return x.stack || x.message;
-      if (typeof x === 'object') {
-        try { return JSON.stringify(x); } catch { return String(x); }
-      }
-      return String(x);
-    }).join(' ');
-    console.log(...parts);
-    logEl.textContent += line + '\n';
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-
-  function phase(id, state, extra='') {
-    const el = document.querySelector('#' + id);
-    el.className = 'phase ' + state;
-    const icon = state === 'ok' ? '✓' : state === 'fail' ? '✗' : state === 'active' ? '●' : '○';
-    const base = el.textContent.replace(/^[✓✗●○]\s*/, '').replace(/\s+—.*$/, '');
-    el.textContent = icon + ' ' + base + (extra ? ' — ' + extra : '');
-  }
-
-  function setProgress(done, total, label='') {
-    if (total > 0) {
-      bar.removeAttribute('value');
-      bar.max = total;
-      bar.value = Math.min(done, total);
-      const pct = Math.min(100, done / total * 100);
-      progressText.textContent = `${label}\n${fmt(done)} / ${fmt(total)} · ${pct.toFixed(1)}%`;
-    } else {
-      bar.removeAttribute('value');
-      progressText.textContent = `${label}\n${fmt(done)} downloaded`;
-    }
-  }
-
-  function timeout(promise, ms, label) {
-    let timer;
-    const guard = new Promise((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms/1000)} s`)), ms);
-    });
-    return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
-  }
-
-  async function warmFetch(url, label, generation) {
-    const started = performance.now();
-    log('FETCH', label, url);
-    let res;
+  self.fetch = async (...args) => {
+    const s = performance.now();
+    const raw = args[0];
+    const url = typeof raw === 'string' ? raw : (raw && raw.url) || String(raw);
+    diag('fetch:start', {url});
     try {
-      res = await timeout(fetch(url, { cache: 'force-cache', mode: 'cors' }), 30000, label + ' HTTP request');
+      const res = await nativeFetch(...args);
+      const total = Number(res.headers.get('content-length')) || 0;
+      diag('fetch:headers', {
+        url, status:res.status, ok:res.ok, type:res.type,
+        contentType:res.headers.get('content-type'),
+        contentLength:total,
+        ms:performance.now()-s
+      });
+
+      try {
+        if (res.body) {
+          const clone = res.clone();
+          (async () => {
+            const reader = clone.body.getReader();
+            let done = 0, lastReport = 0, lastBytes = 0;
+            while (true) {
+              const rr = await reader.read();
+              if (rr.done) break;
+              done += rr.value.byteLength;
+              const now = performance.now();
+              if (now-lastReport > 250 || done-lastBytes > 524288) {
+                diag('fetch:progress', {url, done, total, ms:now-s});
+                lastReport = now; lastBytes = done;
+              }
+            }
+            diag('fetch:body-done', {url, done, total, ms:performance.now()-s});
+          })().catch(e => diag('fetch:progress-error', {url,error:e}));
+        }
+      } catch (e) {
+        diag('fetch:clone-error', {url,error:e});
+      }
+      return res;
     } catch (e) {
-      throw new Error(`${label}: network request failed: ${e.message}\nURL: ${url}`);
+      diag('fetch:error', {url, ms:performance.now()-s, error:e});
+      throw e;
     }
+  };
 
-    log('HTTP', label, res.status, res.statusText,
-      'type=' + res.type,
-      'content-length=' + (res.headers.get('content-length') || 'unknown'),
-      'content-type=' + (res.headers.get('content-type') || 'unknown'));
-
-    if (!res.ok) throw new Error(`${label}: HTTP ${res.status} ${res.statusText}\nURL: ${url}`);
-
-    const total = Number(res.headers.get('content-length')) || 0;
-    let done = 0;
-    const reader = res.body?.getReader();
-
-    if (!reader) {
-      const b = await res.arrayBuffer();
-      done = b.byteLength;
-      setProgress(done, total || done, label);
-    } else {
-      while (true) {
-        if (generation !== bootGeneration) throw new Error('Load cancelled by retry');
-        const read = await timeout(reader.read(), 30000, label + ' stream');
-        if (read.done) break;
-        done += read.value.byteLength;
-        const seconds = Math.max(.001, (performance.now() - started) / 1000);
-        const rate = done / seconds;
-        setProgress(done, total, `${label} · ${fmt(rate)}/s`);
+  ['compile','instantiate','compileStreaming','instantiateStreaming'].forEach(name => {
+    if (!WebAssembly[name]) return;
+    const orig = WebAssembly[name].bind(WebAssembly);
+    WebAssembly[name] = async (...args) => {
+      const s = performance.now();
+      diag('wasm:'+name+':start', {arg0:safe(args[0])});
+      try {
+        const r = await orig(...args);
+        diag('wasm:'+name+':done', {ms:performance.now()-s});
+        return r;
+      } catch (e) {
+        diag('wasm:'+name+':error', {ms:performance.now()-s,error:e});
+        throw e;
       }
-    }
-
-    const sec = Math.max(.001, (performance.now() - started) / 1000);
-    log('DONE', label, fmt(done), 'in', sec.toFixed(2) + 's', '(' + fmt(done/sec) + '/s)');
-    return { done, total };
-  }
-
-  function diagnostics() {
-    const d = {
-      userAgent: navigator.userAgent,
-      secureContext: window.isSecureContext,
-      crossOriginIsolated: window.crossOriginIsolated,
-      WebAssembly: typeof WebAssembly,
-      Worker: typeof Worker,
-      SharedArrayBuffer: typeof SharedArrayBuffer,
-      hardwareConcurrency: navigator.hardwareConcurrency,
-      deviceMemoryGiB: navigator.deviceMemory ?? 'unknown',
-      connection: navigator.connection ? {
-        effectiveType: navigator.connection.effectiveType,
-        downlinkMbps: navigator.connection.downlink,
-        saveData: navigator.connection.saveData
-      } : 'unavailable'
     };
-    log('DIAGNOSTICS', d);
+  });
+
+  diag('bootstrap:start', {
+    target:TARGET,
+    location:self.location.href,
+    ua:self.navigator && self.navigator.userAgent
+  });
+
+  const s = performance.now();
+  try {
+    nativeImportScripts(TARGET);
+    diag('bootstrap:target-loaded', {target:TARGET, ms:performance.now()-s});
+  } catch (e) {
+    diag('bootstrap:target-error', {target:TARGET, ms:performance.now()-s, error:e});
+    throw e;
+  }
+})();
+`;
+}
+
+class InstrumentedWorker extends NativeWorker {
+  constructor(url, options) {
+    const originalUrl = String(url);
+    const isModule = options && options.type === 'module';
+    let actualUrl = originalUrl;
+    let blobUrl = null;
+
+    if (!isModule) {
+      const source = workerBootstrap(originalUrl);
+      blobUrl = URL.createObjectURL(new Blob([source], {type:'text/javascript'}));
+      actualUrl = blobUrl;
+    }
+
+    trace('WORKER', 'constructor', {originalUrl, actualUrl:isModule?actualUrl:'blob:[instrumented]', options:summarize(options)});
+    super(actualUrl, options);
+    this.__diagBlobUrl = blobUrl;
+    this.__originalUrl = originalUrl;
+
+    NativeWorker.prototype.addEventListener.call(this, 'message', e => {
+      if (e.data && e.data.__BERGAMOT_DIAG__ === true) {
+        e.stopImmediatePropagation();
+        lastWorkerEvent = performance.now();
+        workerEventCount++;
+        handleWorkerDiag(e.data);
+        return;
+      }
+      lastWorkerEvent = performance.now();
+      workerEventCount++;
+      trace('WORKER→MAIN', 'message', summarize(e.data));
+    });
+
+    NativeWorker.prototype.addEventListener.call(this, 'error', e => {
+      lastWorkerEvent = performance.now();
+      trace('WORKER!', 'error event', {
+        message:e.message, filename:e.filename, lineno:e.lineno, colno:e.colno
+      });
+    });
+
+    NativeWorker.prototype.addEventListener.call(this, 'messageerror', e => {
+      lastWorkerEvent = performance.now();
+      trace('WORKER!', 'messageerror', summarize(e.data));
+    });
   }
 
-  function fail(stageId, err) {
-    phase(stageId, 'fail', err.message.split('\n')[0]);
-    headline.textContent = 'LOAD FAILED';
+  postMessage(message, transferOrOptions) {
+    trace('MAIN→WORKER', 'postMessage', summarize(message));
+    if (arguments.length > 1) return NativeWorker.prototype.postMessage.call(this, message, transferOrOptions);
+    return NativeWorker.prototype.postMessage.call(this, message);
+  }
+
+  terminate() {
+    trace('WORKER', 'terminate()');
+    try { return NativeWorker.prototype.terminate.call(this); }
+    finally {
+      if (this.__diagBlobUrl) URL.revokeObjectURL(this.__diagBlobUrl);
+    }
+  }
+}
+
+function handleWorkerDiag(msg) {
+  const d = msg.data || {};
+  const wt = Number(msg.wt || 0).toFixed(3);
+
+  if (msg.type === 'console') {
+    const args = Array.isArray(d.args) ? d.args : [];
+    trace('W:'+String(d.level || 'log').toUpperCase(), `worker+${wt}ms`, args);
+    return;
+  }
+
+  if (msg.type === 'fetch:start') {
+    trace('W:FETCH', 'start', d);
+    headline.textContent = 'Worker fetching: ' + shortUrl(d.url);
+    bar.removeAttribute('value');
+    progressText.textContent = d.url || '';
+    return;
+  }
+
+  if (msg.type === 'fetch:headers') {
+    trace('W:FETCH', 'headers', d);
+    if (d.contentLength > 0) setProgress(0, d.contentLength, shortUrl(d.url));
+    return;
+  }
+
+  if (msg.type === 'fetch:progress') {
+    trace('W:FETCH', 'progress', {url:shortUrl(d.url),done:d.done,total:d.total,ms:d.ms});
+    setProgress(d.done || 0, d.total || 0, shortUrl(d.url));
+    return;
+  }
+
+  if (msg.type === 'fetch:body-done') {
+    trace('W:FETCH', 'body done', {...d,url:shortUrl(d.url)});
+    if (d.total > 0) setProgress(d.done, d.total, 'done · ' + shortUrl(d.url));
+    return;
+  }
+
+  if (msg.type.startsWith('wasm:')) {
+    trace('W:WASM', msg.type.slice(5), d);
+    headline.textContent = 'WASM: ' + msg.type.slice(5);
+    return;
+  }
+
+  if (msg.type.startsWith('importScripts:')) {
+    trace('W:IMPORT', msg.type.slice('importScripts:'.length), d);
+    return;
+  }
+
+  if (msg.type.startsWith('bootstrap:')) {
+    trace('W:BOOT', msg.type.slice('bootstrap:'.length), d);
+    return;
+  }
+
+  if (msg.type.includes('error') || msg.type.includes('rejection')) {
+    trace('W:ERROR', msg.type, d);
+    return;
+  }
+
+  trace('W:DIAG', msg.type, d);
+}
+
+function shortUrl(url='') {
+  try {
+    const u = new URL(url);
+    const parts = u.pathname.split('/');
+    return parts.slice(-2).join('/') || u.hostname;
+  } catch { return String(url); }
+}
+
+function timeout(promise, ms, label) {
+  let timer;
+  const guard = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms/1000)}s`)), ms);
+  });
+  return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
+}
+
+function diagnostics() {
+  trace('PAGE', 'diagnostics', {
+    ua:navigator.userAgent,
+    secureContext:window.isSecureContext,
+    crossOriginIsolated:window.crossOriginIsolated,
+    WebAssembly:typeof WebAssembly,
+    Worker:typeof Worker,
+    SharedArrayBuffer:typeof SharedArrayBuffer,
+    hardwareConcurrency:navigator.hardwareConcurrency,
+    deviceMemoryGiB:navigator.deviceMemory ?? 'unknown',
+    connection:navigator.connection ? {
+      effectiveType:navigator.connection.effectiveType,
+      downlinkMbps:navigator.connection.downlink,
+      rtt:navigator.connection.rtt,
+      saveData:navigator.connection.saveData
+    } : 'unavailable'
+  });
+}
+
+function fail(id, err) {
+  phase(id, 'fail', err.message.split('\n')[0]);
+  headline.textContent = 'LOAD FAILED';
+  progressText.textContent = err.stack || String(err);
+  retryBtn.style.display = 'inline-block';
+  btn.disabled = true;
+  trace('FATAL', err.message, {stack:err.stack});
+}
+
+function startLiveState() {
+  clearInterval(liveTimer);
+  liveTimer = setInterval(() => {
+    const now = performance.now();
+    const sinceWorker = lastWorkerEvent ? ((now-lastWorkerEvent)/1000).toFixed(1)+'s' : 'never';
+    liveState.textContent =
+      `stage: ${stageName}\n` +
+      `stage elapsed: ${((now-stageT0)/1000).toFixed(1)}s · total: ${((now-bootT0)/1000).toFixed(1)}s\n` +
+      `worker events: ${workerEventCount} · last worker event: ${sinceWorker} ago\n` +
+      `main thread: alive @ ${new Date().toLocaleTimeString()}`;
+  }, 500);
+}
+
+async function boot() {
+  const generation = ++bootGeneration;
+  seq = 0;
+  workerEventCount = 0;
+  lastWorkerEvent = 0;
+  bootT0 = performance.now();
+  stageT0 = bootT0;
+  stageName = 'boot';
+  liveLog.textContent = '';
+  output.value = '';
+  statsEl.textContent = '';
+  btn.disabled = true;
+  retryBtn.style.display = 'none';
+  bar.removeAttribute('value');
+  progressText.textContent = 'Booting diagnostic loader…';
+  ['p-lib','p-worker','p-runtime','p-model','p-ready'].forEach(id => phase(id,''));
+  diagnostics();
+  startLiveState();
+
+  try {
+    setStage('browser wrapper import');
+    phase('p-lib','active');
+    headline.textContent = 'Importing browsermt wrapper…';
+    const libStart = performance.now();
+
+    // Install BEFORE dynamic import so browsermt resolves globalThis.Worker to our instrumented class.
+    globalThis.Worker = InstrumentedWorker;
+    const lib = await timeout(import(LIB_URL), 30000, 'browsermt module import');
+    createBergamotWorker = lib.createBergamotWorker;
+    trace('PAGE','browsermt imported',{ms:performance.now()-libStart});
+    phase('p-lib','ok',elapsed(libStart));
+
+    if (generation !== bootGeneration) return;
+
+    setStage('worker bootstrap');
+    phase('p-worker','active');
+    headline.textContent = 'Creating instrumented Bergamot worker…';
+    const workerStart = performance.now();
+    workerProxy = createBergamotWorker(WRAPPER_WORKER);
+    trace('PAGE','createBergamotWorker() returned proxy');
+    phase('p-worker','ok',elapsed(workerStart));
+
+    setStage('Bergamot runtime initialization');
+    phase('p-runtime','active');
+    headline.textContent = 'Initializing Bergamot JS + WASM…';
+    progressText.textContent = 'Live worker trace below. Runtime watchdog: 120s.';
+    const runtimeStart = performance.now();
+    trace('CALL','importBergamotWorker()', {js:BERGAMOT_JS, wasm:BERGAMOT_WASM});
+    await timeout(workerProxy.importBergamotWorker(BERGAMOT_JS, BERGAMOT_WASM), 120000, 'Bergamot runtime initialization');
+    trace('RETURN','importBergamotWorker() resolved',{ms:performance.now()-runtimeStart});
+    phase('p-runtime','ok',elapsed(runtimeStart));
+
+    if (generation !== bootGeneration) return;
+
+    setStage('EN→TR model download + construction');
+    phase('p-model','active');
+    headline.textContent = 'Loading EN→TR model…';
+    progressText.textContent = 'Worker fetch/model-construction events will appear live below.';
+    const modelStart = performance.now();
+    trace('CALL','loadModel(en,tr)',{model:MODEL,lex:LEX,vocab:VOCAB});
+    const modelResult = await timeout(workerProxy.loadModel('en','tr',modelRegistry), 180000, 'EN→TR model load');
+    trace('RETURN','loadModel() resolved',{ms:performance.now()-modelStart,result:summarize(modelResult)});
+    phase('p-model','ok',elapsed(modelStart));
+
+    setStage('ready');
+    phase('p-ready','ok');
+    headline.textContent = 'Ready — EN → TR loaded';
+    bar.max = 1; bar.value = 1;
+    progressText.textContent = 'Runtime and model initialized successfully.';
+    btn.disabled = false;
+    trace('READY','translator ready');
+
+  } catch (raw) {
+    const err = raw instanceof Error ? raw : new Error(String(raw));
+    const active = ['p-lib','p-worker','p-runtime','p-model'].find(id =>
+      document.querySelector('#'+id).classList.contains('active')
+    ) || 'p-ready';
+    fail(active,err);
+  }
+}
+
+function readableResult(x) {
+  if (typeof x === 'string') return x;
+  if (x == null) return '';
+  if (Array.isArray(x)) return x.join('\n');
+  if (typeof x.translation === 'string') return x.translation;
+  if (typeof x.text === 'string') return x.text;
+  return JSON.stringify(x,null,2);
+}
+
+async function translate() {
+  const text = input.value;
+  if (!text.trim() || !workerProxy) return;
+  btn.disabled = true;
+  output.value = '';
+  setStage('translation');
+  headline.textContent = 'Translating locally…';
+  trace('CALL','translate()', {chars:text.length});
+  try {
+    const t0 = performance.now();
+    const result = await timeout(
+      workerProxy.translate('en','tr',[text],[{isHtml:false}]),
+      120000,
+      'Translation'
+    );
+    const ms = performance.now()-t0;
+    output.value = readableResult(result);
+    const cps = text.length / Math.max(.001, ms/1000);
+    statsEl.textContent = `input chars: ${text.length}\ntranslation time: ${ms.toFixed(1)} ms\neffective throughput: ${cps.toFixed(0)} chars/s`;
+    headline.textContent = 'Ready — translation complete';
+    trace('RETURN','translate()', {ms,cps,result:summarize(result)});
+  } catch (err) {
+    headline.textContent = 'TRANSLATION FAILED';
     progressText.textContent = err.stack || String(err);
-    retryBtn.style.display = 'inline-block';
-    btn.disabled = true;
-    log('FATAL', err);
+    trace('FATAL','translation failed',{message:err.message,stack:err.stack});
+  } finally {
+    btn.disabled = false;
   }
+}
 
-  async function boot() {
-    const generation = ++bootGeneration;
-    retryBtn.style.display = 'none';
-    btn.disabled = true;
-    output.value = '';
-    statsEl.textContent = '';
-    logEl.textContent = '';
-    diagnostics();
+window.addEventListener('error', e => trace('PAGE!','window error',{
+  message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno
+}));
+window.addEventListener('unhandledrejection', e => trace('PAGE!','unhandled rejection',summarize(e.reason)));
 
-    ['p-runtime-files','p-runtime-init','p-model-files','p-model-init','p-ready'].forEach(id => phase(id, ''));
-
-    try {
-      // 1) Prove that the two runtime artifacts are actually reachable and show transfer progress.
-      phase('p-runtime-files', 'active');
-      headline.textContent = 'Downloading Bergamot runtime…';
-      await warmFetch(BERGAMOT_JS, 'runtime JS', generation);
-      await warmFetch(BERGAMOT_WASM, 'runtime WASM', generation);
-      phase('p-runtime-files', 'ok');
-
-      // 2) Create wrapper worker and initialize Emscripten/WASM.
-      phase('p-runtime-init', 'active');
-      headline.textContent = 'Initializing Bergamot WASM runtime…';
-      bar.removeAttribute('value');
-      progressText.textContent = 'Waiting for worker/WASM initialization… watchdog: 30 s';
-      log('Creating wrapper worker', WRAPPER_WORKER);
-      worker = createBergamotWorker(WRAPPER_WORKER);
-      log('Calling importBergamotWorker()');
-      await timeout(worker.importBergamotWorker(BERGAMOT_JS, BERGAMOT_WASM), 30000, 'Bergamot WASM initialization');
-      if (generation !== bootGeneration) return;
-      log('WASM runtime initialized');
-      phase('p-runtime-init', 'ok');
-
-      // 3) Download/cache model pieces with visible progress.
-      phase('p-model-files', 'active');
-      headline.textContent = 'Downloading tiny EN→TR model…';
-      await warmFetch(MODEL, 'model INT8', generation);
-      await warmFetch(LEX, 'lexical shortlist', generation);
-      await warmFetch(VOCAB, 'SentencePiece vocab', generation);
-      phase('p-model-files', 'ok');
-
-      // 4) Ask Bergamot to initialize the model. URLs should now be hot in HTTP cache.
-      phase('p-model-init', 'active');
-      headline.textContent = 'Initializing translation model…';
-      bar.removeAttribute('value');
-      progressText.textContent = 'Parsing weights + building Bergamot translation model… watchdog: 60 s';
-      log('Calling loadModel(en,tr)');
-      const initStart = performance.now();
-      await timeout(worker.loadModel('en', 'tr', modelRegistry), 60000, 'EN→TR model initialization');
-      if (generation !== bootGeneration) return;
-      const initMs = performance.now() - initStart;
-      log('Model initialized in', initMs.toFixed(1), 'ms');
-      phase('p-model-init', 'ok', (initMs/1000).toFixed(2) + ' s');
-
-      phase('p-ready', 'ok');
-      headline.textContent = 'Ready — EN → TR loaded';
-      bar.max = 1; bar.value = 1;
-      progressText.textContent = 'All runtime + model phases completed.';
-      btn.disabled = false;
-
-    } catch (err) {
-      const active = ['p-runtime-files','p-runtime-init','p-model-files','p-model-init']
-        .find(id => document.querySelector('#'+id).classList.contains('active'));
-      fail(active || 'p-ready', err instanceof Error ? err : new Error(String(err)));
-    }
+copyBtn.addEventListener('click', async () => {
+  const text = liveState.textContent + '\n\n' + liveLog.textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+    copyBtn.textContent = 'Copied';
+    setTimeout(() => copyBtn.textContent = 'Copy log', 1200);
+  } catch {
+    copyBtn.textContent = 'Copy failed';
   }
+});
 
-  function readableResult(x) {
-    if (typeof x === 'string') return x;
-    if (x == null) return '';
-    if (typeof x.translation === 'string') return x.translation;
-    if (typeof x.text === 'string') return x.text;
-    if (x.target && typeof x.target.text === 'string') return x.target.text;
-    return JSON.stringify(x, null, 2);
-  }
-
-  async function translate() {
-    const text = input.value;
-    if (!text.trim() || !worker) return;
-    btn.disabled = true;
-    headline.textContent = 'Translating locally…';
-    output.value = '';
-    try {
-      const t0 = performance.now();
-      const result = await timeout(
-        worker.translate('en', 'tr', [text], [{ isHtml: false }]),
-        60000,
-        'Translation'
-      );
-      const ms = performance.now() - t0;
-      const first = Array.isArray(result) ? result[0] : result;
-      output.value = readableResult(first);
-      const cps = text.length / Math.max(.001, ms / 1000);
-      statsEl.textContent = `input chars: ${text.length}\ntranslation time: ${ms.toFixed(1)} ms\neffective throughput: ${cps.toFixed(0)} chars/s`;
-      headline.textContent = 'Ready — translation complete';
-      log('TRANSLATE DONE', ms.toFixed(1) + 'ms', cps.toFixed(0) + ' chars/s');
-    } catch (err) {
-      headline.textContent = 'TRANSLATION FAILED';
-      progressText.textContent = err.stack || String(err);
-      log('TRANSLATION ERROR', err);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  window.addEventListener('error', e => log('WINDOW ERROR', e.message, e.filename + ':' + e.lineno + ':' + e.colno));
-  window.addEventListener('unhandledrejection', e => log('UNHANDLED REJECTION', e.reason?.stack || e.reason));
-
-  retryBtn.addEventListener('click', boot);
-  btn.addEventListener('click', translate);
+retryBtn.addEventListener('click', () => {
+  try { workerProxy?.terminate?.(); } catch {}
   boot();
+});
+btn.addEventListener('click', translate);
+
+boot();
 </script>
 </body>
 </html>
