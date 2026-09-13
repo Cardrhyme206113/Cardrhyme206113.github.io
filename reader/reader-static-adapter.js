@@ -98,11 +98,23 @@
   const fold = s => String(s ?? '').toLocaleLowerCase();
   const includesFold = (a,b) => fold(a).includes(fold(b));
 
+  function uiText(key,vars={},fallback=''){
+    try{
+      const lang=document.documentElement.lang||'en';
+      if(window.ReaderI18n?.t)return window.ReaderI18n.t(key,vars,lang)
+    }catch(_){}
+    let out=String(fallback||key);
+    for(const [k,v] of Object.entries(vars||{}))out=out.replaceAll('{'+k+'}',String(v));
+    return out
+  }
   function setCatalogStage(message){
     try{
       const el=document.getElementById('loaderStatus');
       if(el)el.textContent=message;
     }catch(_){}
+  }
+  function setCatalogStageKey(key,vars={},fallback=''){
+    setCatalogStage(uiText(key,vars,fallback))
   }
 
   function metadataMirrorURL(input){
@@ -170,7 +182,7 @@
     return out.buffer
   }
 
-  async function fetchMetadataFully(url,options={},label='Katalog'){
+  async function fetchMetadataFully(url,options={},labelKey='metadataCatalogLabel'){
     const controller=new AbortController();
     let headerTimer;
     try{
@@ -191,7 +203,8 @@
         onProgress:(done,total)=>{
           const mb=(done/1048576).toFixed(1);
           const all=total>0?' / '+(total/1048576).toFixed(1)+' MB':' MB';
-          setCatalogStage(`${label} indiriliyor… ${mb}${all}`)
+          const label=uiText(labelKey,{},labelKey==='metadataCryptoLabel'?'Encryption info':'Catalog');
+          setCatalogStageKey('metadataDownloading',{label,done:mb,total:all},'Downloading {label}… {done}{total}')
         }
       });
 
@@ -205,7 +218,7 @@
     }
   }
 
-  async function resilientMetadataFetch(url,options={},label='Katalog'){
+  async function resilientMetadataFetch(url,options={},labelKey='metadataCatalogLabel'){
     const primary=String(url);
     const mirror=metadataMirrorURL(primary);
 
@@ -217,8 +230,9 @@
     for(let i=0;i<routes.length;i++){
       try{
         const host=new URL(routes[i]).hostname;
-        setCatalogStage(`${label} sunucusuna bağlanılıyor… (${i+1}/${routes.length})`);
-        const r=await fetchMetadataFully(routes[i],options,label);
+        const label=uiText(labelKey,{},labelKey==='metadataCryptoLabel'?'Encryption info':'Catalog');
+        setCatalogStageKey('metadataConnecting',{label,current:i+1,total:routes.length},'Connecting to {label} server… ({current}/{total})');
+        const r=await fetchMetadataFully(routes[i],options,labelKey);
         if(!r.ok)throw new Error(`metadata HTTP ${r.status} via ${host}`);
         return r
       }catch(e){
@@ -362,7 +376,7 @@
   }
   async function loadCryptoConfig(){
     if(!cryptoConfigPromise)cryptoConfigPromise=(async()=>{
-      const r=await resilientMetadataFetch(storageURL('data/crypto.json',{mutable:true}),{},'Şifre bilgisi');
+      const r=await resilientMetadataFetch(storageURL('data/crypto.json',{mutable:true}),{},'metadataCryptoLabel');
       if(r.status===404)return {encrypted:false};
       if(!r.ok)throw new Error(`reader-static crypto config HTTP ${r.status}`);
       const c=await r.json();return c&&c.encrypted?c:{encrypted:false};
@@ -371,7 +385,7 @@
   }
   async function deriveReaderKey(password,cfg){
     if(!globalThis.crypto?.subtle)throw new Error('WebCrypto is unavailable; encrypted reader requires HTTPS or localhost');
-    setCatalogStage('Katalog anahtarı hazırlanıyor…');
+    setCatalogStageKey('catalogKeyPreparing',{},'Preparing catalog key…');
     const material=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveKey']);
     return Promise.race([
       crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:b64bytes(cfg.salt),iterations:Number(cfg.iterations||600000)},material,{name:'AES-GCM',length:256},false,['decrypt']),
@@ -410,19 +424,19 @@
   }
   async function decodeProtectedJSON(response){
     let b=new Uint8Array(await response.arrayBuffer());
-    setCatalogStage('Katalog şifresi çözülüyor…');
+    setCatalogStageKey('catalogDecrypting',{},'Decrypting catalog…');
     const key=await ensureCryptoKey();
     if(corruptMode)return {__readerCorruptCipher:b};
     if(key)b=await decryptEnvelope(b,key);
     if(key){
-      setCatalogStage('Katalog açılıyor…');
+      setCatalogStageKey('catalogOpening',{},'Opening catalog…');
       const ds=new DecompressionStream('gzip');
       b=new Uint8Array(await Promise.race([
         new Response(new Blob([b]).stream().pipeThrough(ds)).arrayBuffer(),
         timeoutPromise(15000,'catalog gzip timeout')
       ]));
     }
-    setCatalogStage('Katalog okunuyor…');
+    setCatalogStageKey('catalogReading',{},'Reading catalog…');
     return JSON.parse(textDecoder.decode(b));
   }
 
@@ -430,7 +444,7 @@
     if(!catalogPromise){
       catalogPromise=(async()=>{
         const cfg=await loadCryptoConfig();
-        const r=await resilientMetadataFetch(storageURL(cfg.encrypted?'data/catalog.rse':'data/catalog.json',{mutable:true}),{},'Katalog');
+        const r=await resilientMetadataFetch(storageURL(cfg.encrypted?'data/catalog.rse':'data/catalog.json',{mutable:true}),{},'metadataCatalogLabel');
         if(!r.ok) throw new Error(`reader-static catalog HTTP ${r.status}`);
         let c=cfg.encrypted?await decodeProtectedJSON(r):await r.json();
         if(c?.__readerCorruptCipher)c=syntheticCatalog(c.__readerCorruptCipher);
@@ -448,7 +462,7 @@
         let indexed=0;
         const indexYield=async()=>{
           const pct=Math.min(99,Math.round(indexed/totalIndexItems*100));
-          setCatalogStage(`Katalog indeksleniyor… ${pct}%`);
+          setCatalogStageKey('catalogIndexing',{pct},'Indexing catalog… {pct}%');
           await new Promise(r=>setTimeout(r,0))
         };
 
@@ -477,7 +491,7 @@
           if((i&255)===255)await indexYield()
         }
 
-        setCatalogStage('Katalog indeksleniyor… 100%');
+        setCatalogStageKey('catalogIndexing',{pct:100},'Indexing catalog… {pct}%');
         catalogRef=c;
         window.mockCoverURL=function(id){
           const k=String(id??'');
