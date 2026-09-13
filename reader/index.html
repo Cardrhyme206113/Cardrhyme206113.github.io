@@ -4187,11 +4187,6 @@ body:not(.reader-active){
 @keyframes readerTranslationSpin{to{transform:rotate(360deg)}}
 #proseContent[dir="rtl"]{direction:rtl;text-align:right}
 </style>
-<style id="reader-i18next-language-chip-v1">
-#langBtn[data-lang]:not([data-lang="en"]):not([data-lang="tr"]) .langCode{display:grid!important;place-items:center!important;width:26px!important;min-width:26px!important;height:20px!important;border:0!important;background:transparent!important;box-shadow:none!important;font-size:15px!important;line-height:1!important;letter-spacing:0!important}
-#langBtn.i18nLoading .langCode{opacity:.55}
-#langBtn.i18nLoading{cursor:progress}
-</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -4489,7 +4484,7 @@ body:not(.reader-active){
 <script src="./reader-static-adapter.js?v=20260912-catalogfix5"></script>
 <script src="./reader-mozhi.js?v=20260912-multilang1"></script>
 <script src="https://cdn.jsdelivr.net/npm/i18next@26.4.2/dist/umd/i18next.min.js"></script>
-<script src="./reader-i18n.js?v=20260913-i18next1"></script>
+<script src="./reader-i18n-locales.js?v=20260913-static1"></script>\n<script src="./reader-i18n.js?v=20260913-static1"></script>
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
 const mobileReaderDefaults=matchMedia('(max-width:640px)').matches;
@@ -4689,7 +4684,7 @@ function applyLanguage(){
  document.documentElement.dir=window.ReaderI18n?.dir(uiLanguage)||(uiLanguage==='ar'?'rtl':'ltr');
  const activeLangMeta=CONTENT_LANGUAGE_OPTIONS.find(x=>x.id===contentLanguageChoice)||CONTENT_LANGUAGE_OPTIONS[0];
  $('#langBtn').dataset.lang=contentLanguageChoice;
- $('#langCode').textContent=(contentLanguageChoice==='en'||contentLanguageChoice==='tr')?'':activeLangMeta.emoji;
+ $('#langCode').textContent='';
  setAttr('#langBtn','aria-label','language');setAttr('#langBtn','title','language');
  setAttr('#backBtn','aria-label','back');setAttr('#backBtn','title','back');
  setAttr('#contentsBtn','aria-label','contents');setAttr('#contentsBtn','title','contents');
