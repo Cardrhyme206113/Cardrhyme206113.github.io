@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bergamot tiny EN → TR browser demo</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    body { margin: 0; background: #111; color: #eee; }
+    main { max-width: 980px; margin: 0 auto; padding: 28px 18px 60px; }
+    h1 { font-size: 24px; margin: 0 0 8px; }
+    .muted { color: #aaa; font-size: 14px; }
+    .status { margin: 18px 0; padding: 12px 14px; border: 1px solid #333; border-radius: 10px; background: #181818; white-space: pre-wrap; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    textarea { width: 100%; min-height: 270px; box-sizing: border-box; resize: vertical; border: 1px solid #3a3a3a; border-radius: 10px; background: #181818; color: #eee; padding: 14px; font: 15px/1.5 system-ui,sans-serif; }
+    button { margin-top: 14px; padding: 10px 16px; border: 0; border-radius: 9px; cursor: pointer; font-weight: 650; }
+    button:disabled { opacity: .45; cursor: default; }
+    #stats { margin-top: 12px; font: 13px ui-monospace, SFMono-Regular, Consolas, monospace; color: #bbb; white-space: pre-wrap; }
+    @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } textarea { min-height: 190px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Bergamot tiny EN → TR</h1>
+  <div class="muted">Fully client-side WASM translation. Tiny Firefox/Bergamot EN→TR model, INT8. First load downloads the runtime + model files; later loads may be browser-cached.</div>
+  <div id="status" class="status">Starting…</div>
+  <div class="grid">
+    <div><div class="muted">English</div><textarea id="input">I couldn't understand why she was looking at me like that. For a moment, neither of us said anything. Then she smiled and quietly closed the book.</textarea></div>
+    <div><div class="muted">Turkish</div><textarea id="output" readonly placeholder="Translation appears here"></textarea></div>
+  </div>
+  <button id="translate" disabled>Translate</button>
+  <div id="stats"></div>
+</main>
+<script type="module">
+  const statusEl = document.querySelector('#status');
+  const statsEl = document.querySelector('#stats');
+  const btn = document.querySelector('#translate');
+  const input = document.querySelector('#input');
+  const output = document.querySelector('#output');
+  const setStatus = (s) => statusEl.textContent = s;
+  import { createBergamotWorker } from 'https://unpkg.com/@sign-mt/browsermt@0.0.2/build/bundled/index.js';
+  const WRAPPER_WORKER = 'https://unpkg.com/@sign-mt/browsermt@0.0.2/build/bundled/worker.js';
+  const BERGAMOT_JS = 'https://unpkg.com/@browsermt/bergamot-translator@0.4.9/worker/bergamot-translator-worker.js';
+  const BERGAMOT_WASM = 'https://unpkg.com/@browsermt/bergamot-translator@0.4.9/worker/bergamot-translator-worker.wasm';
+  const MODEL_BASE = 'https://huggingface.co/TiberiuCristianLeon/Bergamot/resolve/main/tiny/entr';
+  const modelRegistry = { entr: {
+    model: { name: `${MODEL_BASE}/model.entr.intgemm.alphas.bin` },
+    lex: { name: `${MODEL_BASE}/lex.50.50.entr.s2t.bin` },
+    vocab: { name: `${MODEL_BASE}/vocab.entr.spm` },
+  }};
+  let worker;
+  function readableResult(x) {
+    if (typeof x === 'string') return x;
+    if (x == null) return '';
+    if (typeof x.translation === 'string') return x.translation;
+    if (typeof x.text === 'string') return x.text;
+    if (x.target && typeof x.target.text === 'string') return x.target.text;
+    return JSON.stringify(x, null, 2);
+  }
+  async function boot() {
+    try {
+      const t0 = performance.now();
+      setStatus('Loading Bergamot WASM runtime…');
+      worker = createBergamotWorker(WRAPPER_WORKER);
+      await worker.importBergamotWorker(BERGAMOT_JS, BERGAMOT_WASM);
+      setStatus('Loading tiny EN→TR INT8 model…\nModel blob: 17,141,051 bytes. Model + vocab + lexical shortlist ≈ 21.2 MB raw.');
+      await worker.loadModel('en', 'tr', modelRegistry);
+      const ms = performance.now() - t0;
+      setStatus(`Ready. EN → TR model loaded in ${(ms / 1000).toFixed(2)} s.`);
+      btn.disabled = false;
+    } catch (err) {
+      console.error(err);
+      setStatus('LOAD ERROR\n' + (err?.stack || err));
+    }
+  }
+  async function translate() {
+    const text = input.value;
+    if (!text.trim() || !worker) return;
+    btn.disabled = true; output.value = ''; setStatus('Translating locally…');
+    try {
+      const t0 = performance.now();
+      const result = await worker.translate('en', 'tr', [text], [{ isHtml: false }]);
+      const ms = performance.now() - t0;
+      const first = Array.isArray(result) ? result[0] : result;
+      output.value = readableResult(first);
+      const cps = text.length / (ms / 1000);
+      statsEl.textContent = `input chars: ${text.length}\ntranslation time: ${ms.toFixed(1)} ms\neffective throughput: ${cps.toFixed(0)} chars/s`;
+      setStatus('Ready. Translation completed entirely in-browser.');
+    } catch (err) {
+      console.error(err);
+      setStatus('TRANSLATION ERROR\n' + (err?.stack || err));
+    } finally { btn.disabled = false; }
+  }
+  btn.addEventListener('click', translate);
+  boot();
+</script>
+</body>
+</html>
