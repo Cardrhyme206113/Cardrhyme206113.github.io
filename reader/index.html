@@ -4194,6 +4194,9 @@ body.reader-active #langBtn>.langCode{display:none!important}
 #langBtn>svg,
 body.reader-active #langBtn>svg{display:block!important}
 </style>
+<style id="reader-progressive-translation-v1">
+.readerTranslationPending{visibility:hidden!important}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -4489,7 +4492,7 @@ body.reader-active #langBtn>svg{display:block!important}
 
 <script src="./reader-storage-config.js?v=20260912-pretranslate-clean1"></script>
 <script src="./reader-static-adapter.js?v=20260913-i18n1"></script>
-<script src="./reader-mozhi.js?v=20260912-multilang1"></script>
+<script src="./reader-mozhi.js?v=20260913-priority1"></script>
 <script src="https://cdn.jsdelivr.net/npm/i18next@26.4.2/dist/umd/i18next.min.js"></script>
 <script src="./reader-i18n-locales.js?v=20260913-static3"></script>\n<script src="./reader-i18n.js?v=20260913-static3"></script>
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
@@ -5431,13 +5434,20 @@ function syncLnTranslatedTitle(sec){
  if(candidate&&candidate.length<180)sec.title=candidate
 }
 
-async function ensureApiLnSectionTranslated(index){
+function apiLnPriorityFraction(){
+ if(state._resumeProgress!=null&&Number.isFinite(+state._resumeProgress))return Math.max(0,Math.min(1,+state._resumeProgress));
+ if(state._target==='last')return 1;
+ return 0
+}
+
+async function ensureApiLnSectionTranslated(index,{priorityFraction=null}={}){
  if(!usesApiContentTranslation()||!BOOK||BOOK.kind!=='epub'||index<0||index>=BOOK.sections.length)return;
  const sec=BOOK.sections[index],target=contentTargetLanguage();
  if(sec.imageOnly||['ready','fallback','error'].includes(sec.apiState))return;
  if(sec.apiPromise)return sec.apiPromise;
 
- sec.apiState='loading';sec.translationSource='loading';
+ const priority=priorityFraction==null?(index===state.section?apiLnPriorityFraction():0):Math.max(0,Math.min(1,+priorityFraction||0));
+ sec.apiState='loading';sec.translationSource='loading';sec.apiFirstBatchShown=false;
  if(!sec.html||!sec.html.includes('translationWait'))sec.html=translationWaitHTML(target);
 
  sec.apiPromise=(async()=>{
@@ -5445,7 +5455,22 @@ async function ensureApiLnSectionTranslated(index){
    if(!sec.sourceHtmlEn)throw new Error('English source unavailable for online translation');
    if(!window.ReaderMozhi?.translateHTML)throw new Error('Mozhi runtime unavailable');
    const translated=await ReaderMozhi.translateHTML(sec.sourceHtmlEn,{
-    source:'en',target,cacheKey:`ln:${BOOK.id}:${sec.path}:${target}`
+    source:'en',target,cacheKey:`ln:${BOOK.id}:${sec.path}:${target}`,
+    priorityFraction:priority,
+    onBatch:(partial,info)=>{
+     if(!partial?.trim())return;
+     sec.html=partial;sec.contentLanguage=target;sec.translationSource='mozhi-partial';sec.apiState=info?.final?'loading':'partial';
+     if(info?.first&&!sec.apiFirstBatchShown){
+      sec.apiFirstBatchShown=true;
+      if(BOOK&&BOOK.kind==='epub'&&current()===sec&&state.view==='reader'){
+       if(sec.apiResumeTarget!=null)state._target=sec.apiResumeTarget;
+       if(sec.apiResumeFraction!=null)state._resumeProgress=sec.apiResumeFraction;
+       else state._resumeProgress=priority;
+       state.renderedSection=-1;
+       setSectionMarkup()
+      }
+     }
+    }
    });
    if(!translated.trim())throw new Error('Mozhi returned empty translated content');
    sec.html=translated;sec.contentLanguage=target;sec.translationSource='mozhi';sec.apiState='ready';
@@ -5462,9 +5487,10 @@ async function ensureApiLnSectionTranslated(index){
   }finally{
    sec.apiPromise=null;
    if(BOOK&&BOOK.kind==='epub'&&current()===sec&&state.view==='reader'){
-    const resumeFraction=sec.apiResumeFraction;
+    const liveFraction=sec.apiFirstBatchShown?currentSectionFraction():null;
+    const resumeFraction=Number.isFinite(liveFraction)?liveFraction:sec.apiResumeFraction;
     const resumeTarget=sec.apiResumeTarget;
-    sec.apiResumeFraction=null;sec.apiResumeTarget=null;
+    sec.apiResumeFraction=null;sec.apiResumeTarget=null;sec.apiFirstBatchShown=false;
     if(resumeTarget!=null)state._target=resumeTarget;
     if(resumeFraction!=null)state._resumeProgress=resumeFraction;
     state.renderedSection=-1;
@@ -6360,7 +6386,7 @@ function setSectionMarkup(){
  if(BOOK?.kind==='epub'&&usesApiContentTranslation()&&!sec.imageOnly&&!['ready','fallback','error'].includes(sec.apiState)){
   if(sec.apiResumeFraction==null&&state._resumeProgress!=null)sec.apiResumeFraction=state._resumeProgress;
   if(sec.apiResumeTarget==null&&state._target!=null)sec.apiResumeTarget=state._target;
-  ensureApiLnSectionTranslated(state.section).catch(e=>console.warn('[reader-mozhi] section translation failed',e))
+  ensureApiLnSectionTranslated(state.section,{priorityFraction:apiLnPriorityFraction()}).catch(e=>console.warn('[reader-mozhi] section translation failed',e))
  }
 
  if(sec.contentLanguage)BOOK.contentLanguage=sec.contentLanguage;
