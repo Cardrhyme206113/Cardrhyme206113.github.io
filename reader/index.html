@@ -4488,10 +4488,10 @@ body.reader-active #langBtn>svg{display:block!important}
 <aside id="drawer" class="drawer" aria-modal="true" role="dialog"><div class="drawerHead"><div class="panelHeadRow"><div class="panelHeadText"><h3 id="drawerTitle"></h3><p id="drawerAuthor"></p></div><button id="drawerClose" class="panelClose" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6.5 6.5 11 11m0-11-11 11" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg></button></div><div id="drawerContentsLabel" class="drawerSectionLabel">Contents</div></div><div id="toc" class="toc"></div></aside>
 
 <script src="./reader-storage-config.js?v=20260912-pretranslate-clean1"></script>
-<script src="./reader-static-adapter.js?v=20260912-catalogfix5"></script>
+<script src="./reader-static-adapter.js?v=20260913-i18n1"></script>
 <script src="./reader-mozhi.js?v=20260912-multilang1"></script>
 <script src="https://cdn.jsdelivr.net/npm/i18next@26.4.2/dist/umd/i18next.min.js"></script>
-<script src="./reader-i18n-locales.js?v=20260913-static2"></script>\n<script src="./reader-i18n.js?v=20260913-static2"></script>
+<script src="./reader-i18n-locales.js?v=20260913-static3"></script>\n<script src="./reader-i18n.js?v=20260913-static3"></script>
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
 const mobileReaderDefaults=matchMedia('(max-width:640px)').matches;
@@ -4650,10 +4650,12 @@ const I18N={
  }
 };
 Object.assign(I18N.en,{
- translatedBy:'Translated by {model}',ready:'Ready',translationPreparingTitle:'Translation in progress…',translationPreparingDetail:'Preparing {language} text online.',translationUnavailableTitle:'Translation unavailable',translationUnavailableDetail:'Could not load the {language} translation.',sectionLabel:'Section {n}',tocRead:'Read',novel:'Novel',novelsLower:'novels',volumeShort:'Vol',loadingLibrary:'Loading library',preparingCatalog:'Preparing catalog…',catalogLoadTimedOut:'Catalog load timed out',preparingCovers:'Preparing covers…',couldNotLoadLibrary:'Could not load library',contentLanguage:'Content language',imageProcessing:'Image processing',denoise:'Denoise',profile:'Profile',simplified:'Simplified',sophisticated:'Sophisticated',auto:'Auto',all:'All',off:'Off',medium:'Medium',high:'High',moreSettings:'More settings',fewerSettings:'Fewer settings',previous:'Previous',next:'Next',advancedSearch:'Advanced search'
+ translatedBy:'Translated by {model}',ready:'Ready',translationPreparingTitle:'Translation in progress…',translationPreparingDetail:'Preparing {language} text online.',translationUnavailableTitle:'Translation unavailable',translationUnavailableDetail:'Could not load the {language} translation.',sectionLabel:'Section {n}',tocRead:'Read',novel:'Novel',novelsLower:'novels',volumeShort:'Vol',loadingLibrary:'Loading library',preparingCatalog:'Preparing catalog…',catalogLoadTimedOut:'Catalog load timed out',preparingCovers:'Preparing covers…',couldNotLoadLibrary:'Could not load library',contentLanguage:'Content language',imageProcessing:'Image processing',denoise:'Denoise',profile:'Profile',simplified:'Simplified',sophisticated:'Sophisticated',auto:'Auto',all:'All',off:'Off',medium:'Medium',high:'High',moreSettings:'More settings',fewerSettings:'Fewer settings',previous:'Previous',next:'Next',advancedSearch:'Advanced search',
+ metadataCatalogLabel:'Catalog',metadataCryptoLabel:'Encryption info',metadataDownloading:'Downloading {label}… {done}{total}',metadataConnecting:'Connecting to {label} server… ({current}/{total})',catalogKeyPreparing:'Preparing catalog key…',catalogDecrypting:'Decrypting catalog…',catalogOpening:'Opening catalog…',catalogReading:'Reading catalog…',catalogIndexing:'Indexing catalog… {pct}%',hybridWorking:'Showing Fast Turkish · online translation {done}/{total}{eta}',hybridReady:'Online translation ready · text updated',hybridError:'Online translation failed · continuing with Fast Turkish',hybridEta:' · ~{seconds} sec'
 });
 Object.assign(I18N.tr,{
- translatedBy:'{model} tarafından çevrildi',ready:'Hazır',translationPreparingTitle:'Çeviri hazırlanıyor…',translationPreparingDetail:'{language} metni çevrimiçi hazırlanıyor.',translationUnavailableTitle:'Çeviri alınamadı',translationUnavailableDetail:'{language} çevirisi şu anda alınamadı.',sectionLabel:'Bölüm {n}',tocRead:'Okundu',novel:'Roman',novelsLower:'roman',volumeShort:'Cilt',loadingLibrary:'Kütüphane yükleniyor',preparingCatalog:'Katalog hazırlanıyor…',catalogLoadTimedOut:'Katalog yükleme zaman aşımı',preparingCovers:'Kapaklar hazırlanıyor…',couldNotLoadLibrary:'Kütüphane açılamadı',contentLanguage:'İçerik dili',imageProcessing:'Görsel işleme',denoise:'Gürültü azaltma',profile:'Profil',simplified:'Basitleştirilmiş',sophisticated:'Gelişmiş',auto:'Otomatik',all:'Tümü',off:'Kapalı',medium:'Orta',high:'Yüksek',moreSettings:'Daha fazla ayar',fewerSettings:'Daha az ayar',previous:'Önceki',next:'Sonraki',advancedSearch:'Gelişmiş arama'
+ translatedBy:'{model} tarafından çevrildi',ready:'Hazır',translationPreparingTitle:'Çeviri hazırlanıyor…',translationPreparingDetail:'{language} metni çevrimiçi hazırlanıyor.',translationUnavailableTitle:'Çeviri alınamadı',translationUnavailableDetail:'{language} çevirisi şu anda alınamadı.',sectionLabel:'Bölüm {n}',tocRead:'Okundu',novel:'Roman',novelsLower:'roman',volumeShort:'Cilt',loadingLibrary:'Kütüphane yükleniyor',preparingCatalog:'Katalog hazırlanıyor…',catalogLoadTimedOut:'Katalog yükleme zaman aşımı',preparingCovers:'Kapaklar hazırlanıyor…',couldNotLoadLibrary:'Kütüphane açılamadı',contentLanguage:'İçerik dili',imageProcessing:'Görsel işleme',denoise:'Gürültü azaltma',profile:'Profil',simplified:'Basitleştirilmiş',sophisticated:'Gelişmiş',auto:'Otomatik',all:'Tümü',off:'Kapalı',medium:'Orta',high:'Yüksek',moreSettings:'Daha fazla ayar',fewerSettings:'Daha az ayar',previous:'Önceki',next:'Sonraki',advancedSearch:'Gelişmiş arama',
+ metadataCatalogLabel:'Katalog',metadataCryptoLabel:'Şifre bilgisi',metadataDownloading:'{label} indiriliyor… {done}{total}',metadataConnecting:'{label} sunucusuna bağlanılıyor… ({current}/{total})',catalogKeyPreparing:'Katalog anahtarı hazırlanıyor…',catalogDecrypting:'Katalog şifresi çözülüyor…',catalogOpening:'Katalog açılıyor…',catalogReading:'Katalog okunuyor…',catalogIndexing:'Katalog indeksleniyor… {pct}%',hybridWorking:'Hızlı Türkçe gösteriliyor · çevrimiçi çeviri {done}/{total}{eta}',hybridReady:'Çevrimiçi çeviri hazır · metin güncellendi',hybridError:'Çevrimiçi çeviri başarısız · Hızlı Türkçe gösterilmeye devam ediyor',hybridEta:' · ~{seconds} sn'
 });
 
 function t(key,vars={}){
@@ -5090,12 +5092,12 @@ function hybridStatus({done=0,total=0,eta=null,state='working',message='' }={}){
  bar.style.width=pct+'%';
  if(message){label.textContent=message;return}
  if(state==='working'){
-  const etaText=Number.isFinite(eta)&&eta>0?` · ~${Math.max(1,Math.ceil(eta/1000))} sn`:'';
-  label.textContent=`Hızlı Türkçe gösteriliyor · çevrimiçi çeviri ${done}/${total}${etaText}`
+  const etaText=Number.isFinite(eta)&&eta>0?t('hybridEta',{seconds:Math.max(1,Math.ceil(eta/1000))}):'';
+  label.textContent=t('hybridWorking',{done,total,eta:etaText})
  }else if(state==='ready'){
-  label.textContent='Çevrimiçi çeviri hazır · metin güncellendi'
+  label.textContent=t('hybridReady')
  }else if(state==='error'){
-  label.textContent='Çevrimiçi çeviri başarısız · Hızlı Türkçe gösterilmeye devam ediyor'
+  label.textContent=t('hybridError')
  }
 }
 
@@ -5274,12 +5276,12 @@ async function ensureWebSectionLoaded(index,force=false){
     }
    }else if(choice==='tr-fast'){
     const r=await fetch(base+'?lang=tr',{cache:'no-store'});
-    if(!r.ok)throw new Error(`Türkçe paket HTTP ${r.status}`);
+    if(!r.ok)throw new Error(t('translationUnavailableDetail',{language:contentLanguageLabel('tr')}));
     const actual=(r.headers.get('X-Reader-Content-Language')||'').toLowerCase();
     const text=await r.text();
-    if(actual!=='tr'||!text.trim())throw new Error('Bu bölüm için paketlenmiş Türkçe çeviri yok');
+    if(actual!=='tr'||!text.trim())throw new Error(t('translationUnavailableDetail',{language:contentLanguageLabel('tr')}));
     sec.translationSource='builtin';sec.contentLanguage='tr';sec.available=true;
-    const title=sec.fallbackTitleTr||`Bölüm ${sec.chapterIndex||index+1}`;
+    const title=sec.fallbackTitleTr||t('sectionLabel',{n:sec.chapterIndex||index+1});
     sec.html=`<h2>${esc(title)}</h2>${webNovelTextHTML(text)}`
    }else{
     sec.contentLanguage=target;sec.translationSource='loading';sec.available=true;
@@ -5297,7 +5299,7 @@ async function ensureWebSectionLoaded(index,force=false){
      const actual=(trR.headers.get('X-Reader-Content-Language')||'').toLowerCase();
      const candidate=await trR.text();
      if(actual==='tr'&&candidate.trim()){
-      const trTitle=sec.fallbackTitleTr||`Bölüm ${sec.chapterIndex||index+1}`;
+      const trTitle=sec.fallbackTitleTr||t('sectionLabel',{n:sec.chapterIndex||index+1});
       fallbackTr=`<h2>${esc(trTitle)}</h2>${webNovelTextHTML(candidate)}`
      }
     }
@@ -7792,7 +7794,7 @@ if(uiLanguage!=='en'&&uiLanguage!=='tr'){window.ReaderI18n?.ensureLocale(uiLangu
 
    const sel=q('#librarySort');
    if(sel){
-     sel.innerHTML='<option value="source">Default order</option>';
+     sel.innerHTML='<option value="source">'+t('defaultOrder')+'</option>';
      sel.value='source';
    }
 
@@ -7804,7 +7806,7 @@ if(uiLanguage!=='en'&&uiLanguage!=='tr'){window.ReaderI18n?.ensureLocale(uiLangu
        try{storage.set(sourceSortKey(),'source')}catch(_){}
        const sort=q('#librarySort');
        if(sort){
-         sort.innerHTML='<option value="source">Default order</option>';
+         sort.innerHTML='<option value="source">'+t('defaultOrder')+'</option>';
          sort.value='source';
        }
        renderLibrary();
