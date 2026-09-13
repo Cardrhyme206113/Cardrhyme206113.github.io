@@ -6,10 +6,14 @@
 (()=>{
 'use strict';
 
-const INSTANCES=[
+// These three are intentionally excluded: they repeatedly returned 500/418
+// or browser-blocking CORS responses in the reader.
+const BLOCKED_INSTANCES=[
   'https://translate.projectsegfau.lt',
   'https://translate.privacyredirect.com',
-  'https://mozhi.adminforge.de',
+  'https://mozhi.adminforge.de'
+];
+const INSTANCES=[
   'https://mozhi.ducks.party',
   'https://mozhi.pussthecat.org',
   'https://mozhi.aryak.me',
@@ -18,17 +22,20 @@ const INSTANCES=[
   'https://mozhi.franklyflawless.org'
 ];
 
-const CHUNK_LIMIT=1800;
-const HTML_BATCH_LIMIT=1550;
+// Keep every GET comfortably bounded. HTML batches stay below the raw request
+// ceiling so marker overhead never turns one batch into an oversized URL.
+const CHUNK_LIMIT=1200;
+const HTML_BATCH_LIMIT=1000;
 const TIMEOUT_MS=7000;
-const BAD_INSTANCE_MS=60000;
 const DB_NAME='reader-mozhi-cache-v1';
 const STORE='translations';
 const DB_VERSION=1;
 const CACHE_MAX=2200;
 
 let preferredInstance=null;
-const badUntil=new Map();
+// A failed public instance is not retried again during the same page session.
+// Reloading the reader gives it a clean health check on a later session.
+const sessionBad=new Set();
 const memCache=new Map();
 let dbPromise=null;
 let writes=0;
@@ -141,13 +148,10 @@ async function fetchMozhi(instance,text,sl='en',tl='tr'){
 }
 
 function instanceOrder(){
-  const now=Date.now();
   const ordered=preferredInstance
     ? [preferredInstance,...INSTANCES.filter(x=>x!==preferredInstance)]
     : INSTANCES.slice();
-  const healthy=ordered.filter(x=>(badUntil.get(x)||0)<=now);
-  const cooling=ordered.filter(x=>(badUntil.get(x)||0)>now);
-  return healthy.length?[...healthy,...cooling]:ordered
+  return ordered.filter(x=>!sessionBad.has(x))
 }
 
 async function translateChunk(text,sl='en',tl='tr'){
@@ -156,15 +160,15 @@ async function translateChunk(text,sl='en',tl='tr'){
     try{
       const out=await fetchMozhi(instance,text,sl,tl);
       preferredInstance=instance;
-      badUntil.delete(instance);
       return out
     }catch(e){
       last=e;
-      badUntil.set(instance,Date.now()+BAD_INSTANCE_MS);
-      console.warn('[reader-mozhi] instance failed',instance,e)
+      sessionBad.add(instance);
+      if(preferredInstance===instance)preferredInstance=null;
+      console.warn('[reader-mozhi] instance blacklisted for this session',instance,e)
     }
   }
-  throw last||new Error('All Mozhi instances failed')
+  throw last||new Error('All usable Mozhi instances failed')
 }
 
 function splitText(text,max=CHUNK_LIMIT){
@@ -213,12 +217,17 @@ async function translateText(text,{source='en',target='tr',cacheKey=''}={}){
 
 function marker(id){return '⟦RDR'+id+'⟧'}
 
-async function translateHTML(html,{source='en',target='tr',cacheKey=''}={}){
+async function translateHTML(html,{source='en',target='tr',cacheKey='',priorityFraction=0,onBatch=null}={}){
   html=String(html??'');
   if(!html.trim())return html;
   const key='html|v1|'+source+'-'+target+'|'+cacheKey+'|'+hashText(html);
   const cached=await cacheGet(key);
-  if(cached!=null)return cached;
+  if(cached!=null){
+    if(typeof onBatch==='function'){
+      try{onBatch(cached,{done:1,total:1,first:true,final:true,cached:true})}catch(_){}
+    }
+    return cached
+  }
 
   const tpl=document.createElement('template');
   tpl.innerHTML=html;
@@ -232,9 +241,31 @@ async function translateHTML(html,{source='en',target='tr',cacheKey=''}={}){
     const m=/^(\s*)([\s\S]*?)(\s*)$/.exec(raw);
     const core=m?m[2]:raw;
     if(!core||!/[\p{L}\p{N}]/u.test(core))continue;
-    entries.push({node,lead:m?m[1]:'',core,trail:m?m[3]:'',id:entries.length})
+    entries.push({node,lead:m?m[1]:'',core,trail:m?m[3]:'',id:entries.length,pendingSpan:null})
   }
   if(!entries.length)return html;
+
+  // For progressive reveal, wrap translatable text so untranslated portions
+  // preserve layout but remain invisible until their own batch is ready.
+  if(typeof onBatch==='function'){
+    for(const e of entries){
+      const parent=e.node.parentNode;
+      if(!parent)continue;
+      const frag=document.createDocumentFragment();
+      if(e.lead)frag.appendChild(document.createTextNode(e.lead));
+      const span=document.createElement('span');
+      span.className='readerTranslationPending';
+      span.dataset.rdrTranslatePending=String(e.id);
+      const inner=document.createTextNode(e.core);
+      span.appendChild(inner);
+      frag.appendChild(span);
+      if(e.trail)frag.appendChild(document.createTextNode(e.trail));
+      parent.replaceChild(frag,e.node);
+      e.node=inner;
+      e.pendingSpan=span;
+      e.lead='';e.trail=''
+    }
+  }
 
   const groups=[];
   let group=[],size=0;
@@ -249,31 +280,61 @@ async function translateHTML(html,{source='en',target='tr',cacheKey=''}={}){
   }
   flush();
 
-  for(const g of groups){
+  // Translate the batch nearest the page/fraction being opened first, then
+  // move forward. Earlier text is filled in after the forward path.
+  const p=Math.max(0,Math.min(1,Number(priorityFraction)||0));
+  const priority=Math.max(0,Math.min(groups.length-1,Math.floor(p*groups.length)));
+  const ordered=[];
+  for(let i=priority;i<groups.length;i++)ordered.push(groups[i]);
+  for(let i=priority-1;i>=0;i--)ordered.push(groups[i]);
+
+  let done=0;
+  for(const g of ordered){
     if(g.length===1&&g[0].core.length>HTML_BATCH_LIMIT){
       const e=g[0];
       const translated=await translateText(e.core,{source,target,cacheKey:cacheKey+'|node:'+e.id});
-      e.node.nodeValue=e.lead+translated.trim()+e.trail;
-      continue
+      e.node.nodeValue=translated.trim();
+    }else{
+      const payload=g.map(e=>marker(e.id)+e.core).join('\n');
+      const translated=await translateText(payload,{source,target,cacheKey:cacheKey+'|batch:'+g[0].id+'-'+g[g.length-1].id});
+      const re=/⟦\s*RDR(\d+)\s*⟧/g;
+      const marks=[];
+      let m;
+      while((m=re.exec(translated)))marks.push({id:Number(m[1]),start:m.index,end:re.lastIndex});
+      if(marks.length!==g.length||marks.some((x,i)=>x.id!==g[i].id)){
+        throw new Error('Mozhi changed reader text markers')
+      }
+      for(let i=0;i<marks.length;i++){
+        const e=g[i];
+        const begin=marks[i].end;
+        const finish=i+1<marks.length?marks[i+1].start:translated.length;
+        const piece=translated.slice(begin,finish).replace(/^\s+|\s+$/g,'');
+        if(!piece)throw new Error('Empty translated HTML segment');
+        e.node.nodeValue=piece
+      }
     }
 
-    const payload=g.map(e=>marker(e.id)+e.core).join('\n');
-    const translated=await translateText(payload,{source,target,cacheKey:cacheKey+'|batch:'+g[0].id+'-'+g[g.length-1].id});
-    const re=/⟦\s*RDR(\d+)\s*⟧/g;
-    const marks=[];
-    let m;
-    while((m=re.exec(translated)))marks.push({id:Number(m[1]),start:m.index,end:re.lastIndex});
-    if(marks.length!==g.length||marks.some((x,i)=>x.id!==g[i].id)){
-      throw new Error('Mozhi changed reader text markers')
+    for(const e of g){
+      if(e.pendingSpan)e.pendingSpan.classList.remove('readerTranslationPending')
     }
-    for(let i=0;i<marks.length;i++){
-      const e=g[i];
-      const start=marks[i].end;
-      const end=i+1<marks.length?marks[i+1].start:translated.length;
-      const piece=translated.slice(start,end).replace(/^\s+|\s+$/g,'');
-      if(!piece)throw new Error('Empty translated HTML segment');
-      e.node.nodeValue=e.lead+piece+e.trail
+    done++;
+    if(typeof onBatch==='function'){
+      try{
+        onBatch(tpl.innerHTML,{
+          done,total:ordered.length,first:done===1,final:done===ordered.length,
+          priorityGroup:priority
+        })
+      }catch(_){}
     }
+    // Yield so the first translated page can paint immediately.
+    await new Promise(r=>setTimeout(r,0))
+  }
+
+  // Intermediate wrappers are only for progressive reveal; the cached/final
+  // HTML is clean and identical in shape to ordinary translated markup.
+  for(const e of entries){
+    const span=e.pendingSpan;
+    if(span?.isConnected)span.replaceWith(document.createTextNode(span.textContent||''))
   }
 
   const value=tpl.innerHTML;
@@ -285,6 +346,11 @@ window.ReaderMozhi={
   translateText,
   translateHTML,
   clearMemoryCache(){memCache.clear()},
-  constants:{instances:[...INSTANCES],chunkLimit:CHUNK_LIMIT,htmlBatchLimit:HTML_BATCH_LIMIT}
+  constants:{
+    instances:[...INSTANCES],
+    blockedInstances:[...BLOCKED_INSTANCES],
+    chunkLimit:CHUNK_LIMIT,
+    htmlBatchLimit:HTML_BATCH_LIMIT
+  }
 };
 })();
