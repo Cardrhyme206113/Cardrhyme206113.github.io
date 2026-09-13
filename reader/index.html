@@ -5257,11 +5257,18 @@ function scheduleHybridTranslationWindow(_delay=140){
  // Legacy background-upgrade mode is disabled. API content waits before reveal.
 }
 
-async function ensureWebSectionLoaded(index,force=false){
+async function ensureWebSectionLoaded(index,force=false,{priorityFraction=0}={}){
  if(!BOOK||BOOK.kind!=='webnovel'||index<0||index>=BOOK.sections.length)return;
  const sec=BOOK.sections[index],now=Date.now();
  if(sec.loaded&&(!force&&(sec.available||now-(sec.loadedAt||0)<15000)))return;
  if(sec.loadingPromise)return sec.loadingPromise;
+
+ let resolveFirst;
+ sec.firstReadyPromise=new Promise(resolve=>{resolveFirst=resolve});
+ const signalFirstReady=()=>{
+  if(!resolveFirst)return;
+  const fn=resolveFirst;resolveFirst=null;fn()
+ };
 
  sec.loadingPromise=(async()=>{
   const choice=activeLanguageChoice(),target=contentTargetLanguage();
@@ -5277,6 +5284,7 @@ async function ensureWebSectionLoaded(index,force=false){
      sec.contentLanguage='en';sec.available=!!text.trim();sec.translationSource='original';
      sec.html=sec.available?`<h2>${esc(sec.sourceTitle||sec.title||`${t('chapter')} ${index+1}`)}</h2>${webNovelTextHTML(text)}`:webNovelUnavailableHTML()
     }
+    signalFirstReady()
    }else if(choice==='tr-fast'){
     const r=await fetch(base+'?lang=tr',{cache:'no-store'});
     if(!r.ok)throw new Error(t('translationUnavailableDetail',{language:contentLanguageLabel('tr')}));
@@ -5285,7 +5293,8 @@ async function ensureWebSectionLoaded(index,force=false){
     if(actual!=='tr'||!text.trim())throw new Error(t('translationUnavailableDetail',{language:contentLanguageLabel('tr')}));
     sec.translationSource='builtin';sec.contentLanguage='tr';sec.available=true;
     const title=sec.fallbackTitleTr||t('sectionLabel',{n:sec.chapterIndex||index+1});
-    sec.html=`<h2>${esc(title)}</h2>${webNovelTextHTML(text)}`
+    sec.html=`<h2>${esc(title)}</h2>${webNovelTextHTML(text)}`;
+    signalFirstReady()
    }else{
     sec.contentLanguage=target;sec.translationSource='loading';sec.available=true;
     sec.html=translationWaitHTML(target);
@@ -5312,7 +5321,21 @@ async function ensureWebSectionLoaded(index,force=false){
     try{
      if(!window.ReaderMozhi?.translateHTML)throw new Error('Mozhi runtime unavailable');
      const translated=await ReaderMozhi.translateHTML(sourceHtml,{
-      source:'en',target,cacheKey:`wn:${BOOK.id}:${sec.chapterId}:${target}`
+      source:'en',target,cacheKey:`wn:${BOOK.id}:${sec.chapterId}:${target}`,
+      priorityFraction:Math.max(0,Math.min(1,+priorityFraction||0)),
+      onBatch:(partial,info)=>{
+       if(!partial?.trim())return;
+       sec.html=partial;sec.translationSource='mozhi-partial';sec.contentLanguage=target;sec.available=true;
+       if(info?.first){
+        signalFirstReady();
+        if(BOOK&&BOOK.kind==='webnovel'&&current()===sec&&state.view==='reader'){
+         const fraction=currentSectionFraction();
+         if(Number.isFinite(fraction))state._resumeProgress=fraction;
+         state.renderedSection=-1;
+         setSectionMarkup()
+        }
+       }
+      }
      });
      if(!translated.trim())throw new Error('Mozhi returned empty translated content');
      sec.html=translated;sec.translationSource='mozhi';sec.contentLanguage=target;sec.available=true
@@ -5327,7 +5350,14 @@ async function ensureWebSectionLoaded(index,force=false){
    sec.available=false;sec.contentLanguage=target;sec.translationSource='error';
    sec.html=translationErrorHTML(e,target)
   }finally{
-   sec.loaded=true;sec.loadedAt=Date.now();sec.loadingPromise=null
+   signalFirstReady();
+   sec.loaded=true;sec.loadedAt=Date.now();sec.loadingPromise=null;
+   if(BOOK&&BOOK.kind==='webnovel'&&current()===sec&&state.view==='reader'){
+    const fraction=currentSectionFraction();
+    if(Number.isFinite(fraction))state._resumeProgress=fraction;
+    state.renderedSection=-1;
+    setSectionMarkup()
+   }
   }
  })();
  return sec.loadingPromise
@@ -5752,8 +5782,10 @@ async function openBook(id){
 
   if(BOOK.kind==='webnovel'){
    setLoaderProgress(74,t('loadingBook',{done:Math.min(BOOK.sections.length,p.section+1),total:BOOK.sections.length}));
-   await ensureWebSectionLoaded(p.section);
-   prefetchWebSections(p.section)
+   const initialWebLoad=ensureWebSectionLoaded(p.section,false,{priorityFraction:p.fraction});
+   const firstReady=BOOK.sections[p.section]?.firstReadyPromise;
+   await (firstReady||initialWebLoad);
+   Promise.resolve(initialWebLoad).then(()=>prefetchWebSections(p.section)).catch(()=>{})
   }
   setLoaderProgress(86,t('restoringPosition'));
   setView('reader');
