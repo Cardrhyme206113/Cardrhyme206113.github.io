@@ -1,4 +1,5 @@
-/* Static i18next locale resources. No runtime translation API. */\nwindow.READER_I18N_STATIC={
+/* Static i18next locale resources. No runtime translation API. */
+window.READER_I18N_STATIC={
   "es": {
     "library": "Biblioteca",
     "local": "Local",
@@ -285,7 +286,11 @@
       "partialTranslation": "Parcialmente traducido",
       "untranslated": "Sin turco",
       "unknown": "Desconocido"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "fr": {
     "library": "Bibliothèque",
@@ -573,7 +578,11 @@
       "partialTranslation": "Partiellement traduit",
       "untranslated": "Pas de turc",
       "unknown": "Inconnu"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "de": {
     "library": "Bibliothek",
@@ -861,7 +870,11 @@
       "partialTranslation": "Teilweise übersetzt",
       "untranslated": "Kein Türkisch",
       "unknown": "Unbekannt"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "it": {
     "library": "Biblioteca",
@@ -1149,7 +1162,11 @@
       "partialTranslation": "Parzialmente tradotto",
       "untranslated": "Nessun turco",
       "unknown": "Sconosciuto"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "pt": {
     "library": "Biblioteca",
@@ -1437,7 +1454,11 @@
       "partialTranslation": "Parcialmente traduzido",
       "untranslated": "Sem turco",
       "unknown": "Desconhecido"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "nl": {
     "library": "Bibliotheek",
@@ -1725,7 +1746,11 @@
       "partialTranslation": "Gedeeltelijk vertaald",
       "untranslated": "Geen Turks",
       "unknown": "Onbekend"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "pl": {
     "library": "Biblioteka",
@@ -2013,7 +2038,11 @@
       "partialTranslation": "Częściowo przetłumaczone",
       "untranslated": "Brak tureckiego",
       "unknown": "Nieznane"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "ru": {
     "library": "Библиотека",
@@ -2301,7 +2330,11 @@
       "partialTranslation": "Частично переведено",
       "untranslated": "Без турецкого",
       "unknown": "Неизвестно"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "ja": {
     "library": "ライブラリ",
@@ -2589,7 +2622,11 @@
       "partialTranslation": "一部翻訳済み",
       "untranslated": "トルコ語なし",
       "unknown": "不明"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "ko": {
     "library": "라이브러리",
@@ -2877,7 +2914,11 @@
       "partialTranslation": "일부 번역됨",
       "untranslated": "터키어 없음",
       "unknown": "알 수 없음"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "zh-CN": {
     "library": "书库",
@@ -3165,7 +3206,11 @@
       "partialTranslation": "部分翻译",
       "untranslated": "无土耳其语",
       "unknown": "未知"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "ar": {
     "library": "المكتبة",
@@ -3453,7 +3498,11 @@
       "partialTranslation": "مترجم جزئيًا",
       "untranslated": "لا توجد تركية",
       "unknown": "غير معروف"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   },
   "id": {
     "library": "Perpustakaan",
@@ -3741,6 +3790,10 @@
       "partialTranslation": "Diterjemahkan sebagian",
       "untranslated": "Tanpa bahasa Turki",
       "unknown": "Tidak diketahui"
-    }
+    },
+    "georgia": "Georgia",
+    "palatino": "Palatino",
+    "notoSans": "Noto Sans",
+    "oled": "OLED"
   }
-};\n
+};
