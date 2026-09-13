@@ -4187,6 +4187,11 @@ body:not(.reader-active){
 @keyframes readerTranslationSpin{to{transform:rotate(360deg)}}
 #proseContent[dir="rtl"]{direction:rtl;text-align:right}
 </style>
+<style id="reader-i18next-language-chip-v1">
+#langBtn[data-lang]:not([data-lang="en"]):not([data-lang="tr"]) .langCode{display:grid!important;place-items:center!important;width:26px!important;min-width:26px!important;height:20px!important;border:0!important;background:transparent!important;box-shadow:none!important;font-size:15px!important;line-height:1!important;letter-spacing:0!important}
+#langBtn.i18nLoading .langCode{opacity:.55}
+#langBtn.i18nLoading{cursor:progress}
+</style>
 </head>
 <body>
 <!-- STANDALONE AGENT HANDOFF: production frontend + mock API; no backend required. -->
@@ -4483,6 +4488,8 @@ body:not(.reader-active){
 <script src="./reader-storage-config.js?v=20260912-pretranslate-clean1"></script>
 <script src="./reader-static-adapter.js?v=20260912-catalogfix5"></script>
 <script src="./reader-mozhi.js?v=20260912-multilang1"></script>
+<script src="https://cdn.jsdelivr.net/npm/i18next@26.4.2/dist/umd/i18next.min.js"></script>
+<script src="./reader-i18n.js?v=20260913-i18next1"></script>
 <script>const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const storage={get(k){try{return localStorage.getItem(k)}catch(_){return null}},set(k,v){try{localStorage.setItem(k,String(v))}catch(_){}},del(k){try{localStorage.removeItem(k)}catch(_){}}};
 const mobileReaderDefaults=matchMedia('(max-width:640px)').matches;
@@ -4547,15 +4554,18 @@ const CONTENT_LANGUAGE_OPTIONS=[
 ];
 window.READER_CONTENT_LANGUAGES=CONTENT_LANGUAGE_OPTIONS;
 
-let uiLanguage=storage.get(LANG_KEY)==='en'?'en':'tr';
+const UI_LANGUAGE_IDS=new Set(['en','tr','es','fr','de','it','pt','nl','pl','ru','ja','ko','zh-CN','ar','id']);
+let uiLanguage=storage.get(LANG_KEY)||'tr';
+if(!UI_LANGUAGE_IDS.has(uiLanguage))uiLanguage='tr';
 const storedTurkishMode=storage.get(TURKISH_MODE_KEY);
 let turkishMode=storedTurkishMode==='fallback'||storedTurkishMode==='fast'?'fast':'hybrid';
 
 const contentLanguageIds=new Set(CONTENT_LANGUAGE_OPTIONS.map(x=>x.id));
 let contentLanguageChoice=storage.get(CONTENT_LANG_KEY);
 if(!contentLanguageIds.has(contentLanguageChoice)){
- contentLanguageChoice=uiLanguage==='en'?'en':(turkishMode==='fast'?'tr-fast':'tr')
+ contentLanguageChoice=uiLanguage==='tr'?(turkishMode==='fast'?'tr-fast':'tr'):(contentLanguageIds.has(uiLanguage)?uiLanguage:'en')
 }
+uiLanguage=contentLanguageChoice==='tr-fast'?'tr':contentLanguageChoice;
 function activeLanguageChoice(){return contentLanguageChoice}
 function contentTargetLanguage(){
  return CONTENT_LANGUAGE_OPTIONS.find(x=>x.id===contentLanguageChoice)?.target||'en'
@@ -4637,11 +4647,17 @@ const I18N={
   largest:'En büyük',smallest:'En küçük',tapControls:'Kontrolleri açmak için ortaya dokun'
  }
 };
+Object.assign(I18N.en,{
+ translatedBy:'Translated by {model}',ready:'Ready',translationPreparingTitle:'Translation in progress…',translationPreparingDetail:'Preparing {language} text online.',translationUnavailableTitle:'Translation unavailable',translationUnavailableDetail:'Could not load the {language} translation.',sectionLabel:'Section {n}',tocRead:'Read',novel:'Novel',novelsLower:'novels',volumeShort:'Vol',loadingLibrary:'Loading library',preparingCatalog:'Preparing catalog…',catalogLoadTimedOut:'Catalog load timed out',preparingCovers:'Preparing covers…',couldNotLoadLibrary:'Could not load library',contentLanguage:'Content language',imageProcessing:'Image processing',denoise:'Denoise',profile:'Profile',simplified:'Simplified',sophisticated:'Sophisticated',auto:'Auto',all:'All',off:'Off',medium:'Medium',high:'High',moreSettings:'More settings',fewerSettings:'Fewer settings',previous:'Previous',next:'Next',advancedSearch:'Advanced search'
+});
+Object.assign(I18N.tr,{
+ translatedBy:'{model} tarafından çevrildi',ready:'Hazır',translationPreparingTitle:'Çeviri hazırlanıyor…',translationPreparingDetail:'{language} metni çevrimiçi hazırlanıyor.',translationUnavailableTitle:'Çeviri alınamadı',translationUnavailableDetail:'{language} çevirisi şu anda alınamadı.',sectionLabel:'Bölüm {n}',tocRead:'Okundu',novel:'Roman',novelsLower:'roman',volumeShort:'Cilt',loadingLibrary:'Kütüphane yükleniyor',preparingCatalog:'Katalog hazırlanıyor…',catalogLoadTimedOut:'Katalog yükleme zaman aşımı',preparingCovers:'Kapaklar hazırlanıyor…',couldNotLoadLibrary:'Kütüphane açılamadı',contentLanguage:'İçerik dili',imageProcessing:'Görsel işleme',denoise:'Gürültü azaltma',profile:'Profil',simplified:'Basitleştirilmiş',sophisticated:'Gelişmiş',auto:'Otomatik',all:'Tümü',off:'Kapalı',medium:'Orta',high:'Yüksek',moreSettings:'Daha fazla ayar',fewerSettings:'Daha az ayar',previous:'Önceki',next:'Sonraki',advancedSearch:'Gelişmiş arama'
+});
+
 function t(key,vars={}){
- const dict=I18N[uiLanguage]||I18N.en;
- let out=dict[key]??I18N.en[key]??key;
- for(const [k,v] of Object.entries(vars))out=out.replaceAll(`{${k}}`,String(v));
- return out
+ if(window.ReaderI18n)return window.ReaderI18n.t(key,vars,uiLanguage);
+ const dict=I18N[uiLanguage]||I18N.en;let out=dict[key]??I18N.en[key]??key;
+ for(const [k,v] of Object.entries(vars))out=out.replaceAll('{'+k+'}',String(v));return out
 }
 function setText(sel,key){const el=$(sel);if(el)el.textContent=t(key)}
 function setAttr(sel,attr,key){const el=$(sel);if(el)el.setAttribute(attr,t(key))}
@@ -4653,7 +4669,7 @@ function translationModelDisplayName(model){
 function translationBadgeHTML(kind='webnovel'){
  const model=(kind==='epub'||kind==='ln')?TRANSLATION_MODEL_LN:TRANSLATION_MODEL_WN;
  const displayModel=translationModelDisplayName(model);
- const tip=uiLanguage==='tr'?`${displayModel} tarafından çevrildi`:`Translated by ${displayModel}`;
+ const tip=t('translatedBy',{model:displayModel});
  return `<button type="button" class="translateBadge translationTip" data-translation-model="${esc(model)}" title="${esc(tip)}" aria-label="${esc(tip)}" aria-haspopup="true"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="4" width="11" height="11" rx="2.2" stroke="currentColor" stroke-width="1.7"/><path d="M7 8h4M9 6v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><rect x="9.5" y="9" width="11" height="11" rx="2.2" fill="var(--accent)" stroke="currentColor" stroke-width="1.7"/><path d="m13 16 2-4 2 4m-3.4-1.2h2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>`
 }
 function curatedBadgeHTML(){
@@ -4668,8 +4684,12 @@ function syncLibrarySortOptions(){
  if(opts.some(([v])=>v===old))sel.value=old;else{state.librarySort=sourceDefaultSort();sel.value=state.librarySort}
 }
 function applyLanguage(){
+ window.ReaderI18n?.setLanguage(uiLanguage);
  document.documentElement.lang=uiLanguage;
- $('#langCode').textContent=uiLanguage==='tr'?'TR':'EN';
+ document.documentElement.dir=window.ReaderI18n?.dir(uiLanguage)||(uiLanguage==='ar'?'rtl':'ltr');
+ const activeLangMeta=CONTENT_LANGUAGE_OPTIONS.find(x=>x.id===contentLanguageChoice)||CONTENT_LANGUAGE_OPTIONS[0];
+ $('#langBtn').dataset.lang=contentLanguageChoice;
+ $('#langCode').textContent=(contentLanguageChoice==='en'||contentLanguageChoice==='tr')?'':activeLangMeta.emoji;
  setAttr('#langBtn','aria-label','language');setAttr('#langBtn','title','language');
  setAttr('#backBtn','aria-label','back');setAttr('#backBtn','title','back');
  setAttr('#contentsBtn','aria-label','contents');setAttr('#contentsBtn','title','contents');
@@ -4704,13 +4724,18 @@ function applyLanguage(){
  $('#heroTranslateBadge').title=t('translated');$('#heroTranslateBadge').setAttribute('aria-label',t('translated'));
  if(state.view==='library')renderLibrary();else if(state.view==='series')renderVolumes();else if(state.view==='search'&&state.advancedLastPayload)renderAdvancedResults(state.advancedLastPayload);
  buildToc();
+ window.ReaderRelocalize?.();
 }
 
 const ADV_I18N={
  en:{filters:'Filters',title:'Advanced search',subtitle:'Build a precise query across the whole library. Filters can be combined freely.',reset:'Reset',textSection:'Text & matching',keywords:'Keywords',keywordsPh:'magic academy revenge...',titleContains:'Title must contain',authorContains:'Author must contain',optional:'Optional',excludeWords:'Exclude words',excludePh:'words that must not appear',matchMode:'Keyword matching',matchAll:'All words',matchAny:'Any word',matchPhrase:'Exact phrase',searchIn:'Search keywords in',fieldTitle:'Title',fieldAuthor:'Author',fieldDescription:'Synopsis',sourceSection:'Source & genres',source:'Source',both:'Both',lightNovels:'Light Novel',webNovels:'Web Novel',genreRule:'Included genres must match',genreAll:'All selected genres',genreAny:'At least one selected genre',genres:'Genres',genreSearch:'Filter genre list',genreIncludeHint:'Include',genreExcludeHint:'Exclude',genresWnOnly:'Genre metadata is available for Web Novels.',wnSection:'Web Novel filters',status:'Status',wnUnavailable:'No Web Novel database is connected.',curation:'Curation',any:'Any',curatedOnly:'Curated only',notCurated:'Not curated',curationTier:'Curation tier',tierElite:'Curated',tierStrong:'Highly regarded',tierPopular:'Popular & addictive',rating:'Rating',ratingCountMin:'Minimum rating count',chapters:'Chapters',lnSection:'Light Novel filters',translation:'Turkish translation',translationSome:'Any Turkish available',translationFull:'All indexed volumes translated',translationNone:'No Turkish translation',translatedMin:'Minimum translated volumes',volumesRange:'Volumes',latestReleaseRange:'Latest release date',changedWithin:'Changed within the last N days',seriesSize:'Series EPUB size (MB)',resultSection:'Results & saved searches',sortBy:'Sort by',sortRelevance:'Relevance',sortCurated:'Curated first',sortRating:'Highest rating',sortRatingCount:'Most ratings',sortChapters:'Most chapters',sortVolumes:'Most volumes',sortRelease:'Newest release',sortUpdated:'Recently changed',sortAz:'Name A–Z',sortZa:'Name Z–A',perPage:'Results per page',savedSearches:'Saved searches',saveName:'Search name',save:'Save',findNovels:'Find novels',results:'Results',notSearched:'Set filters and search.',previous:'Previous',next:'Next',min:'Min',max:'Max',loading:'Searching…',noMatches:'Nothing matches this exact combination.',count:'{total} matches · {ln} LN · {wn} WN',page:'Page {page} / {pages}',ratingScale:'Observed WN rating scale: {min}–{max}',saved:'Saved',deleteSaved:'Delete',activeKeywords:'Keywords: {v}',activeTitle:'Title: {v}',activeAuthor:'Author: {v}',activeExclude:'Exclude: {v}',activeSource:'Source: {v}',activeGenresIn:'Genres +: {v}',activeGenresOut:'Genres −: {v}',activeStatus:'Status: {v}',activeRating:'Rating: {v}',activeChapters:'Chapters: {v}',activeVolumes:'Volumes: {v}',activeTranslation:'Translation: {v}',activeRelease:'Release: {v}',activeUpdated:'Updated ≤ {v}d',activeSize:'Size: {v} MB',activeCurated:'Curation: {v}',open:'Open',noDescription:'No synopsis indexed.',fullTranslation:'Fully translated',partialTranslation:'Partly translated',untranslated:'No Turkish',unknown:'Unknown'},
  tr:{filters:'Filtreler',title:'Detaylı arama',subtitle:'Tüm kütüphanede çok hassas aramalar oluşturun. Filtreleri istediğiniz kadar birlikte kullanabilirsiniz.',reset:'Sıfırla',textSection:'Metin ve eşleşme',keywords:'Anahtar kelimeler',keywordsPh:'büyü akademi intikam...',titleContains:'Başlık şunu içersin',authorContains:'Yazar şunu içersin',optional:'İsteğe bağlı',excludeWords:'Hariç tutulacak kelimeler',excludePh:'sonuçlarda bulunmaması gereken kelimeler',matchMode:'Anahtar kelime eşleşmesi',matchAll:'Tüm kelimeler',matchAny:'Kelimelerden herhangi biri',matchPhrase:'Tam ifade',searchIn:'Anahtar kelimeleri şurada ara',fieldTitle:'Başlık',fieldAuthor:'Yazar',fieldDescription:'Özet',sourceSection:'Kaynak ve türler',source:'Kaynak',both:'Tümü',lightNovels:'Light Novel',webNovels:'Web Novel',genreRule:'Seçilen türler nasıl eşleşsin?',genreAll:'Seçilen türlerin tümü',genreAny:'Seçilen türlerden en az biri',genres:'Türler',genreSearch:'Tür listesini filtrele',genreIncludeHint:'Dahil et',genreExcludeHint:'Hariç tut',genresWnOnly:'Tür bilgisi Web Novel içeriklerinde mevcut.',wnSection:'Web Novel filtreleri',status:'Durum',wnUnavailable:'Bağlı bir Web Novel veritabanı yok.',curation:'Seçki durumu',any:'Farketmez',curatedOnly:'Yalnızca seçkidekiler',notCurated:'Seçkide olmayanlar',curationTier:'Seçki grubu',tierElite:'Seçki',tierStrong:'Çok beğenilen',tierPopular:'Popüler ve sürükleyici',rating:'Puan',ratingCountMin:'En az puanlama sayısı',chapters:'Bölüm sayısı',lnSection:'Light Novel filtreleri',translation:'Türkçe çeviri',translationSome:'Türkçesi bulunanlar',translationFull:'İndeksli tüm ciltleri Türkçe',translationNone:'Türkçe çevirisi olmayanlar',translatedMin:'En az Türkçe cilt sayısı',volumesRange:'Cilt sayısı',latestReleaseRange:'Son yayın tarihi',changedWithin:'Son N gün içinde değiştirilenler',seriesSize:'Serinin EPUB boyutu (MB)',resultSection:'Sonuçlar ve kayıtlı aramalar',sortBy:'Sıralama',sortRelevance:'Alaka düzeyi',sortCurated:'Önce seçkiler',sortRating:'En yüksek puan',sortRatingCount:'En çok puanlanan',sortChapters:'En çok bölüm',sortVolumes:'En çok cilt',sortRelease:'En yeni yayın',sortUpdated:'Son değiştirilenler',sortAz:'Ad A–Z',sortZa:'Ad Z–A',perPage:'Sayfa başına sonuç',savedSearches:'Kayıtlı aramalar',saveName:'Arama adı',save:'Kaydet',findNovels:'Romanları bul',results:'Sonuçlar',notSearched:'Filtreleri ayarlayıp arama yapın.',previous:'Önceki',next:'Sonraki',min:'Min.',max:'Maks.',loading:'Aranıyor…',noMatches:'Bu filtrelerin tamamına uyan bir seri bulunamadı.',count:'{total} sonuç · {ln} LN · {wn} WN',page:'Sayfa {page} / {pages}',ratingScale:'WN verilerindeki puan aralığı: {min}–{max}',saved:'Kaydedildi',deleteSaved:'Sil',activeKeywords:'Kelimeler: {v}',activeTitle:'Başlık: {v}',activeAuthor:'Yazar: {v}',activeExclude:'Hariç: {v}',activeSource:'Kaynak: {v}',activeGenresIn:'Türler +: {v}',activeGenresOut:'Türler −: {v}',activeStatus:'Durum: {v}',activeRating:'Puan: {v}',activeChapters:'Bölüm: {v}',activeVolumes:'Cilt: {v}',activeTranslation:'Çeviri: {v}',activeRelease:'Yayın: {v}',activeUpdated:'Güncelleme ≤ {v} gün',activeSize:'Boyut: {v} MB',activeCurated:'Seçki: {v}',open:'Aç',noDescription:'İndekslenmiş özet yok.',fullTranslation:'Tamamı Türkçe',partialTranslation:'Kısmen Türkçe',untranslated:'Türkçe yok',unknown:'Bilinmiyor'}
 };
-function at(key,vars={}){let v=(ADV_I18N[uiLanguage]||ADV_I18N.en)[key]??ADV_I18N.en[key]??key;for(const[k,x]of Object.entries(vars))v=String(v).replaceAll('{'+k+'}',x);return v}
+window.ReaderI18n?.init({main:I18N,advanced:ADV_I18N,language:uiLanguage});
+function at(key,vars={}){
+ if(window.ReaderI18n)return window.ReaderI18n.at(key,vars,uiLanguage);
+ let v=(ADV_I18N[uiLanguage]||ADV_I18N.en)[key]??ADV_I18N.en[key]??key;for(const[k,x]of Object.entries(vars))v=String(v).replaceAll('{'+k+'}',x);return v
+}
 function applyAdvancedLanguage(){
  document.querySelectorAll('[data-adv-i18n]').forEach(el=>{const k=el.dataset.advI18n;if(k)el.textContent=at(k)});
  document.querySelectorAll('[data-adv-placeholder]').forEach(el=>{const k=el.dataset.advPlaceholder;if(k)el.placeholder=at(k)});
@@ -4750,7 +4775,7 @@ const fontStacks={
 document.documentElement.dataset.theme=state.theme;document.documentElement.dataset.bwInvert=state.autoInvertBw?'on':'off';
 
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function fmtVol(v){if(v==null)return'EPUB';const n=Number(v),p=uiLanguage==='tr'?'Cilt':'Vol';return Number.isInteger(n)?`${p} ${String(n).padStart(2,'0')}`:`${p} ${n}`}
+function fmtVol(v){if(v==null)return'EPUB';const n=Number(v),p=t('volumeShort');return Number.isInteger(n)?`${p} ${String(n).padStart(2,'0')}`:`${p} ${n}`}
 function fmtBytes(n){n=+n||0;const u=['B','KB','MB','GB','TB'];let i=0;while(n>=1024&&i<u.length-1){n/=1024;i++}return`${n>=100||i===0?n.toFixed(0):n.toFixed(1)} ${u[i]}`}
 function fmtReleaseDate(value){
  const m=/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/.exec(String(value||'').trim());
@@ -4759,7 +4784,7 @@ function fmtReleaseDate(value){
  if(mo==null)return String(y);
  if(mo<1||mo>12)return String(y);
  const dt=new Date(Date.UTC(y,mo-1,d||1));
- return new Intl.DateTimeFormat(uiLanguage==='tr'?'tr-TR':'en-US',{year:'numeric',month:'short',...(d?{day:'numeric'}:{}),timeZone:'UTC'}).format(dt)
+ return new Intl.DateTimeFormat(window.ReaderI18n?.localeTag(uiLanguage)||uiLanguage,{year:'numeric',month:'short',...(d?{day:'numeric'}:{}),timeZone:'UTC'}).format(dt)
 }
 async function fetchJSON(url){const r=await fetch(url);if(!r.ok)throw new Error(await r.text());return r.json()}
 function stripText(html){const d=document.createElement('div');d.innerHTML=html;return(d.textContent||'').replace(/\s+/g,' ').trim()}
@@ -4959,7 +4984,7 @@ function setView(v){
 function wait(ms){return new Promise(r=>setTimeout(r,ms))}
 function setLoaderProgress(p,status){const n=Math.max(0,Math.min(100,Math.round(p)));$('#loaderBar').style.width=n+'%';$('#loaderPct').textContent=n+'%';if(status)$('#loaderStatus').textContent=status}
 function showBookLoader(kind='epub'){state.loading=true;const l=$('#bookLoader');l.classList.add('open');l.setAttribute('aria-hidden','false');setLoaderProgress(0,kind==='webnovel'?t('preparingChapters'):t('preparingVolume'))}
-async function hideBookLoader(){setLoaderProgress(100,uiLanguage==='tr'?'Hazır':'Ready');await wait(80);const l=$('#bookLoader');l.classList.remove('open');l.setAttribute('aria-hidden','true');state.loading=false}
+async function hideBookLoader(){setLoaderProgress(100,t('ready'));await wait(80);const l=$('#bookLoader');l.classList.remove('open');l.setAttribute('aria-hidden','true');state.loading=false}
 
 function resourceURLFor(bookId,path,lang=''){const base=`/api/res/${bookId}/${String(path).split('/').map(encodeURIComponent).join('/')}`;return lang?base+`?lang=${encodeURIComponent(lang)}`:base}
 function coverURLFor(bookId){return window.__READER_STATIC__&&window.__readerStaticCoverURL?window.__readerStaticCoverURL(bookId):`/api/cover/${encodeURIComponent(bookId)}`}
@@ -4984,14 +5009,14 @@ function webNovelTextHTML(text){
 }
 function translationWaitHTML(target=contentTargetLanguage()){
  const label=contentLanguageLabel(activeLanguageChoice());
- const title=uiLanguage==='tr'?'Çeviri hazırlanıyor…':'Translation in progress…';
- const detail=uiLanguage==='tr'?label+' metni çevrimiçi hazırlanıyor.':('Preparing '+label+' text online.');
+ const title=t('translationPreparingTitle');
+ const detail=t('translationPreparingDetail',{language:label});
  return `<div class="translationWait" role="status" aria-live="polite"><span class="translationWaitSpinner" aria-hidden="true"></span><h2>${esc(title)}</h2><p>${esc(detail)}</p></div>`
 }
 function translationErrorHTML(error,target=contentTargetLanguage()){
  const label=contentLanguageLabel(activeLanguageChoice());
- const title=uiLanguage==='tr'?'Çeviri alınamadı':'Translation unavailable';
- const detail=uiLanguage==='tr'?(label+' çevirisi şu anda alınamadı.'):('Could not load the '+label+' translation.');
+ const title=t('translationUnavailableTitle');
+ const detail=t('translationUnavailableDetail',{language:label});
  const msg=String(error?.message||error||'').slice(0,220);
  return `<div class="translationWait translationError"><h2>${esc(title)}</h2><p>${esc(detail)}</p>${msg?`<p class="translationErrorDetail">${esc(msg)}</p>`:''}</div>`
 }
@@ -5318,7 +5343,7 @@ async function hydrateBookSections(meta){
   const target=contentTargetLanguage();
   const sections=manifest.map((s,i)=>({
    path:s.path,
-   title:uiLanguage==='tr'?(s.translated_title||`Bölüm ${s.chapter_index||i+1}`):(s.title||''),
+   title:(uiLanguage==='tr'&&s.translated_title)?s.translated_title:(s.title||t('sectionLabel',{n:s.chapter_index||i+1})),
    sourceTitle:s.title||'',fallbackTitleTr:s.translated_title||'',
    imageOnly:false,html:usesApiContentTranslation()?translationWaitHTML(target):webNovelLoadingHTML(),source:'webnovel',
    chapterId:s.chapter_id,chapterIndex:s.chapter_index,available:!!s.available,
@@ -5562,12 +5587,12 @@ async function loadLibrary(q=''){
  $('#sourceSwitch').classList.toggle('hidden',!state.webnovelsAvailable);
  $('#sourceBoth').classList.toggle('on',state.librarySource==='both');$('#sourceLight').classList.toggle('on',state.librarySource==='epub');$('#sourceWeb').classList.toggle('on',state.librarySource==='webnovel');
  syncLibrarySortOptions();$('#librarySort').value=state.librarySort;
- const loc=uiLanguage==='tr'?'tr-TR':'en-US';
+ const loc=window.ReaderI18n?.localeTag(uiLanguage)||uiLanguage;
  if(state.librarySource==='webnovel'){
   $('#libraryCount').textContent=`${webRows.length.toLocaleString(loc)} ${t('webNovels')} · ${state.libraryTotals.webnovelChapters.toLocaleString(loc)} ${t('chaptersLower')}`;
   $('#status').textContent='';$('#status').classList.add('hidden')
  }else if(state.librarySource==='epub'){
-  $('#libraryCount').textContent=`${epubRows.length.toLocaleString(loc)} ${uiLanguage==='tr'?'roman':'novels'} · ${state.libraryTotals.epubVolumes.toLocaleString(loc)} ${t('volumesLower')}`;
+  $('#libraryCount').textContent=`${epubRows.length.toLocaleString(loc)} ${t('novelsLower')} · ${state.libraryTotals.epubVolumes.toLocaleString(loc)} ${t('volumesLower')}`;
   $('#status').classList.remove('hidden')
  }else{
   $('#libraryCount').textContent=`${epubRows.length.toLocaleString(loc)} ${t('lightNovels')} · ${webRows.length.toLocaleString(loc)} ${t('webNovels')}`;
@@ -5685,7 +5710,7 @@ async function openBook(id){
   // previous book's DOM before assigning the new BOOK, otherwise section 0 of
   // two different books can be mistaken for the same already-rendered page.
   resetReaderForBookSwitch();
-  BOOK={id:meta.id,title:meta.title||meta.filename,series:meta.series_name||meta.series||(uiLanguage==='tr'?'Roman':'Novel'),seriesPath:meta.series,author:meta.author||'',publisher:meta.publisher||'',translated:!!meta.translated,contentLanguage:contentTargetLanguage(),cover:coverURLFor(meta.id),sections,kind:meta.kind||'epub',estimatedWords:+meta.estimated_word_count||0};
+  BOOK={id:meta.id,title:meta.title||meta.filename,series:meta.series_name||meta.series||t('novel'),seriesPath:meta.series,author:meta.author||'',publisher:meta.publisher||'',translated:!!meta.translated,contentLanguage:contentTargetLanguage(),cover:coverURLFor(meta.id),sections,kind:meta.kind||'epub',estimatedWords:+meta.estimated_word_count||0};
   // Layout is one shared reader preference for both EPUB and web-novel content.
   state.mode=loadModeForKind(BOOK.kind);
   // Reading position is shared across languages; only word-anchor reuse is language-specific.
@@ -5723,7 +5748,7 @@ async function openBook(id){
 
 async function refreshStatus(){
  try{
-  const s=await fetchJSON('/api/status'),loc=uiLanguage==='tr'?'tr-TR':'en-US';
+  const s=await fetchJSON('/api/status'),loc=window.ReaderI18n?.localeTag(uiLanguage)||uiLanguage;
   const n=x=>(+x||0).toLocaleString(loc);
   const err=s.errors?` · ${t('errors',{n:s.errors})}`:'';
   let text='';
@@ -5764,7 +5789,7 @@ function buildAdvancedParams(page=1){const s=advancedSnapshot(),p=new URLSearchP
 function advancedActiveFilterLabels(){const s=advancedSnapshot(),out=[],rng=(a,b)=>a&&b?`${a}–${b}`:a?`≥${a}`:b?`≤${b}`:'';if(s.q)out.push(at('activeKeywords',{v:s.q}));if(s.title)out.push(at('activeTitle',{v:s.title}));if(s.author)out.push(at('activeAuthor',{v:s.author}));if(s.exclude)out.push(at('activeExclude',{v:s.exclude}));if(s.source!=='both')out.push(at('activeSource',{v:s.source==='epub'?'LN':'WN'}));const gi=Object.entries(s.genre_modes).filter(([,v])=>v===1).map(([k])=>k),go=Object.entries(s.genre_modes).filter(([,v])=>v===-1).map(([k])=>k);if(gi.length)out.push(at('activeGenresIn',{v:gi.join(', ')}));if(go.length)out.push(at('activeGenresOut',{v:go.join(', ')}));if(s.statuses.length)out.push(at('activeStatus',{v:s.statuses.join(', ')}));const rr=rng(s.rating_min,s.rating_max);if(rr)out.push(at('activeRating',{v:rr}));const cr=rng(s.chapters_min,s.chapters_max);if(cr)out.push(at('activeChapters',{v:cr}));const vr=rng(s.volumes_min,s.volumes_max);if(vr)out.push(at('activeVolumes',{v:vr}));if(s.translation!=='any')out.push(at('activeTranslation',{v:s.translation}));if(s.release_from||s.release_to)out.push(at('activeRelease',{v:rng(s.release_from,s.release_to)}));if(s.updated_days)out.push(at('activeUpdated',{v:s.updated_days}));const sr=rng(s.size_min_mb,s.size_max_mb);if(sr)out.push(at('activeSize',{v:sr}));if(s.curated!=='any')out.push(at('activeCurated',{v:s.curated}));return out}
 function advancedResultMeta(row){const parts=[];if(row.kind==='webnovel'){parts.push(`${row.chapter_count||0} ${t('chaptersLower')}`);if(row.status)parts.push(row.status);if(Number.isFinite(+row.rating)&&+row.rating>0)parts.push(`★ ${(+row.rating).toFixed(1)}${row.rating_count?` · ${Number(row.rating_count).toLocaleString()}`:''}`);if(row.curated)parts.push(t('curated'))}else{parts.push(`${row.volume_count||0} ${t('volumesLower')}`);if(row.translated_count){const full=(row.translated_count||0)>=(row.volume_count||0);parts.push(full?at('fullTranslation'):`${row.translated_count}/${row.volume_count} ${at('partialTranslation')}`)}else parts.push(at('untranslated'));const d=fmtReleaseDate(row.latest_release_date);if(d)parts.push(d)}return parts}
 function makeAdvancedResultCard(row){const card=document.createElement('article');card.className='advancedResultCard';card.tabIndex=0;const p=seriesProgress(row),showRead=seriesHasMeaningfulRead(row);const desc=String(row.description||'').replace(/\s+/g,' ').trim();const genres=(row.genres||[]).slice(0,5);card.innerHTML=`<img class="advResultCover" loading="lazy" src="${coverURLFor(row.cover_book_id)}" alt=""><div class="advResultBody"><div class="advResultTitle">${esc(row.name)}</div><div class="advResultAuthor">${esc(row.author||'')}</div><div class="advResultMeta"><span class="kindBadge ${row.kind==='webnovel'?'wn':'ln'}">${row.kind==='webnovel'?'WN':'LN'}</span>${advancedResultMeta(row).map(x=>`<span class="advMetaPill">${esc(x)}</span>`).join('')}</div><p class="advResultDesc">${esc(desc||at('noDescription'))}</p>${genres.length?`<div class="advResultGenres">${genres.map(g=>`<span>#${esc(g)}</span>`).join('')}</div>`:''}${showRead?`<div class="advResultProgress"><i style="width:${p*100}%"></i></div>`:''}</div>`;card.querySelector('img').onerror=e=>{e.currentTarget.style.opacity='.18'};const open=()=>row.kind==='webnovel'?openBook(row.cover_book_id):openSeries(row.path);card.onclick=open;card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open()}};return card}
-function renderAdvancedResults(payload){state.advancedLastPayload=payload;const root=$('#advResultsGrid');if(!root)return;root.innerHTML='';const loc=uiLanguage==='tr'?'tr-TR':'en-US';$('#advResultsCount').textContent=at('count',{total:Number(payload.total||0).toLocaleString(loc),ln:Number(payload.total_epub||0).toLocaleString(loc),wn:Number(payload.total_webnovel||0).toLocaleString(loc)});const active=$('#advActiveFilters');active.innerHTML='';for(const label of advancedActiveFilterLabels()){const x=document.createElement('span');x.className='advActiveChip';x.textContent=label;active.appendChild(x)}if(!payload.results?.length){root.innerHTML=`<div class="advEmpty">${esc(at('noMatches'))}</div>`}else for(const row of payload.results)root.appendChild(makeAdvancedResultCard(row));const pag=$('#advPagination');pag.classList.toggle('hidden',(payload.pages||1)<=1);$('#advPageInfo').textContent=at('page',{page:payload.page||1,pages:payload.pages||1});$('#advPrev').disabled=(payload.page||1)<=1;$('#advNext').disabled=(payload.page||1)>=(payload.pages||1)}
+function renderAdvancedResults(payload){state.advancedLastPayload=payload;const root=$('#advResultsGrid');if(!root)return;root.innerHTML='';const loc=window.ReaderI18n?.localeTag(uiLanguage)||uiLanguage;$('#advResultsCount').textContent=at('count',{total:Number(payload.total||0).toLocaleString(loc),ln:Number(payload.total_epub||0).toLocaleString(loc),wn:Number(payload.total_webnovel||0).toLocaleString(loc)});const active=$('#advActiveFilters');active.innerHTML='';for(const label of advancedActiveFilterLabels()){const x=document.createElement('span');x.className='advActiveChip';x.textContent=label;active.appendChild(x)}if(!payload.results?.length){root.innerHTML=`<div class="advEmpty">${esc(at('noMatches'))}</div>`}else for(const row of payload.results)root.appendChild(makeAdvancedResultCard(row));const pag=$('#advPagination');pag.classList.toggle('hidden',(payload.pages||1)<=1);$('#advPageInfo').textContent=at('page',{page:payload.page||1,pages:payload.pages||1});$('#advPrev').disabled=(payload.page||1)<=1;$('#advNext').disabled=(payload.page||1)>=(payload.pages||1)}
 let advancedMobileFiltersOpen=true;
 function advancedMobileMode(){return matchMedia('(max-width:900px)').matches}
 function setAdvancedFilterDrawer(open){
@@ -5810,36 +5835,20 @@ function saveAdvancedSearch(){const name=advValue('#advSaveName')||advValue('#ad
 
 async function selectLanguageChoice(choice){
  const options=window.READER_CONTENT_LANGUAGES||CONTENT_LANGUAGE_OPTIONS;
- const allowed=new Set(options.map(x=>x.id));
- const wanted=allowed.has(choice)?choice:'en';
- if(wanted===contentLanguageChoice)return;
-
+ const allowed=new Set(options.map(x=>x.id));const wanted=allowed.has(choice)?choice:'en';if(wanted===contentLanguageChoice)return;
  if(BOOK&&state.view==='reader')saveReadingProgress();
-
- const oldUi=uiLanguage;
- contentLanguageChoice=wanted;
- storage.set(CONTENT_LANG_KEY,wanted);
-
- if(wanted==='en'){
-  uiLanguage='en';state.language='en';storage.set(LANG_KEY,'en')
- }else if(wanted==='tr'||wanted==='tr-fast'){
-  uiLanguage='tr';state.language='tr';storage.set(LANG_KEY,'tr');
-  turkishMode=wanted==='tr-fast'?'fast':'hybrid';
-  storage.set(TURKISH_MODE_KEY,turkishMode)
- }
-
- hybridStatus({state:'hidden'});
- applyLanguage();
-
- if(BOOK&&state.view==='reader'){
-  await openBook(BOOK.id)
- }else if(oldUi!==uiLanguage&&state.view==='series'&&state.series?.path){
-  await openSeries(state.series.path,true)
- }else if(oldUi!==uiLanguage&&state.view==='search'){
-  renderAdvancedOptions();if(state.advancedLastPayload)renderAdvancedResults(state.advancedLastPayload)
- }else if(oldUi!==uiLanguage){
-  await loadLibrary($('#search').value)
- }
+ const oldUi=uiLanguage;contentLanguageChoice=wanted;storage.set(CONTENT_LANG_KEY,wanted);
+ uiLanguage=window.ReaderI18n?.uiLanguageForChoice(wanted)||(wanted==='tr-fast'?'tr':wanted);if(!UI_LANGUAGE_IDS.has(uiLanguage))uiLanguage='en';
+ state.language=uiLanguage;storage.set(LANG_KEY,uiLanguage);
+ if(wanted==='tr'||wanted==='tr-fast'){turkishMode=wanted==='tr-fast'?'fast':'hybrid';storage.set(TURKISH_MODE_KEY,turkishMode)}
+ const langButton=$('#langBtn');if(langButton)langButton.classList.add('i18nLoading');
+ try{await window.ReaderI18n?.ensureLocale(uiLanguage)}catch(e){console.warn('[reader-i18n] locale translation failed',uiLanguage,e)}
+ finally{if(langButton)langButton.classList.remove('i18nLoading')}
+ hybridStatus({state:'hidden'});applyLanguage();
+ if(BOOK&&state.view==='reader'){await openBook(BOOK.id)}
+ else if(oldUi!==uiLanguage&&state.view==='series'&&state.series?.path){await openSeries(state.series.path,true)}
+ else if(oldUi!==uiLanguage&&state.view==='search'){renderAdvancedOptions();if(state.advancedLastPayload)renderAdvancedResults(state.advancedLastPayload)}
+ else if(oldUi!==uiLanguage){await loadLibrary($('#search').value)}
 }
 
 async function switchLanguage(){
@@ -5919,10 +5928,10 @@ function buildToc(force=false){
   const saved=getSavedProgress();
   BOOK.sections.forEach((sec,i)=>{
     const b=document.createElement('button');b.className='tocItem'+(i===state.section?' active':'');
-    const title=document.createElement('span');title.className='tocTitle';title.textContent=sec.title||`${uiLanguage==='tr'?'Bölüm':'Section'} ${i+1}`;
+    const title=document.createElement('span');title.className='tocTitle';title.textContent=sec.title||t('sectionLabel',{n:i+1});
     const meta=document.createElement('span');meta.className='tocMeta';
     if(BOOK.kind==='webnovel'&&sec.available===false)meta.textContent=t('contentNotAvailable');
-    else if(i<saved.section)meta.textContent=uiLanguage==='tr'?'Okundu':'Read';
+    else if(i<saved.section)meta.textContent=t('tocRead');
     else if(i===saved.section)meta.textContent=Math.round(saved.fraction*100)+'%';
     b.append(title,meta);b.onclick=()=>{loadSection(i,0,i>state.section?1:-1);closePanels()};toc.appendChild(b)
   })
@@ -7688,21 +7697,14 @@ updateContinueCard=function(){
 
 async function bootInitialLibrary(){
  const l=$('#bookLoader');state.loading=true;l.dataset.bootLoading='1';l.classList.add('open');l.setAttribute('aria-hidden','false');
- $('#loaderTitle').textContent=uiLanguage==='tr'?'Kütüphane yükleniyor':'Loading library';
- setLoaderProgress(8,uiLanguage==='tr'?'Katalog hazırlanıyor…':'Preparing catalog…');
- try{
-  await Promise.race([
-   loadLibrary(),
-   new Promise((_,reject)=>setTimeout(()=>reject(new Error(uiLanguage==='tr'?'Katalog yükleme zaman aşımı':'Catalog load timed out')),45000))
-  ]);
-  setLoaderProgress(92,uiLanguage==='tr'?'Kapaklar hazırlanıyor…':'Preparing covers…');
-  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
-  delete l.dataset.bootLoading;await hideBookLoader()
- }catch(e){
-  console.error(e);delete l.dataset.bootLoading;$('#loaderTitle').textContent=uiLanguage==='tr'?'Kütüphane açılamadı':'Could not load library';$('#loaderStatus').textContent=String(e?.message||e);state.loading=false
- }
+ $('#loaderTitle').textContent=t('loadingLibrary');setLoaderProgress(8,t('preparingCatalog'));
+ try{await Promise.race([loadLibrary(),new Promise((_,reject)=>setTimeout(()=>reject(new Error(t('catalogLoadTimedOut'))),45000))]);
+  setLoaderProgress(92,t('preparingCovers'));await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));delete l.dataset.bootLoading;await hideBookLoader()
+ }catch(e){console.error(e);delete l.dataset.bootLoading;$('#loaderTitle').textContent=t('couldNotLoadLibrary');$('#loaderStatus').textContent=String(e?.message||e);state.loading=false}
 }
+
 $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSort;syncSettings();applyLanguage();setView('library');bootInitialLibrary();refreshStatus();
+if(uiLanguage!=='en'&&uiLanguage!=='tr'){window.ReaderI18n?.ensureLocale(uiLanguage).then(()=>{applyLanguage()}).catch(e=>console.warn('[reader-i18n] initial locale failed',e))}
 </script>
 
 
@@ -7883,7 +7885,7 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
        x.classList.toggle('on',active);
        x.setAttribute('aria-pressed',String(active));
      });
-     btn.title=uiLanguage==='tr'?'İçerik dili':'Content language';
+     btn.title=t('contentLanguage');
      btn.setAttribute('aria-label',btn.title);
    };
 
@@ -7933,7 +7935,7 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
      pop.setAttribute('role','tooltip');
      document.body.appendChild(pop);
    }
-   const tip=model=>{const name=typeof translationModelDisplayName==='function'?translationModelDisplayName(model):model;return uiLanguage==='tr'?`${name} tarafından çevrildi`:`Translated by ${name}`};
+   const tip=model=>{const name=typeof translationModelDisplayName==='function'?translationModelDisplayName(model):model;return t('translatedBy',{model:name})};
    const place=el=>{
      const r=el.getBoundingClientRect(),pr=pop.getBoundingClientRect();
      let l=Math.max(8,Math.min(innerWidth-pr.width-8,r.left+r.width/2-pr.width/2));
@@ -7989,69 +7991,18 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
     LOCALIZATION
     ---------------------------------------------------------- */
  function localizeV8(){
-   const tr=uiLanguage==='tr';
-
    const both=q('#sourceBoth'),web=q('#sourceWeb'),light=q('#sourceLight');
-   if(both)both.textContent=tr?'Tümü':'Both';
-   if(web)web.textContent=tr?'Web Novel':'Web Novel';
-   if(light)light.textContent=tr?'Light Novel':'Light Novel';
-
-
-   const X=tr?{
-     ip:'Görsel işleme',den:'Gürültü azaltma',profile:'Profil',simple:'Basitleştirilmiş',soph:'Gelişmiş',auto:'Otomatik',all:'Tümü',
-     off:'Kapalı',med:'Orta',high:'Yüksek',more:'Daha fazla ayar',less:'Daha az ayar',
-     compact:'Sıkışık',normal:'Normal',airy:'Ferah',paged:'Sayfalı',scroll:'Kaydırma'
-   }:{
-     ip:'Image processing',den:'Denoise',profile:'Profile',simple:'Simplified',soph:'Sophisticated',auto:'Auto',all:'All',
-     off:'Off',med:'Medium',high:'High',more:'More settings',less:'Fewer settings',
-     compact:'Compact',normal:'Normal',airy:'Airy',paged:'Paged',scroll:'Scroll'
-   };
-
+   if(both)both.textContent=t('both');if(web)web.textContent=t('webNovelsTitle');if(light)light.textContent=t('lightNovels');
+   const X={ip:t('imageProcessing'),den:t('denoise'),profile:t('profile'),simple:t('simplified'),soph:t('sophisticated'),auto:t('auto'),all:t('all'),off:t('off'),med:t('medium'),high:t('high'),more:t('moreSettings'),less:t('fewerSettings'),compact:t('compact'),normal:t('normal'),airy:t('airy'),paged:t('paged'),scroll:t('scroll')};
    const image=q('#readerImageEnhanceSettings');
-   if(image){
-     const title=q('.settingsGroupTitle',image),labels=qa('.setting>label',image);
-     if(title)title.textContent=X.ip;
-     if(labels[0])labels[0].textContent='Anime4K';
-     if(labels[1])labels[1].textContent=X.profile;
-     if(labels[2])labels[2].textContent=X.den;
-     const map={
-       '[data-anime-mode="auto"]':X.auto,
-       '[data-anime-mode="all"]':X.all,
-       '[data-anime-mode="off"]':X.off,
-       '[data-anime-profile="simplified"]':X.simple,
-       '[data-anime-profile="sophisticated"]':X.soph,
-       '[data-denoise-mode="off"]':X.off,
-       '[data-denoise-mode="medium"]':X.med,
-       '[data-denoise-mode="high"]':X.high
-     };
-     for(const [s,t] of Object.entries(map)){
-       const el=q(s,image);if(el)el.textContent=t;
-     }
-   }
-
-   const map={
-     '[data-spacing="compact"]':X.compact,
-     '[data-spacing="normal"]':X.normal,
-     '[data-spacing="airy"]':X.airy,
-     '#pagedMode':X.paged,
-     '#scrollMode':X.scroll
-   };
-   for(const [s,t] of Object.entries(map)){
-     const el=q(s);if(el)el.textContent=t;
-   }
-
-   const more=q('#settingsMoreBtn');
-   if(more)more.textContent=settings?.classList.contains('more-open')?X.less:X.more;
-
-   qa('.shelfArrow.left').forEach(b=>{
-     b.title=tr?'Önceki':'Previous';
-     b.setAttribute('aria-label',b.title);
-   });
-   qa('.shelfArrow.right').forEach(b=>{
-     b.title=tr?'Sonraki':'Next';
-     b.setAttribute('aria-label',b.title);
-   });
-
+   if(image){const title=q('.settingsGroupTitle',image),labels=qa('.setting>label',image);if(title)title.textContent=X.ip;if(labels[0])labels[0].textContent='Anime4K';if(labels[1])labels[1].textContent=X.profile;if(labels[2])labels[2].textContent=X.den;
+    const map={'[data-anime-mode="auto"]':X.auto,'[data-anime-mode="all"]':X.all,'[data-anime-mode="off"]':X.off,'[data-anime-profile="simplified"]':X.simple,'[data-anime-profile="sophisticated"]':X.soph,'[data-denoise-mode="off"]':X.off,'[data-denoise-mode="medium"]':X.med,'[data-denoise-mode="high"]':X.high};
+    for(const [s,label] of Object.entries(map)){const el=q(s,image);if(el)el.textContent=label}}
+   const map={'[data-spacing="compact"]':X.compact,'[data-spacing="normal"]':X.normal,'[data-spacing="airy"]':X.airy,'#pagedMode':X.paged,'#scrollMode':X.scroll};
+   for(const [s,label] of Object.entries(map)){const el=q(s);if(el)el.textContent=label}
+   const more=q('#settingsMoreBtn');if(more)more.textContent=settings?.classList.contains('more-open')?X.less:X.more;
+   qa('.shelfArrow.left').forEach(b=>{b.title=t('previous');b.setAttribute('aria-label',b.title)});
+   qa('.shelfArrow.right').forEach(b=>{b.title=t('next');b.setAttribute('aria-label',b.title)});
  }
 
  /* ----------------------------------------------------------
@@ -8063,15 +8014,12 @@ $('#librarySort').value=state.librarySort;$('#volumeSort').value=state.volumeSor
  const settingsBtn=q('#readingBtn');
 
  function syncNav(){
-   lib?.classList.toggle('on',state.view==='library');
-   searchBtn?.classList.toggle('on',state.view==='search');
-   settingsBtn?.classList.toggle('on',state.view==='settings');
-   const tr=uiLanguage==='tr';
-   if(lib){lib.title=tr?'Kütüphane':'Library';lib.setAttribute('aria-label',lib.title)}
-   if(searchBtn){searchBtn.title=tr?'Gelişmiş arama':'Advanced search';searchBtn.setAttribute('aria-label',searchBtn.title)}
-   if(settingsBtn){settingsBtn.title=tr?'Ayarlar':'Settings';settingsBtn.setAttribute('aria-label',settingsBtn.title)}
+   lib?.classList.toggle('on',state.view==='library');searchBtn?.classList.toggle('on',state.view==='search');settingsBtn?.classList.toggle('on',state.view==='settings');
+   if(lib){lib.title=t('library');lib.setAttribute('aria-label',lib.title)}
+   if(searchBtn){searchBtn.title=t('advancedSearch');searchBtn.setAttribute('aria-label',searchBtn.title)}
+   if(settingsBtn){settingsBtn.title=t('settings');settingsBtn.setAttribute('aria-label',settingsBtn.title)}
  }
-
+ window.ReaderRelocalize=()=>{localizeV8();syncNav()};
  function resetTop(){
    try{document.scrollingElement.scrollTop=0}catch(_){}
    window.scrollTo(0,0);
