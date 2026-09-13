@@ -1,659 +1,239 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Bergamot tiny EN → TR diagnostic</title>
-  <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
-    * { box-sizing: border-box; }
-    body { margin: 0; background: #101010; color: #eee; }
-    main { max-width: 980px; margin: 0 auto; padding: 28px 18px 90px; }
-    h1 { font-size: 25px; margin: 0 0 8px; }
-    .muted { color: #aaa; font-size: 14px; line-height: 1.5; }
-    .panel { margin: 18px 0; padding: 14px; border: 1px solid #343434; border-radius: 12px; background: #181818; }
-    #headline { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
-    progress { width: 100%; height: 14px; }
-    #progressText { margin-top: 7px; font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; color: #bbb; white-space: pre-wrap; overflow-wrap:anywhere; }
-    #phaseList { display: grid; gap: 5px; margin-top: 12px; font: 13px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; }
-    .phase { color: #777; }
-    .phase.active { color: #fff; }
-    .phase.ok { color: #b5e4b5; }
-    .phase.fail { color: #ff9d9d; }
-    .trace-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; }
-    .trace-title { font-weight:700; font-size:14px; letter-spacing:.04em; }
-    #liveState { font: 12px/1.45 ui-monospace, SFMono-Regular, Consolas, monospace; color:#ccc; margin-bottom:8px; white-space:pre-wrap; }
-    #liveLog {
-      height: 330px; overflow:auto; padding:10px;
-      background:#090909; border:1px solid #2a2a2a; border-radius:8px;
-      font: 11px/1.5 ui-monospace, SFMono-Regular, Consolas, monospace;
-      white-space:pre-wrap; overflow-wrap:anywhere; color:#c8c8c8;
-    }
-    .grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
-    textarea {
-      width:100%; min-height:250px; resize:vertical; border:1px solid #3a3a3a;
-      border-radius:10px; background:#181818; color:#eee; padding:14px;
-      font:15px/1.5 system-ui,sans-serif;
-    }
-    button { margin-top:14px; padding:10px 16px; border:0; border-radius:9px; cursor:pointer; font-weight:650; }
-    button:disabled { opacity:.45; cursor:default; }
-    .smallbtn { margin:0; padding:7px 10px; font-size:12px; }
-    #retry { display:none; margin-left:8px; }
-    #stats { margin-top:12px; font:13px ui-monospace, SFMono-Regular, Consolas, monospace; color:#bbb; white-space:pre-wrap; }
-    @media (max-width:720px) {
-      main { padding:24px 18px 90px; }
-      .grid { grid-template-columns:1fr; }
-      textarea { min-height:190px; }
-      #liveLog { height:360px; }
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bergamot tiny EN → TR diagnostic</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif}*{box-sizing:border-box}
+body{margin:0;background:#101010;color:#eee}main{max-width:980px;margin:auto;padding:26px 18px 90px}
+h1{font-size:25px;margin:0 0 8px}.muted{color:#aaa;font-size:14px;line-height:1.5}
+.panel{margin:18px 0;padding:14px;border:1px solid #343434;border-radius:12px;background:#181818}
+#headline{font-size:17px;font-weight:700;margin-bottom:10px}progress{width:100%;height:14px}
+#progressText,#liveState,#stats{font:12px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:#bbb}
+#phaseList{display:grid;gap:5px;margin-top:12px;font:13px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
+.phase{color:#777}.phase.active{color:#fff}.phase.ok{color:#b5e4b5}.phase.fail{color:#ff9d9d}
+.traceHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}.traceTitle{font-weight:700;font-size:14px;letter-spacing:.04em}
+#liveLog{height:360px;overflow:auto;padding:10px;background:#090909;border:1px solid #2a2a2a;border-radius:8px;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:#c8c8c8}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}textarea{width:100%;min-height:240px;resize:vertical;border:1px solid #3a3a3a;border-radius:10px;background:#181818;color:#eee;padding:14px;font:15px/1.5 system-ui,sans-serif}
+button{margin-top:14px;padding:10px 16px;border:0;border-radius:9px;cursor:pointer;font-weight:650}button:disabled{opacity:.45;cursor:default}.small{margin:0;padding:7px 10px;font-size:12px}#retry{display:none;margin-left:8px}
+@media(max-width:720px){main{padding:24px 18px 90px}.grid{grid-template-columns:1fr}textarea{min-height:190px}#liveLog{height:400px}}
+</style>
 </head>
 <body>
 <main>
-  <h1>Bergamot tiny EN → TR</h1>
-  <div class="muted">Deep diagnostic build. The worker is instrumented from boot, including its console, importScripts(), fetch(), WebAssembly compile/instantiate calls, Comlink messages, errors, and live transfer progress.</div>
+<h1>Bergamot tiny EN → TR</h1>
+<div class="muted">Proper Bergamot worker path. This build links the required <code>wasm_gemm</code> fallback and exposes worker/WASM/model activity live.</div>
 
-  <section class="panel">
-    <div id="headline">Starting…</div>
-    <progress id="progress"></progress>
-    <div id="progressText">Waiting for boot…</div>
-    <div id="phaseList">
-      <div class="phase" id="p-lib">○ browser wrapper import</div>
-      <div class="phase" id="p-worker">○ worker bootstrap</div>
-      <div class="phase" id="p-runtime">○ Bergamot JS + WASM initialization</div>
-      <div class="phase" id="p-model">○ EN→TR model download + construction</div>
-      <div class="phase" id="p-ready">○ ready</div>
-    </div>
-    <button id="retry">Retry load</button>
-  </section>
-
-  <section class="panel">
-    <div class="trace-head">
-      <div class="trace-title">LIVE INIT TRACE</div>
-      <button id="copyLog" class="smallbtn">Copy log</button>
-    </div>
-    <div id="liveState">No worker yet.</div>
-    <div id="liveLog"></div>
-  </section>
-
-  <div class="grid">
-    <div>
-      <div class="muted">English</div>
-      <textarea id="input">I couldn't understand why she was looking at me like that. For a moment, neither of us said anything. Then she smiled and quietly closed the book.</textarea>
-    </div>
-    <div>
-      <div class="muted">Turkish</div>
-      <textarea id="output" readonly placeholder="Translation appears here"></textarea>
-    </div>
+<section class="panel">
+  <div id="headline">Starting…</div>
+  <progress id="progress"></progress>
+  <div id="progressText">Booting…</div>
+  <div id="phaseList">
+    <div class="phase" id="p-worker">○ worker wrapper fetch + patch</div>
+    <div class="phase" id="p-runtime">○ WASM + GEMM initialization</div>
+    <div class="phase" id="p-files">○ EN→TR model files download</div>
+    <div class="phase" id="p-model">○ model construction</div>
+    <div class="phase" id="p-ready">○ ready</div>
   </div>
-  <button id="translate" disabled>Translate</button>
-  <div id="stats"></div>
-</main>
+  <button id="retry">Retry load</button>
+</section>
+
+<section class="panel">
+  <div class="traceHead"><div class="traceTitle">LIVE INIT TRACE</div><button class="small" id="copyLog">Copy log</button></div>
+  <div id="liveState">No worker yet.</div>
+  <div id="liveLog"></div>
+</section>
+
+<div class="grid">
+  <div><div class="muted">English</div><textarea id="input">I couldn't understand why she was looking at me like that. For a moment, neither of us said anything. Then she smiled and quietly closed the book.</textarea></div>
+  <div><div class="muted">Turkish</div><textarea id="output" readonly placeholder="Translation appears here"></textarea></div>
+</div>
+<button id="translate" disabled>Translate</button>
+<div id="stats"></div>
 
 <script type="module">
-const LIB_URL = 'https://unpkg.com/@sign-mt/browsermt@0.0.2/build/bundled/index.js';
-const WRAPPER_WORKER = 'https://unpkg.com/@sign-mt/browsermt@0.0.2/build/bundled/worker.js';
-const BERGAMOT_JS = 'https://unpkg.com/@browsermt/bergamot-translator@0.4.9/worker/bergamot-translator-worker.js';
-const BERGAMOT_WASM = 'https://unpkg.com/@browsermt/bergamot-translator@0.4.9/worker/bergamot-translator-worker.wasm';
-const MODEL_BASE = 'https://huggingface.co/TiberiuCristianLeon/Bergamot/resolve/main/tiny/entr';
-const MODEL = `${MODEL_BASE}/model.entr.intgemm.alphas.bin`;
-const LEX = `${MODEL_BASE}/lex.50.50.entr.s2t.bin`;
-const VOCAB = `${MODEL_BASE}/vocab.entr.spm`;
-const modelRegistry = { entr: {
-  model: { name: MODEL },
-  lex: { name: LEX },
-  vocab: { name: VOCAB },
-}};
+const PKG='https://unpkg.com/@browsermt/bergamot-translator@0.4.9/worker/';
+const WORKER_SRC=PKG+'translator-worker.js';
+const GLUE=PKG+'bergamot-translator-worker.js';
+const WASM=PKG+'bergamot-translator-worker.wasm';
+const BASE='https://huggingface.co/TiberiuCristianLeon/Bergamot/resolve/main/tiny/entr';
+const MODEL=BASE+'/model.entr.intgemm.alphas.bin';
+const LEX=BASE+'/lex.50.50.entr.s2t.bin';
+const VOCAB=BASE+'/vocab.entr.spm';
 
-const NativeWorker = globalThis.Worker;
-const headline = document.querySelector('#headline');
-const bar = document.querySelector('#progress');
-const progressText = document.querySelector('#progressText');
-const liveLog = document.querySelector('#liveLog');
-const liveState = document.querySelector('#liveState');
-const retryBtn = document.querySelector('#retry');
-const copyBtn = document.querySelector('#copyLog');
-const btn = document.querySelector('#translate');
-const input = document.querySelector('#input');
-const output = document.querySelector('#output');
-const statsEl = document.querySelector('#stats');
+const $=s=>document.querySelector(s);
+const headline=$('#headline'),bar=$('#progress'),progressText=$('#progressText'),liveState=$('#liveState'),liveLog=$('#liveLog');
+const retry=$('#retry'),copyLog=$('#copyLog'),translateBtn=$('#translate'),input=$('#input'),output=$('#output'),stats=$('#stats');
 
-let workerProxy = null;
-let createBergamotWorker = null;
-let bootGeneration = 0;
-let seq = 0;
-let bootT0 = performance.now();
-let stageT0 = performance.now();
-let stageName = 'boot';
-let lastWorkerEvent = 0;
-let workerEventCount = 0;
-let liveTimer = null;
+let seq=0,bootT0=performance.now(),stageT0=bootT0,stage='boot',lastWorkerEvent=0,workerEvents=0,timer=null,generation=0;
+let rpcSerial=0,worker=null,workerBlob=null,pending=new Map();
 
-const fmt = n => {
-  if (!Number.isFinite(n)) return '?';
-  if (n < 1024) return n + ' B';
-  if (n < 1024*1024) return (n/1024).toFixed(1) + ' KiB';
-  return (n/1024/1024).toFixed(2) + ' MiB';
-};
+const fmt=n=>!Number.isFinite(n)?'?':n<1024?n+' B':n<1048576?(n/1024).toFixed(1)+' KiB':(n/1048576).toFixed(2)+' MiB';
+const short=u=>{try{let x=new URL(u);return x.pathname.split('/').slice(-2).join('/')}catch{return String(u)}};
 
-const elapsed = t => ((performance.now() - t) / 1000).toFixed(3) + 's';
-
-function trace(kind, message, data) {
-  const t = performance.now();
-  const id = String(++seq).padStart(4, '0');
-  let tail = '';
-  if (data !== undefined) {
-    try { tail = ' ' + (typeof data === 'string' ? data : JSON.stringify(data)); }
-    catch { tail = ' ' + String(data); }
-  }
-  const line = `+${((t-bootT0)/1000).toFixed(3)}s #${id} [${kind}] ${message}${tail}`;
-  liveLog.textContent += line + '\n';
-  liveLog.scrollTop = liveLog.scrollHeight;
-  console.log(line);
+function trace(kind,msg,data){
+  const t=performance.now();let tail='';
+  if(data!==undefined){try{tail=' '+(typeof data==='string'?data:JSON.stringify(data))}catch{tail=' '+String(data)}}
+  const line='+'+((t-bootT0)/1000).toFixed(3)+'s #'+String(++seq).padStart(4,'0')+' ['+kind+'] '+msg+tail;
+  liveLog.textContent+=line+'\n';liveLog.scrollTop=liveLog.scrollHeight;console.log(line);
 }
+function setStage(s){stage=s;stageT0=performance.now();trace('STAGE',s)}
+function phase(id,state,extra=''){const e=$(id);e.className='phase '+(state||'');const i=state==='ok'?'✓':state==='fail'?'✗':state==='active'?'●':'○';const b=e.textContent.replace(/^[✓✗●○]\s*/,'').replace(/\s+—.*$/,'');e.textContent=i+' '+b+(extra?' — '+extra:'')}
+function prog(done,total,label){if(total>0){bar.max=total;bar.value=Math.min(done,total);progressText.textContent=label+'\n'+fmt(done)+' / '+fmt(total)+' · '+(done/total*100).toFixed(1)+'%'}else{bar.removeAttribute('value');progressText.textContent=label+'\n'+fmt(done)+' received'}}
+function timeout(p,ms,label){let h;const g=new Promise((_,r)=>h=setTimeout(()=>r(new Error(label+' timed out after '+Math.round(ms/1000)+'s')),ms));return Promise.race([p,g]).finally(()=>clearTimeout(h))}
+function safe(v,d=0){if(d>2)return '[…]';if(v==null||typeof v==='number'||typeof v==='boolean')return v;if(typeof v==='string')return v.length>300?v.slice(0,300)+'…':v;if(v instanceof ArrayBuffer)return 'ArrayBuffer('+fmt(v.byteLength)+')';if(ArrayBuffer.isView(v))return v.constructor.name+'('+fmt(v.byteLength)+')';if(Array.isArray(v))return v.slice(0,8).map(x=>safe(x,d+1));if(typeof v==='object'){const o={};for(const k of Object.keys(v).slice(0,16)){try{o[k]=safe(v[k],d+1)}catch{}}return o}return String(v)}
+function startHeartbeat(){clearInterval(timer);timer=setInterval(()=>{const n=performance.now();liveState.textContent='stage: '+stage+'\nstage elapsed: '+((n-stageT0)/1000).toFixed(1)+'s · total: '+((n-bootT0)/1000).toFixed(1)+'s\nworker events: '+workerEvents+' · last worker event: '+(lastWorkerEvent?((n-lastWorkerEvent)/1000).toFixed(1)+'s ago':'never')+'\nmain thread: alive @ '+new Date().toLocaleTimeString()},500)}
+function fail(id,e){phase(id,'fail',e.message.split('\n')[0]);headline.textContent='LOAD FAILED';progressText.textContent=e.stack||String(e);retry.style.display='inline-block';translateBtn.disabled=true;trace('FATAL',e.message,{stack:e.stack})}
 
-function setStage(name) {
-  stageName = name;
-  stageT0 = performance.now();
-  trace('STAGE', name);
-}
+function diagPrelude(){
+return `
+(()=> {
+  const nativePost=self.postMessage.bind(self), nativeFetch=self.fetch.bind(self), nativeImport=self.importScripts.bind(self);
+  const t0=performance.now();
+  const safe=(v,d=0)=>{try{if(d>2)return '[…]';if(v==null||typeof v==='number'||typeof v==='boolean')return v;if(typeof v==='string')return v.length>300?v.slice(0,300)+'…':v;if(v instanceof ArrayBuffer)return 'ArrayBuffer('+v.byteLength+')';if(ArrayBuffer.isView(v))return v.constructor.name+'('+v.byteLength+')';if(v instanceof Error)return {name:v.name,message:v.message,stack:v.stack};if(Array.isArray(v))return v.slice(0,8).map(x=>safe(x,d+1));if(typeof v==='object'){const o={};Object.keys(v).slice(0,16).forEach(k=>{try{o[k]=safe(v[k],d+1)}catch{}});return o}return String(v)}catch(e){return '[serialize error]'}};
+  const diag=(type,data={})=>{try{nativePost({__BERGAMOT_DIAG__:true,type,wt:performance.now()-t0,data:safe(data)})}catch{}};
 
-function setProgress(done, total, label) {
-  if (total > 0) {
-    bar.max = total;
-    bar.value = Math.min(done, total);
-    const pct = Math.min(100, done / total * 100);
-    progressText.textContent = `${label}\n${fmt(done)} / ${fmt(total)} · ${pct.toFixed(1)}%`;
-  } else {
-    bar.removeAttribute('value');
-    progressText.textContent = `${label}\n${fmt(done)} received`;
-  }
-}
+  ['debug','log','info','warn','error'].forEach(level=>{const orig=console[level]?.bind(console)||console.log.bind(console);console[level]=(...args)=>{diag('console',{level,args});try{orig(...args)}catch{}}});
+  self.addEventListener('error',e=>diag('worker-error',{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno,error:e.error}));
+  self.addEventListener('unhandledrejection',e=>diag('worker-unhandledrejection',{reason:e.reason}));
+  self.addEventListener('message',e=>{if(!(e.data&&e.data.__BERGAMOT_DIAG__))diag('rpc:in',{data:e.data})});
 
-function phase(id, state, extra='') {
-  const el = document.querySelector('#'+id);
-  el.className = 'phase ' + (state || '');
-  const icon = state === 'ok' ? '✓' : state === 'fail' ? '✗' : state === 'active' ? '●' : '○';
-  const base = el.textContent.replace(/^[✓✗●○]\s*/, '').replace(/\s+—.*$/, '');
-  el.textContent = icon + ' ' + base + (extra ? ' — ' + extra : '');
-}
+  self.postMessage=(msg,...rest)=>{if(!(msg&&msg.__BERGAMOT_DIAG__))diag('rpc:out',{data:msg});return nativePost(msg,...rest)};
 
-function summarize(value, depth=0) {
-  if (depth > 2) return '[…]';
-  if (value == null) return value;
-  if (typeof value === 'string') return value.length > 280 ? value.slice(0,280) + '…' : value;
-  if (typeof value === 'number' || typeof value === 'boolean') return value;
-  if (value instanceof ArrayBuffer) return `ArrayBuffer(${fmt(value.byteLength)})`;
-  if (ArrayBuffer.isView(value)) return `${value.constructor.name}(${fmt(value.byteLength)})`;
-  if (value instanceof Blob) return `Blob(${fmt(value.size)}, ${value.type || '?'})`;
-  if (Array.isArray(value)) return value.slice(0,6).map(v => summarize(v, depth+1)).concat(value.length > 6 ? [`…+${value.length-6}`] : []);
-  if (typeof value === 'object') {
-    const out = {};
-    for (const k of Object.keys(value).slice(0,14)) {
-      try { out[k] = summarize(value[k], depth+1); } catch { out[k] = '[unreadable]'; }
-    }
-    return out;
-  }
-  return String(value);
-}
+  self.importScripts=(...urls)=>{const s=performance.now();diag('importScripts:start',{urls});try{const r=nativeImport(...urls);diag('importScripts:done',{urls,ms:performance.now()-s});return r}catch(e){diag('importScripts:error',{urls,ms:performance.now()-s,error:e});throw e}};
 
-function workerBootstrap(targetUrl) {
-  return `
-(() => {
-  const TARGET = ${JSON.stringify(targetUrl)};
-  const nativePostMessage = self.postMessage.bind(self);
-  const nativeImportScripts = self.importScripts.bind(self);
-  const nativeFetch = self.fetch.bind(self);
-  const t0 = performance.now();
+  self.fetch=async(...args)=>{const s=performance.now(),raw=args[0],url=typeof raw==='string'?raw:(raw&&raw.url)||String(raw);diag('fetch:start',{url});try{
+    const res=await nativeFetch(...args),total=Number(res.headers.get('content-length'))||0;diag('fetch:headers',{url,status:res.status,ok:res.ok,type:res.type,contentType:res.headers.get('content-type'),contentLength:total,ms:performance.now()-s});
+    try{if(res.body){const c=res.clone();(async()=>{const rd=c.body.getReader();let done=0,last=0,lastB=0;for(;;){const rr=await rd.read();if(rr.done)break;done+=rr.value.byteLength;const n=performance.now();if(n-last>250||done-lastB>524288){diag('fetch:progress',{url,done,total,ms:n-s});last=n;lastB=done}}diag('fetch:done',{url,done,total,ms:performance.now()-s})})().catch(e=>diag('fetch:progress-error',{url,error:e}))}}catch(e){diag('fetch:clone-error',{url,error:e})}
+    return res;
+  }catch(e){diag('fetch:error',{url,ms:performance.now()-s,error:e});throw e}};
 
-  function safe(v, depth=0) {
-    try {
-      if (depth > 2) return '[…]';
-      if (v == null || typeof v === 'number' || typeof v === 'boolean') return v;
-      if (typeof v === 'string') return v.length > 350 ? v.slice(0,350)+'…' : v;
-      if (v instanceof ArrayBuffer) return 'ArrayBuffer(' + v.byteLength + ')';
-      if (ArrayBuffer.isView(v)) return v.constructor.name + '(' + v.byteLength + ')';
-      if (v instanceof Error) return {name:v.name,message:v.message,stack:v.stack};
-      if (Array.isArray(v)) return v.slice(0,8).map(x => safe(x, depth+1));
-      if (typeof v === 'object') {
-        const o = {};
-        Object.keys(v).slice(0,16).forEach(k => { try { o[k] = safe(v[k], depth+1); } catch {} });
-        return o;
-      }
-      return String(v);
-    } catch (e) { return '[serialize failed: '+e+']'; }
-  }
-
-  function diag(type, data={}) {
-    try { nativePostMessage({__BERGAMOT_DIAG__: true, type, wt: performance.now()-t0, data:safe(data)}); } catch {}
-  }
-
-  ['debug','log','info','warn','error'].forEach(level => {
-    const orig = console[level] ? console[level].bind(console) : console.log.bind(console);
-    console[level] = (...args) => {
-      diag('console', {level, args});
-      try { orig(...args); } catch {}
-    };
-  });
-
-  self.addEventListener('error', e => {
-    diag('worker-error', {message:e.message, filename:e.filename, lineno:e.lineno, colno:e.colno, error:e.error});
-  });
-  self.addEventListener('unhandledrejection', e => {
-    diag('worker-unhandledrejection', {reason:e.reason});
-  });
-
-  self.importScripts = (...urls) => {
-    const s = performance.now();
-    diag('importScripts:start', {urls});
-    try {
-      const r = nativeImportScripts(...urls);
-      diag('importScripts:done', {urls, ms:performance.now()-s});
-      return r;
-    } catch (e) {
-      diag('importScripts:error', {urls, ms:performance.now()-s, error:e});
-      throw e;
-    }
-  };
-
-  self.fetch = async (...args) => {
-    const s = performance.now();
-    const raw = args[0];
-    const url = typeof raw === 'string' ? raw : (raw && raw.url) || String(raw);
-    diag('fetch:start', {url});
-    try {
-      const res = await nativeFetch(...args);
-      const total = Number(res.headers.get('content-length')) || 0;
-      diag('fetch:headers', {
-        url, status:res.status, ok:res.ok, type:res.type,
-        contentType:res.headers.get('content-type'),
-        contentLength:total,
-        ms:performance.now()-s
-      });
-
-      try {
-        if (res.body) {
-          const clone = res.clone();
-          (async () => {
-            const reader = clone.body.getReader();
-            let done = 0, lastReport = 0, lastBytes = 0;
-            while (true) {
-              const rr = await reader.read();
-              if (rr.done) break;
-              done += rr.value.byteLength;
-              const now = performance.now();
-              if (now-lastReport > 250 || done-lastBytes > 524288) {
-                diag('fetch:progress', {url, done, total, ms:now-s});
-                lastReport = now; lastBytes = done;
-              }
-            }
-            diag('fetch:body-done', {url, done, total, ms:performance.now()-s});
-          })().catch(e => diag('fetch:progress-error', {url,error:e}));
-        }
-      } catch (e) {
-        diag('fetch:clone-error', {url,error:e});
-      }
-      return res;
-    } catch (e) {
-      diag('fetch:error', {url, ms:performance.now()-s, error:e});
-      throw e;
-    }
-  };
-
-  ['compile','instantiate','compileStreaming','instantiateStreaming'].forEach(name => {
-    if (!WebAssembly[name]) return;
-    const orig = WebAssembly[name].bind(WebAssembly);
-    WebAssembly[name] = async (...args) => {
-      const s = performance.now();
-      diag('wasm:'+name+':start', {arg0:safe(args[0])});
-      try {
-        const r = await orig(...args);
-        diag('wasm:'+name+':done', {ms:performance.now()-s});
-        return r;
-      } catch (e) {
-        diag('wasm:'+name+':error', {ms:performance.now()-s,error:e});
-        throw e;
-      }
-    };
-  });
-
-  diag('bootstrap:start', {
-    target:TARGET,
-    location:self.location.href,
-    ua:self.navigator && self.navigator.userAgent
-  });
-
-  const s = performance.now();
-  try {
-    nativeImportScripts(TARGET);
-    diag('bootstrap:target-loaded', {target:TARGET, ms:performance.now()-s});
-  } catch (e) {
-    diag('bootstrap:target-error', {target:TARGET, ms:performance.now()-s, error:e});
-    throw e;
-  }
+  ['instantiate','instantiateStreaming','compile','compileStreaming'].forEach(name=>{if(!WebAssembly[name])return;const orig=WebAssembly[name].bind(WebAssembly);WebAssembly[name]=async(...args)=>{const s=performance.now();diag('wasm:'+name+':start',{arg0:safe(args[0])});try{const r=await orig(...args);diag('wasm:'+name+':done',{ms:performance.now()-s});return r}catch(e){diag('wasm:'+name+':error',{ms:performance.now()-s,error:e});throw e}}});
+  diag('bootstrap',{location:self.location.href,ua:navigator.userAgent});
 })();
 `;
 }
 
-class InstrumentedWorker extends NativeWorker {
-  constructor(url, options) {
-    const originalUrl = String(url);
-    const isModule = options && options.type === 'module';
-    let actualUrl = originalUrl;
-    let blobUrl = null;
-
-    if (!isModule) {
-      const source = workerBootstrap(originalUrl);
-      blobUrl = URL.createObjectURL(new Blob([source], {type:'text/javascript'}));
-      actualUrl = blobUrl;
-    }
-
-    trace('WORKER', 'constructor', {originalUrl, actualUrl:isModule?actualUrl:'blob:[instrumented]', options:summarize(options)});
-    super(actualUrl, options);
-    this.__diagBlobUrl = blobUrl;
-    this.__originalUrl = originalUrl;
-
-    NativeWorker.prototype.addEventListener.call(this, 'message', e => {
-      if (e.data && e.data.__BERGAMOT_DIAG__ === true) {
-        e.stopImmediatePropagation();
-        lastWorkerEvent = performance.now();
-        workerEventCount++;
-        handleWorkerDiag(e.data);
-        return;
-      }
-      lastWorkerEvent = performance.now();
-      workerEventCount++;
-      trace('WORKER→MAIN', 'message', summarize(e.data));
-    });
-
-    NativeWorker.prototype.addEventListener.call(this, 'error', e => {
-      lastWorkerEvent = performance.now();
-      trace('WORKER!', 'error event', {
-        message:e.message, filename:e.filename, lineno:e.lineno, colno:e.colno
-      });
-    });
-
-    NativeWorker.prototype.addEventListener.call(this, 'messageerror', e => {
-      lastWorkerEvent = performance.now();
-      trace('WORKER!', 'messageerror', summarize(e.data));
-    });
-  }
-
-  postMessage(message, transferOrOptions) {
-    trace('MAIN→WORKER', 'postMessage', summarize(message));
-    if (arguments.length > 1) return NativeWorker.prototype.postMessage.call(this, message, transferOrOptions);
-    return NativeWorker.prototype.postMessage.call(this, message);
-  }
-
-  terminate() {
-    trace('WORKER', 'terminate()');
-    try { return NativeWorker.prototype.terminate.call(this); }
-    finally {
-      if (this.__diagBlobUrl) URL.revokeObjectURL(this.__diagBlobUrl);
-    }
-  }
+async function fetchText(url,label){
+  trace('FETCH',label,{url});const t=performance.now();const r=await timeout(fetch(url,{cache:'force-cache'}),30000,label+' request');
+  trace('HTTP',label,{status:r.status,type:r.type,contentLength:r.headers.get('content-length'),contentType:r.headers.get('content-type')});
+  if(!r.ok)throw new Error(label+' HTTP '+r.status+' '+r.statusText);
+  const text=await r.text();trace('DONE',label,{chars:text.length,ms:performance.now()-t});return text;
 }
 
-function handleWorkerDiag(msg) {
-  const d = msg.data || {};
-  const wt = Number(msg.wt || 0).toFixed(3);
-
-  if (msg.type === 'console') {
-    const args = Array.isArray(d.args) ? d.args : [];
-    trace('W:'+String(d.level || 'log').toUpperCase(), `worker+${wt}ms`, args);
-    return;
+async function fetchBuffer(url,label,gen){
+  const t=performance.now();trace('FETCH',label,{url});
+  const r=await timeout(fetch(url,{cache:'force-cache'}),60000,label+' request');
+  if(!r.ok)throw new Error(label+' HTTP '+r.status+' '+r.statusText+'\n'+url);
+  const total=Number(r.headers.get('content-length'))||0;trace('HTTP',label,{status:r.status,type:r.type,total,contentType:r.headers.get('content-type')});
+  if(!r.body){const b=await r.arrayBuffer();prog(b.byteLength,total||b.byteLength,label);return b}
+  const rd=r.body.getReader(),chunks=[];let done=0,last=0;
+  for(;;){
+    if(gen!==generation)throw new Error('cancelled by retry');
+    const x=await timeout(rd.read(),30000,label+' stream');
+    if(x.done)break;
+    chunks.push(x.value);done+=x.value.byteLength;
+    const now=performance.now();if(now-last>150){prog(done,total,label+' · '+fmt(done/Math.max(.001,(now-t)/1000))+'/s');last=now}
   }
-
-  if (msg.type === 'fetch:start') {
-    trace('W:FETCH', 'start', d);
-    headline.textContent = 'Worker fetching: ' + shortUrl(d.url);
-    bar.removeAttribute('value');
-    progressText.textContent = d.url || '';
-    return;
-  }
-
-  if (msg.type === 'fetch:headers') {
-    trace('W:FETCH', 'headers', d);
-    if (d.contentLength > 0) setProgress(0, d.contentLength, shortUrl(d.url));
-    return;
-  }
-
-  if (msg.type === 'fetch:progress') {
-    trace('W:FETCH', 'progress', {url:shortUrl(d.url),done:d.done,total:d.total,ms:d.ms});
-    setProgress(d.done || 0, d.total || 0, shortUrl(d.url));
-    return;
-  }
-
-  if (msg.type === 'fetch:body-done') {
-    trace('W:FETCH', 'body done', {...d,url:shortUrl(d.url)});
-    if (d.total > 0) setProgress(d.done, d.total, 'done · ' + shortUrl(d.url));
-    return;
-  }
-
-  if (msg.type.startsWith('wasm:')) {
-    trace('W:WASM', msg.type.slice(5), d);
-    headline.textContent = 'WASM: ' + msg.type.slice(5);
-    return;
-  }
-
-  if (msg.type.startsWith('importScripts:')) {
-    trace('W:IMPORT', msg.type.slice('importScripts:'.length), d);
-    return;
-  }
-
-  if (msg.type.startsWith('bootstrap:')) {
-    trace('W:BOOT', msg.type.slice('bootstrap:'.length), d);
-    return;
-  }
-
-  if (msg.type.includes('error') || msg.type.includes('rejection')) {
-    trace('W:ERROR', msg.type, d);
-    return;
-  }
-
-  trace('W:DIAG', msg.type, d);
+  prog(done,total||done,label+' · complete');
+  const all=new Uint8Array(done);let off=0;for(const c of chunks){all.set(c,off);off+=c.byteLength}
+  trace('DONE',label,{bytes:done,ms:performance.now()-t,rate:fmt(done/Math.max(.001,(performance.now()-t)/1000))+'/s'});
+  return all.buffer;
 }
 
-function shortUrl(url='') {
-  try {
-    const u = new URL(url);
-    const parts = u.pathname.split('/');
-    return parts.slice(-2).join('/') || u.hostname;
-  } catch { return String(url); }
+function handleDiag(d){
+  lastWorkerEvent=performance.now();workerEvents++;
+  const x=d.data||{},type=d.type||'?';
+  if(type==='console'){trace('W:'+String(x.level||'log').toUpperCase(),'worker+'+Number(d.wt||0).toFixed(1)+'ms',x.args);return}
+  if(type.startsWith('wasm:')){trace('W:WASM',type.slice(5),x);headline.textContent='WASM: '+type.slice(5);return}
+  if(type.startsWith('fetch:')){trace('W:FETCH',type.slice(6),{...x,url:short(x.url)});if(type==='fetch:progress')prog(x.done||0,x.total||0,'worker: '+short(x.url));return}
+  if(type.startsWith('importScripts:')){trace('W:IMPORT',type.slice(14),x);return}
+  if(type.startsWith('rpc:')){trace(type==='rpc:in'?'MAIN→WORKER':'WORKER→MAIN',type.slice(4),safe(x.data));return}
+  if(type.includes('error')||type.includes('rejection')){trace('W:ERROR',type,x);return}
+  trace('W:DIAG',type,x);
 }
 
-function timeout(promise, ms, label) {
-  let timer;
-  const guard = new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms/1000)}s`)), ms);
+function attachWorker(w){
+  w.addEventListener('message',e=>{
+    if(e.data&&e.data.__BERGAMOT_DIAG__){handleDiag(e.data);return}
+    lastWorkerEvent=performance.now();workerEvents++;
+    const d=e.data||{};trace('WORKER→MAIN','rpc response',safe(d));
+    if(d.id&&pending.has(d.id)){const p=pending.get(d.id);pending.delete(d.id);d.error?p.reject(Object.assign(new Error(d.error.message||'worker error'),d.error)):p.resolve(d.result)}
   });
-  return Promise.race([promise, guard]).finally(() => clearTimeout(timer));
+  w.addEventListener('error',e=>{lastWorkerEvent=performance.now();trace('WORKER!','error',{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno})});
+  w.addEventListener('messageerror',e=>trace('WORKER!','messageerror',safe(e.data)));
 }
 
-function diagnostics() {
-  trace('PAGE', 'diagnostics', {
-    ua:navigator.userAgent,
-    secureContext:window.isSecureContext,
-    crossOriginIsolated:window.crossOriginIsolated,
-    WebAssembly:typeof WebAssembly,
-    Worker:typeof Worker,
-    SharedArrayBuffer:typeof SharedArrayBuffer,
-    hardwareConcurrency:navigator.hardwareConcurrency,
-    deviceMemoryGiB:navigator.deviceMemory ?? 'unknown',
-    connection:navigator.connection ? {
-      effectiveType:navigator.connection.effectiveType,
-      downlinkMbps:navigator.connection.downlink,
-      rtt:navigator.connection.rtt,
-      saveData:navigator.connection.saveData
-    } : 'unavailable'
-  });
+function rpc(name,args=[],transfer=[]){
+  const id=++rpcSerial;trace('MAIN→WORKER',name,{id,args:safe(args),transfer:transfer.map(x=>x instanceof ArrayBuffer?fmt(x.byteLength):String(x))});
+  return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});worker.postMessage({id,name,args},transfer)});
 }
 
-function fail(id, err) {
-  phase(id, 'fail', err.message.split('\n')[0]);
-  headline.textContent = 'LOAD FAILED';
-  progressText.textContent = err.stack || String(err);
-  retryBtn.style.display = 'inline-block';
-  btn.disabled = true;
-  trace('FATAL', err.message, {stack:err.stack});
+async function makeWorker(){
+  setStage('worker wrapper fetch + patch');phase('#p-worker','active');headline.textContent='Fetching proper Bergamot worker…';
+  const src=await fetchText(WORKER_SRC,'translator-worker.js');
+  const needleW="new URL('./bergamot-translator-worker.wasm', self.location)";
+  const needleJ="self.importScripts('bergamot-translator-worker.js');";
+  if(!src.includes(needleW)||!src.includes(needleJ))throw new Error('Pinned worker source no longer matches expected patch points');
+  let patched=src.replace(needleW,JSON.stringify(WASM)).replace(needleJ,'self.importScripts('+JSON.stringify(GLUE)+');');
+  workerBlob=URL.createObjectURL(new Blob([diagPrelude(),'\n',patched],{type:'text/javascript'}));
+  trace('PATCH','worker URLs rewritten',{wasm:WASM,glue:GLUE,blob:'blob:[local]'});
+  worker=new Worker(workerBlob);attachWorker(worker);phase('#p-worker','ok');
 }
 
-function startLiveState() {
-  clearInterval(liveTimer);
-  liveTimer = setInterval(() => {
-    const now = performance.now();
-    const sinceWorker = lastWorkerEvent ? ((now-lastWorkerEvent)/1000).toFixed(1)+'s' : 'never';
-    liveState.textContent =
-      `stage: ${stageName}\n` +
-      `stage elapsed: ${((now-stageT0)/1000).toFixed(1)}s · total: ${((now-bootT0)/1000).toFixed(1)}s\n` +
-      `worker events: ${workerEventCount} · last worker event: ${sinceWorker} ago\n` +
-      `main thread: alive @ ${new Date().toLocaleTimeString()}`;
-  }, 500);
+async function boot(){
+  const gen=++generation;seq=0;rpcSerial=0;workerEvents=0;lastWorkerEvent=0;bootT0=performance.now();stageT0=bootT0;stage='boot';liveLog.textContent='';stats.textContent='';output.value='';translateBtn.disabled=true;retry.style.display='none';pending.clear();
+  ['#p-worker','#p-runtime','#p-files','#p-model','#p-ready'].forEach(x=>phase(x,''));
+  trace('PAGE','diagnostics',{ua:navigator.userAgent,secureContext:isSecureContext,crossOriginIsolated,WebAssembly:typeof WebAssembly,Worker:typeof Worker,SharedArrayBuffer:typeof SharedArrayBuffer,hardwareConcurrency:navigator.hardwareConcurrency});
+  startHeartbeat();
+
+  try{
+    if(worker){try{worker.terminate()}catch{}worker=null}if(workerBlob){URL.revokeObjectURL(workerBlob);workerBlob=null}
+    await makeWorker();if(gen!==generation)return;
+
+    setStage('WASM + GEMM initialization');phase('#p-runtime','active');headline.textContent='Initializing WASM + GEMM fallback…';bar.removeAttribute('value');progressText.textContent='Waiting for proper Bergamot worker initialization…';
+    const rt=performance.now();
+    const r=await timeout(rpc('initialize',[{useNativeIntGemm:false,cacheSize:20000}]),120000,'Bergamot initialize');
+    trace('RETURN','initialize',{result:safe(r),ms:performance.now()-rt});phase('#p-runtime','ok',((performance.now()-rt)/1000).toFixed(2)+'s');
+    if(gen!==generation)return;
+
+    setStage('EN→TR model files download');phase('#p-files','active');headline.textContent='Downloading EN→TR model files…';
+    const [model,lex,vocab]=await Promise.all([
+      fetchBuffer(MODEL,'model INT8',gen),
+      fetchBuffer(LEX,'lexical shortlist',gen),
+      fetchBuffer(VOCAB,'SentencePiece vocab',gen)
+    ]);
+    phase('#p-files','ok',fmt(model.byteLength+lex.byteLength+vocab.byteLength));if(gen!==generation)return;
+
+    setStage('model construction');phase('#p-model','active');headline.textContent='Constructing translation model…';bar.removeAttribute('value');progressText.textContent='Copying aligned weights + creating Marian TranslationModel…';
+    const mt=performance.now();
+    const payload={model,shortlist:lex,vocabs:[vocab],config:{'beam-size':1}};
+    await timeout(rpc('loadTranslationModel',[{from:'en',to:'tr'},payload],[model,lex,vocab]),120000,'model construction');
+    trace('RETURN','loadTranslationModel',{ms:performance.now()-mt});phase('#p-model','ok',((performance.now()-mt)/1000).toFixed(2)+'s');
+
+    setStage('ready');phase('#p-ready','ok');headline.textContent='Ready — EN → TR loaded';bar.max=1;bar.value=1;progressText.textContent='Proper Bergamot worker + wasm_gemm fallback initialized successfully.';translateBtn.disabled=false;trace('READY','translator ready');
+  }catch(raw){const e=raw instanceof Error?raw:new Error(String(raw));const a=['#p-worker','#p-runtime','#p-files','#p-model'].find(x=>$(x).classList.contains('active'))||'#p-ready';fail(a,e)}
 }
 
-async function boot() {
-  const generation = ++bootGeneration;
-  seq = 0;
-  workerEventCount = 0;
-  lastWorkerEvent = 0;
-  bootT0 = performance.now();
-  stageT0 = bootT0;
-  stageName = 'boot';
-  liveLog.textContent = '';
-  output.value = '';
-  statsEl.textContent = '';
-  btn.disabled = true;
-  retryBtn.style.display = 'none';
-  bar.removeAttribute('value');
-  progressText.textContent = 'Booting diagnostic loader…';
-  ['p-lib','p-worker','p-runtime','p-model','p-ready'].forEach(id => phase(id,''));
-  diagnostics();
-  startLiveState();
-
-  try {
-    setStage('browser wrapper import');
-    phase('p-lib','active');
-    headline.textContent = 'Importing browsermt wrapper…';
-    const libStart = performance.now();
-
-    // Install BEFORE dynamic import so browsermt resolves globalThis.Worker to our instrumented class.
-    globalThis.Worker = InstrumentedWorker;
-    const lib = await timeout(import(LIB_URL), 30000, 'browsermt module import');
-    createBergamotWorker = lib.createBergamotWorker;
-    trace('PAGE','browsermt imported',{ms:performance.now()-libStart});
-    phase('p-lib','ok',elapsed(libStart));
-
-    if (generation !== bootGeneration) return;
-
-    setStage('worker bootstrap');
-    phase('p-worker','active');
-    headline.textContent = 'Creating instrumented Bergamot worker…';
-    const workerStart = performance.now();
-    workerProxy = createBergamotWorker(WRAPPER_WORKER);
-    trace('PAGE','createBergamotWorker() returned proxy');
-    phase('p-worker','ok',elapsed(workerStart));
-
-    setStage('Bergamot runtime initialization');
-    phase('p-runtime','active');
-    headline.textContent = 'Initializing Bergamot JS + WASM…';
-    progressText.textContent = 'Live worker trace below. Runtime watchdog: 120s.';
-    const runtimeStart = performance.now();
-    trace('CALL','importBergamotWorker()', {js:BERGAMOT_JS, wasm:BERGAMOT_WASM});
-    await timeout(workerProxy.importBergamotWorker(BERGAMOT_JS, BERGAMOT_WASM), 120000, 'Bergamot runtime initialization');
-    trace('RETURN','importBergamotWorker() resolved',{ms:performance.now()-runtimeStart});
-    phase('p-runtime','ok',elapsed(runtimeStart));
-
-    if (generation !== bootGeneration) return;
-
-    setStage('EN→TR model download + construction');
-    phase('p-model','active');
-    headline.textContent = 'Loading EN→TR model…';
-    progressText.textContent = 'Worker fetch/model-construction events will appear live below.';
-    const modelStart = performance.now();
-    trace('CALL','loadModel(en,tr)',{model:MODEL,lex:LEX,vocab:VOCAB});
-    const modelResult = await timeout(workerProxy.loadModel('en','tr',modelRegistry), 180000, 'EN→TR model load');
-    trace('RETURN','loadModel() resolved',{ms:performance.now()-modelStart,result:summarize(modelResult)});
-    phase('p-model','ok',elapsed(modelStart));
-
-    setStage('ready');
-    phase('p-ready','ok');
-    headline.textContent = 'Ready — EN → TR loaded';
-    bar.max = 1; bar.value = 1;
-    progressText.textContent = 'Runtime and model initialized successfully.';
-    btn.disabled = false;
-    trace('READY','translator ready');
-
-  } catch (raw) {
-    const err = raw instanceof Error ? raw : new Error(String(raw));
-    const active = ['p-lib','p-worker','p-runtime','p-model'].find(id =>
-      document.querySelector('#'+id).classList.contains('active')
-    ) || 'p-ready';
-    fail(active,err);
-  }
+async function translate(){
+  const text=input.value;if(!text.trim()||!worker)return;translateBtn.disabled=true;output.value='';setStage('translation');headline.textContent='Translating locally…';
+  const t=performance.now();
+  try{
+    const res=await timeout(rpc('translate',[{models:[{from:'en',to:'tr'}],texts:[{text,html:false,qualityScores:false}]}]),120000,'translation');
+    const ms=performance.now()-t;output.value=res?.[0]?.target?.text??JSON.stringify(res,null,2);const cps=text.length/Math.max(.001,ms/1000);
+    stats.textContent='input chars: '+text.length+'\ntranslation time: '+ms.toFixed(1)+' ms\neffective throughput: '+cps.toFixed(0)+' chars/s';
+    headline.textContent='Ready — translation complete';trace('RETURN','translate',{ms,cps,result:safe(res)});
+  }catch(e){headline.textContent='TRANSLATION FAILED';progressText.textContent=e.stack||String(e);trace('FATAL','translation',{message:e.message,stack:e.stack})}
+  finally{translateBtn.disabled=false}
 }
 
-function readableResult(x) {
-  if (typeof x === 'string') return x;
-  if (x == null) return '';
-  if (Array.isArray(x)) return x.join('\n');
-  if (typeof x.translation === 'string') return x.translation;
-  if (typeof x.text === 'string') return x.text;
-  return JSON.stringify(x,null,2);
-}
-
-async function translate() {
-  const text = input.value;
-  if (!text.trim() || !workerProxy) return;
-  btn.disabled = true;
-  output.value = '';
-  setStage('translation');
-  headline.textContent = 'Translating locally…';
-  trace('CALL','translate()', {chars:text.length});
-  try {
-    const t0 = performance.now();
-    const result = await timeout(
-      workerProxy.translate('en','tr',[text],[{isHtml:false}]),
-      120000,
-      'Translation'
-    );
-    const ms = performance.now()-t0;
-    output.value = readableResult(result);
-    const cps = text.length / Math.max(.001, ms/1000);
-    statsEl.textContent = `input chars: ${text.length}\ntranslation time: ${ms.toFixed(1)} ms\neffective throughput: ${cps.toFixed(0)} chars/s`;
-    headline.textContent = 'Ready — translation complete';
-    trace('RETURN','translate()', {ms,cps,result:summarize(result)});
-  } catch (err) {
-    headline.textContent = 'TRANSLATION FAILED';
-    progressText.textContent = err.stack || String(err);
-    trace('FATAL','translation failed',{message:err.message,stack:err.stack});
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-window.addEventListener('error', e => trace('PAGE!','window error',{
-  message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno
-}));
-window.addEventListener('unhandledrejection', e => trace('PAGE!','unhandled rejection',summarize(e.reason)));
-
-copyBtn.addEventListener('click', async () => {
-  const text = liveState.textContent + '\n\n' + liveLog.textContent;
-  try {
-    await navigator.clipboard.writeText(text);
-    copyBtn.textContent = 'Copied';
-    setTimeout(() => copyBtn.textContent = 'Copy log', 1200);
-  } catch {
-    copyBtn.textContent = 'Copy failed';
-  }
-});
-
-retryBtn.addEventListener('click', () => {
-  try { workerProxy?.terminate?.(); } catch {}
-  boot();
-});
-btn.addEventListener('click', translate);
-
+copyLog.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(liveState.textContent+'\n\n'+liveLog.textContent);copyLog.textContent='Copied';setTimeout(()=>copyLog.textContent='Copy log',1200)}catch{copyLog.textContent='Copy failed'}});
+retry.addEventListener('click',boot);translateBtn.addEventListener('click',translate);
+window.addEventListener('error',e=>trace('PAGE!','error',{message:e.message,filename:e.filename,lineno:e.lineno,colno:e.colno}));
+window.addEventListener('unhandledrejection',e=>trace('PAGE!','unhandled rejection',safe(e.reason)));
 boot();
 </script>
+</main>
 </body>
 </html>
