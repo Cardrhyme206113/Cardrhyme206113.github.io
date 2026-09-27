@@ -77,7 +77,7 @@ jobs:
             if [ "$PICK_RC" -ne 0 ]; then
               UNMERGED="$(git -C _ppsspp-build/ppsspp-wasm diff --name-only --diff-filter=U)"
 
-              for p in AGENTS.md Core/CMakeLists.txt Core/CmdLine.cpp Core/CmdLine.h; do
+              for p in AGENTS.md Core/CMakeLists.txt Core/CmdLine.cpp Core/CmdLine.h Core/Debugger/WebSocket/LogConfigSubscriber.cpp; do
                 if printf '%s\n' "$UNMERGED" | grep -Fxq "$p"; then
                   git -C _ppsspp-build/ppsspp-wasm rm -f --ignore-unmatch "$p"
                 fi
