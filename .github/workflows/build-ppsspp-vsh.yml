@@ -100,12 +100,44 @@ jobs:
                 echo "$UNMERGED"
                 exit 1
               fi
+              set +e
               git -C _ppsspp-build/ppsspp-wasm -c core.editor=true cherry-pick --continue
+              CONTINUE_RC=$?
+              set -e
+              if [ "$CONTINUE_RC" -ne 0 ]; then
+                if git -C _ppsspp-build/ppsspp-wasm diff --quiet && git -C _ppsspp-build/ppsspp-wasm diff --cached --quiet; then
+                  echo "Cherry-pick $c is already contained after conflict resolution; skipping."
+                  git -C _ppsspp-build/ppsspp-wasm cherry-pick --skip
+                else
+                  exit "$CONTINUE_RC"
+                fi
+              fi
             fi
           done
 
           git -C _ppsspp-build/ppsspp-wasm submodule sync --recursive
           git -C _ppsspp-build/ppsspp-wasm submodule update --init --recursive
+
+          # Older-base compatibility: some VSH merge histories contain the
+          # KDebug table entry without the tiny SM1 null-return stub.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("_ppsspp-build/ppsspp-wasm/Core/HLE/HLETables.cpp")
+          s = p.read_text()
+          signature = "static u32 sceKernelSm1ReferOperations()"
+          if signature not in s:
+              anchor = "static const HLEFunction KDebugForKernel[] = {"
+              if anchor not in s:
+                  raise SystemExit("KDebugForKernel anchor missing")
+              stub = (
+                  "// VSH: no SM1 operation provider is registered in HLE, so return NULL.\n"
+                  "static u32 sceKernelSm1ReferOperations() {\n"
+                  "\treturn hleLogDebug(Log::sceKernel, 0);\n"
+                  "}\n\n"
+              )
+              s = s.replace(anchor, stub + anchor, 1)
+              p.write_text(s)
+          PY
 
           # The WASM fork keeps core/UI sources in the top-level CMakeLists.
           # Register source files introduced by the VSH/firmware PRs there.
