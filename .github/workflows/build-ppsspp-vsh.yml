@@ -46,40 +46,37 @@ jobs:
           rm -rf _ppsspp-build
           mkdir -p _ppsspp-build
 
-          git clone --branch wasm --recursive https://github.com/root-hunter/ppsspp-wasm.git _ppsspp-build/ppsspp-wasm
+          git clone --branch wasm https://github.com/root-hunter/ppsspp-wasm.git _ppsspp-build/ppsspp-wasm
           git -C _ppsspp-build/ppsspp-wasm config user.name "github-actions[bot]"
           git -C _ppsspp-build/ppsspp-wasm config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C _ppsspp-build/ppsspp-wasm remote add upstream https://github.com/hrydgard/ppsspp.git
-          git -C _ppsspp-build/ppsspp-wasm fetch upstream master
 
-          # Keep the browser/WASM port when a hunk conflicts, while bringing in
-          # current upstream everywhere else (including the VSH implementation).
-          # Current upstream moved GraphicsContext.h and updated two submodules,
-          # so resolve those known structural conflicts explicitly.
-          set +e
-          git -C _ppsspp-build/ppsspp-wasm merge --no-edit -X ours upstream/master
-          MERGE_RC=$?
-          set -e
+          # Transplant the VSH work onto the proven SDL2/WASM port instead of
+          # merging all current upstream changes (which have moved to SDL3).
+          VSH_COMMITS=(
+            4bf36fc7f835aad1c10a292ace3d1ba0f600be99
+            02aedb598ddabff0a097d3fc695ca86e9b7adc54
+            b00e239e41bbd61e449f1b351a6573804e9ad695
+            e64ed141b35264de24a00dd96cd3bbda9c049abd
+            3f192a535eba1399909f119fd5be17065a9accbb
+            c989c2553e1099730736d965c221823fe974fa55
+            fb385e76271e5c47f10218cef6c340f2983e4d58
+          )
 
-          if [ "$MERGE_RC" -ne 0 ]; then
-            git -C _ppsspp-build/ppsspp-wasm rm -f --ignore-unmatch Common/GraphicsContext.h
-            git -C _ppsspp-build/ppsspp-wasm checkout --ours ext/aemu_postoffice ext/armips
-            git -C _ppsspp-build/ppsspp-wasm add ext/aemu_postoffice ext/armips
-
-            UNMERGED="$(git -C _ppsspp-build/ppsspp-wasm diff --name-only --diff-filter=U)"
-            if [ -n "$UNMERGED" ]; then
-              echo "Unresolved merge conflicts:"
-              echo "$UNMERGED"
-              exit 1
+          for c in "${VSH_COMMITS[@]}"; do
+            git -C _ppsspp-build/ppsspp-wasm fetch --no-tags upstream "$c"
+            parents="$(git -C _ppsspp-build/ppsspp-wasm rev-list --parents -n 1 "$c" | awk '{print NF-1}')"
+            if [ "$parents" -gt 1 ]; then
+              git -C _ppsspp-build/ppsspp-wasm cherry-pick -m 1 "$c"
+            else
+              git -C _ppsspp-build/ppsspp-wasm cherry-pick "$c"
             fi
-
-            git -C _ppsspp-build/ppsspp-wasm commit --no-edit
-          fi
+          done
 
           git -C _ppsspp-build/ppsspp-wasm submodule sync --recursive
           git -C _ppsspp-build/ppsspp-wasm submodule update --init --recursive
 
-          # VSH support must exist in the merged source or this is the wrong core.
+          # VSH support must exist in the transplanted source.
           grep -R --line-number --fixed-strings -- "--vsh" _ppsspp-build/ppsspp-wasm/Core _ppsspp-build/ppsspp-wasm/UI | head -20
 
       - name: Build PPSSPP WebAssembly
@@ -124,8 +121,7 @@ jobs:
           cat > psp/BUILD-INFO.txt <<EOF
           PPSSPP VSH Web build
           Built: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-          Upstream PPSSPP: $(git -C _ppsspp-build/ppsspp-wasm rev-parse upstream/master)
-          Merged WASM tree: $(git -C _ppsspp-build/ppsspp-wasm rev-parse HEAD)
+          PPSSPP WASM/VSH tree: $(git -C _ppsspp-build/ppsspp-wasm rev-parse HEAD)
           Static path: /psp/
           Firmware and game files are not bundled.
           EOF
