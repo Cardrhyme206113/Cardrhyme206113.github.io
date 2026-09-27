@@ -1,0 +1,123 @@
+name: Build PPSSPP VSH Web
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 0"
+  push:
+    branches: [pages]
+    paths:
+      - ".github/workflows/build-ppsspp-vsh.yml"
+      - ".github/ppsspp-vsh-trigger"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ppsspp-vsh-web
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build current PPSSPP + VSH for WebAssembly
+    runs-on: ubuntu-latest
+    container:
+      image: emscripten/emsdk:5.0.7
+
+    steps:
+      - name: Checkout Pages repository
+        uses: actions/checkout@v6
+        with:
+          ref: pages
+          fetch-depth: 0
+
+      - name: Install build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          apt-get update
+          apt-get install -y --no-install-recommends git ninja-build ca-certificates python3
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Fetch PPSSPP WASM fork and current upstream
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf _ppsspp-build
+          mkdir -p _ppsspp-build
+
+          git clone --branch wasm --recursive https://github.com/root-hunter/ppsspp-wasm.git _ppsspp-build/ppsspp-wasm
+          git -C _ppsspp-build/ppsspp-wasm config user.name "github-actions[bot]"
+          git -C _ppsspp-build/ppsspp-wasm config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C _ppsspp-build/ppsspp-wasm remote add upstream https://github.com/hrydgard/ppsspp.git
+          git -C _ppsspp-build/ppsspp-wasm fetch upstream master
+
+          # Keep the browser/WASM port when a hunk conflicts, while bringing in
+          # current upstream everywhere else (including the VSH implementation).
+          git -C _ppsspp-build/ppsspp-wasm merge --no-edit -X ours upstream/master
+
+          git -C _ppsspp-build/ppsspp-wasm submodule sync --recursive
+          git -C _ppsspp-build/ppsspp-wasm submodule update --init --recursive
+
+          # VSH support must exist in the merged source or this is the wrong core.
+          grep -R --line-number --fixed-strings -- "--vsh" _ppsspp-build/ppsspp-wasm/Core _ppsspp-build/ppsspp-wasm/UI | head -20
+
+      - name: Build PPSSPP WebAssembly
+        shell: bash
+        run: |
+          set -euo pipefail
+          make -C _ppsspp-build/ppsspp-wasm wasm-release \
+            CMAKE=/usr/bin/cmake \
+            WASM_JOBS="-j$(nproc)" \
+            WASM_INITIAL_MEMORY=268435456 \
+            WASM_MAXIMUM_MEMORY=1073741824
+
+          test -f _ppsspp-build/ppsspp-wasm/build-wasm-release/PPSSPPSDL.js
+          test -f _ppsspp-build/ppsspp-wasm/build-wasm-release/PPSSPPSDL.wasm
+          test -f _ppsspp-build/ppsspp-wasm/build-wasm-release/PPSSPPSDL.data
+
+      - name: Build static web shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --branch wasm https://github.com/root-hunter/ppsspp-web.git _ppsspp-build/ppsspp-web
+          npm --prefix _ppsspp-build/ppsspp-web/wasm-page ci
+
+          make -C _ppsspp-build/ppsspp-web app-build-pages \
+            WASM_ROOT="$GITHUB_WORKSPACE/_ppsspp-build/ppsspp-wasm" \
+            PAGES_WASM_BUILD=release
+
+          DIST="$GITHUB_WORKSPACE/_ppsspp-build/ppsspp-web/wasm-page/dist/ppsspp-web"
+          test -f "$DIST/index.html"
+          test -f "$DIST/build-wasm/PPSSPPSDL.wasm"
+
+      - name: Publish under /psp
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIST="$GITHUB_WORKSPACE/_ppsspp-build/ppsspp-web/wasm-page/dist/ppsspp-web"
+
+          rm -rf psp
+          mkdir -p psp
+          cp -a "$DIST/." psp/
+
+          cat > psp/BUILD-INFO.txt <<EOF
+          PPSSPP VSH Web build
+          Built: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+          Upstream PPSSPP: $(git -C _ppsspp-build/ppsspp-wasm rev-parse upstream/master)
+          Merged WASM tree: $(git -C _ppsspp-build/ppsspp-wasm rev-parse HEAD)
+          Static path: /psp/
+          Firmware and game files are not bundled.
+          EOF
+
+          rm -rf _ppsspp-build
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add psp
+          if git diff --cached --quiet; then
+            echo "No published files changed."
+            exit 0
+          fi
+          git commit -m "Build PPSSPP VSH web"
+          git push origin pages
