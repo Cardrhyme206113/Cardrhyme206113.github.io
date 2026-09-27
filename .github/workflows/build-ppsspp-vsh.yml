@@ -54,7 +54,6 @@ jobs:
           # Transplant the VSH work onto the proven SDL2/WASM port instead of
           # merging all current upstream changes (which have moved to SDL3).
           VSH_COMMITS=(
-            4bf36fc7f835aad1c10a292ace3d1ba0f600be99
             02aedb598ddabff0a097d3fc695ca86e9b7adc54
             b00e239e41bbd61e449f1b351a6573804e9ad695
             e64ed141b35264de24a00dd96cd3bbda9c049abd
@@ -66,18 +65,80 @@ jobs:
           for c in "${VSH_COMMITS[@]}"; do
             git -C _ppsspp-build/ppsspp-wasm fetch --no-tags upstream "$c"
             parents="$(git -C _ppsspp-build/ppsspp-wasm rev-list --parents -n 1 "$c" | awk '{print NF-1}')"
+            set +e
             if [ "$parents" -gt 1 ]; then
-              git -C _ppsspp-build/ppsspp-wasm cherry-pick -m 1 "$c"
+              git -C _ppsspp-build/ppsspp-wasm cherry-pick -X ours -m 1 "$c"
             else
-              git -C _ppsspp-build/ppsspp-wasm cherry-pick "$c"
+              git -C _ppsspp-build/ppsspp-wasm cherry-pick -X ours "$c"
+            fi
+            PICK_RC=$?
+            set -e
+
+            if [ "$PICK_RC" -ne 0 ]; then
+              UNMERGED="$(git -C _ppsspp-build/ppsspp-wasm diff --name-only --diff-filter=U)"
+
+              for p in Core/CmdLine.cpp Core/CmdLine.h; do
+                if printf '%s\n' "$UNMERGED" | grep -Fxq "$p"; then
+                  git -C _ppsspp-build/ppsspp-wasm rm -f --ignore-unmatch "$p"
+                fi
+              done
+
+              for p in UI/NativeApp.cpp headless/Headless.cpp; do
+                if printf '%s\n' "$UNMERGED" | grep -Fxq "$p"; then
+                  git -C _ppsspp-build/ppsspp-wasm checkout --ours -- "$p"
+                  git -C _ppsspp-build/ppsspp-wasm add "$p"
+                fi
+              done
+
+              UNMERGED="$(git -C _ppsspp-build/ppsspp-wasm diff --name-only --diff-filter=U)"
+              if [ -n "$UNMERGED" ]; then
+                echo "Unresolved VSH transplant conflicts in $c:"
+                echo "$UNMERGED"
+                exit 1
+              fi
+              git -C _ppsspp-build/ppsspp-wasm -c core.editor=true cherry-pick --continue
             fi
           done
 
           git -C _ppsspp-build/ppsspp-wasm submodule sync --recursive
           git -C _ppsspp-build/ppsspp-wasm submodule update --init --recursive
 
-          # VSH support must exist in the transplanted source.
-          grep -R --line-number --fixed-strings -- "--vsh" _ppsspp-build/ppsspp-wasm/Core _ppsspp-build/ppsspp-wasm/UI | head -20
+          # Add browser-native VSH boot glue.  The WASM fork intentionally removed
+          # the newer desktop CmdLine layer, but its NativeInit still parses argv.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("_ppsspp-build/ppsspp-wasm/UI/NativeApp.cpp")
+          s = p.read_text()
+          s = s.replace(
+              "bool gotBootFilename = false;\n",
+              "bool gotBootFilename = false;\n\tbool bootVSH = false;\n",
+              1,
+          )
+          s = s.replace(
+              "\t\t\tcase '-':\n",
+              "\t\t\tcase '-':\n"
+              "\t\t\t\tif (!strcmp(argv[i], \"--vsh\")) {\n"
+              "\t\t\t\t\tbootVSH = true;\n"
+              "\t\t\t\t\tbreak;\n"
+              "\t\t\t\t}\n",
+              1,
+          )
+          s = s.replace(
+              "\n\tif (fileToLog) {\n",
+              "\n\tif (bootVSH && boot_filename.empty()) {\n"
+              "\t\tboot_filename = g_Config.flash0Directory / \"vsh/module/vshmain.prx\";\n"
+              "\t\tskipLogo = true;\n"
+              "\t}\n\n"
+              "\tif (fileToLog) {\n",
+              1,
+          )
+          if "boot_filename = g_Config.flash0Directory / \"vsh/module/vshmain.prx\";" not in s:
+              raise SystemExit("failed to inject WASM VSH boot glue")
+          p.write_text(s)
+          PY
+
+          # VSH core support must exist in the transplanted source.
+          grep -R --line-number --fixed-strings -- "sceVshBridge" _ppsspp-build/ppsspp-wasm/Core/HLE | head -20
 
       - name: Build PPSSPP WebAssembly
         shell: bash
@@ -99,6 +160,18 @@ jobs:
           set -euo pipefail
           git clone --branch wasm https://github.com/root-hunter/ppsspp-web.git _ppsspp-build/ppsspp-web
           npm --prefix _ppsspp-build/ppsspp-web/wasm-page ci
+
+          # Dedicated PSP/XMB build: when no game is selected, request VSH boot.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("_ppsspp-build/ppsspp-web/wasm-page/public/ppsspp-runtime.js")
+          s = p.read_text()
+          old = "Module.arguments.length = 0;\n          Module.arguments.push(...emulatorLaunchArgs());"
+          new = "Module.arguments.length = 0;\n          if (!gameArg) Module.arguments.push(\\"--vsh\\");\n          Module.arguments.push(...emulatorLaunchArgs());"
+          if old not in s:
+              raise SystemExit("runtime argument insertion point not found")
+          p.write_text(s.replace(old, new, 1))
+          PY
 
           make -C _ppsspp-build/ppsspp-web app-build-pages \
             WASM_ROOT="$GITHUB_WORKSPACE/_ppsspp-build/ppsspp-wasm" \
