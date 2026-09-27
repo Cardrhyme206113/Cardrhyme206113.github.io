@@ -997,8 +997,7 @@ kbd {
     padding-top: clamp(6px, 2.4vw, 8px);
   }
 
-  .book-info-line {
-    font-size: clamp(8px, 2.45vw, 10px);
+  .book-info-line {    font-size: clamp(8px, 2.45vw, 10px);
   }
 
   .book-info-item {
@@ -1997,8 +1996,7 @@ body.spen-button-eraser #inkToggleState {
 #drawMenu .draw-small-btn span:not(.menu-value),
 #drawMenu .draw-toggle span:not(.menu-value){
   display:block;
-}
-#drawMenu .draw-toggle{
+}#drawMenu .draw-toggle{
   display:flex;
   align-items:center;
 }
@@ -2536,7 +2534,150 @@ html.tablet-ui .stage {
 }
 
 html.tablet-ui .reader-menu {
-  top: calc(var(--reader-top) + 6px);
+  top: calc(var(--reader-top) + 4px);
+  right: 6px;
+  width: min(300px, calc(100vw - 12px));
+  max-height: calc(100vh - var(--reader-top) - var(--reader-bottom) - 10px);
+  padding: 6px;
+  border-radius: 12px;
+}
+html.tablet-ui .reader-menu .menu-item {
+  min-height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  gap: 9px;
+  font-size: 12px;
+}
+html.tablet-ui .reader-menu .menu-item .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+html.tablet-ui .reader-menu .menu-note {
+  padding: 6px 8px 4px;
+  font-size: 10px;
+}
+html.tablet-ui .reader-menu .menu-sep {
+  margin: 4px 3px;
+}
+html.tablet-ui .reader-menu .seg {
+  margin: 3px;
+  padding: 3px;
+  border-radius: 10px;
+  gap: 3px;
+}
+html.tablet-ui .reader-menu .seg-btn {
+  min-height: 34px;
+  border-radius: 8px;
+  gap: 5px;
+  padding: 0 5px;
+  font-size: 11px;
+}
+html.tablet-ui .reader-menu .seg-btn .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+html.tablet-ui #drawMenu {
+  width: 206px;
+  min-width: 206px;
+  padding: 6px;
+  border-radius: 12px;
+}
+html.tablet-ui #drawMenu .draw-menu-head {
+  min-height: 30px;
+  padding: 0 6px 4px;
+}
+html.tablet-ui #drawMenu .draw-menu-head .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+html.tablet-ui #drawMenu .draw-menu-head span {
+  font-size: 11px;
+}
+html.tablet-ui #drawMenu .draw-palette {
+  gap: 6px;
+}
+html.tablet-ui #drawMenu .draw-mode-toggle {
+  min-height: 32px;
+  border-radius: 9px;
+  padding: 0 8px;
+  font-size: 11px;
+}
+html.tablet-ui #drawMenu .draw-mode-toggle .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+html.tablet-ui #drawMenu .draw-mode-toggle .switch {
+  width: 32px;
+  height: 18px;
+}
+html.tablet-ui #drawMenu .draw-mode-toggle .switch-knob {
+  width: 12px;
+  height: 12px;
+}
+html.tablet-ui #drawMenu #inkToggleBtn.active .switch-knob {
+  transform: translateX(14px);
+}
+html.tablet-ui #drawMenu .draw-icon-grid,
+html.tablet-ui #drawMenu #inkToolSeg,
+html.tablet-ui #drawMenu .ink-history-row,
+html.tablet-ui #drawMenu .ink-colors {
+  gap: 6px;
+}
+html.tablet-ui #drawMenu .draw-icon-btn,
+html.tablet-ui #drawMenu #inkToolSeg .seg-btn,
+html.tablet-ui #drawMenu .ink-history-btn,
+html.tablet-ui #drawMenu .ink-color {
+  min-height: 34px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+}
+html.tablet-ui #drawMenu .draw-icon-btn .ui-icon,
+html.tablet-ui #drawMenu #inkToolSeg .ui-icon,
+html.tablet-ui #drawMenu .ink-history-btn .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+html.tablet-ui #drawMenu .compact-width {
+  min-height: 34px;
+  padding: 0 8px;
+  gap: 6px;
+  border-radius: 10px;
+}
+html.tablet-ui #drawMenu .compact-width .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+html.tablet-ui #drawMenu .compact-width input {
+  height: 18px;
+}
+html.tablet-ui #drawMenu .compact-width output {
+  min-width: 24px;
+  font-size: 10px;
+}
+html.tablet-ui #drawMenu .draw-clear-btn {
+  min-height: 34px;
+  border-radius: 10px;
+  font-size: 11px;
+  gap: 6px;
+}
+html.tablet-ui #drawMenu .draw-clear-btn .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+html.tablet-ui .page-jump {
+  bottom: calc(var(--reader-bottom) + 4px);
+  min-width: 160px;
+  padding: 6px;
+}
+html.tablet-ui .page-jump input {
+  height: 32px;
+  font-size: 12px;
+}
+html.tablet-ui .page-jump .pill-btn {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
 }
 
 </style>
@@ -2854,8 +2995,7 @@ function setInkEnabled(v){
 function applyDrawMenuScale(){
   const menu=$('#drawMenu');
   if(menu)menu.style.setProperty('--draw-menu-scale',String(drawMenuScale));
-}
-function setInkTouch(v){
+}function setInkTouch(v){
   inkTouch=!!v;
   store.inkTouch=inkTouch;
   saveStore();
@@ -3854,8 +3994,7 @@ stage.addEventListener('pointermove',e=>{
     const stroke={
       c:inkColor,
       w:Math.max(.35,inkWidth/Math.max(.15,zoom)),
-      pr:inkPressure&&e.pointerType==='pen',
-      p:[firstPoint]
+      pr:inkPressure&&e.pointerType==='pen',      p:[firstPoint]
     };
     inkStrokes(activeInk.page).push(stroke);
     const path=appendStrokePath(svg,stroke);
