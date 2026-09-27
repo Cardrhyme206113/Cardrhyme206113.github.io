@@ -54,7 +54,27 @@ jobs:
 
           # Keep the browser/WASM port when a hunk conflicts, while bringing in
           # current upstream everywhere else (including the VSH implementation).
+          # Current upstream moved GraphicsContext.h and updated two submodules,
+          # so resolve those known structural conflicts explicitly.
+          set +e
           git -C _ppsspp-build/ppsspp-wasm merge --no-edit -X ours upstream/master
+          MERGE_RC=$?
+          set -e
+
+          if [ "$MERGE_RC" -ne 0 ]; then
+            git -C _ppsspp-build/ppsspp-wasm rm -f --ignore-unmatch Common/GraphicsContext.h
+            git -C _ppsspp-build/ppsspp-wasm checkout --ours ext/aemu_postoffice ext/armips
+            git -C _ppsspp-build/ppsspp-wasm add ext/aemu_postoffice ext/armips
+
+            UNMERGED="$(git -C _ppsspp-build/ppsspp-wasm diff --name-only --diff-filter=U)"
+            if [ -n "$UNMERGED" ]; then
+              echo "Unresolved merge conflicts:"
+              echo "$UNMERGED"
+              exit 1
+            fi
+
+            git -C _ppsspp-build/ppsspp-wasm commit --no-edit
+          fi
 
           git -C _ppsspp-build/ppsspp-wasm submodule sync --recursive
           git -C _ppsspp-build/ppsspp-wasm submodule update --init --recursive
