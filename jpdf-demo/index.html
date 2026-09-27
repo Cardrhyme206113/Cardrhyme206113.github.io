@@ -2450,7 +2450,9 @@ body.spen-button-eraser #inkToggleState {
 }
 
 
-.viewer.ink-active.hand-draw-active .stage{
+/* While drawing is enabled, Safari must not own the gesture stream.
+   Pencil draws; finger pan/pinch is handled by our PointerEvent code. */
+.viewer.ink-active .stage{
   touch-action:none!important;
 }
 
@@ -2993,9 +2995,9 @@ function setInkEnabled(v){
   if(state)state.textContent=inkEnabled?'Açık':'Kapalı'
 }
 function applyDrawMenuScale(){
-  const menu=$('#drawMenu');
-  if(menu)menu.style.setProperty('--draw-menu-scale',String(drawMenuScale));
-}function setInkTouch(v){
+  const menu=$('#drawMenu');  if(menu)menu.style.setProperty('--draw-menu-scale',String(drawMenuScale));
+}
+function setInkTouch(v){
   inkTouch=!!v;
   store.inkTouch=inkTouch;
   saveStore();
@@ -3708,7 +3710,7 @@ stage.addEventListener('pointermove',e=>{
      Do not manually pan it just because a transient second contact exists. */
   if(
     !(inkEnabled&&inkTouch) &&
-    penHoverInside &&
+    (inkEnabled||penHoverInside) &&
     activePointers.size===1 &&
     oneTouch &&
     oneTouch.id===e.pointerId
@@ -3992,9 +3994,9 @@ stage.addEventListener('pointermove',e=>{
     pushInkUndo();
     const firstPoint=strokePointFromEvent(p,e,inkPressure);
     const stroke={
-      c:inkColor,
-      w:Math.max(.35,inkWidth/Math.max(.15,zoom)),
-      pr:inkPressure&&e.pointerType==='pen',      p:[firstPoint]
+      c:inkColor,      w:Math.max(.35,inkWidth/Math.max(.15,zoom)),
+      pr:inkPressure&&e.pointerType==='pen',
+      p:[firstPoint]
     };
     inkStrokes(activeInk.page).push(stroke);
     const path=appendStrokePath(svg,stroke);
