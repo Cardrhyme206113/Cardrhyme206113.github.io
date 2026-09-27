@@ -77,7 +77,7 @@ jobs:
             if [ "$PICK_RC" -ne 0 ]; then
               UNMERGED="$(git -C _ppsspp-build/ppsspp-wasm diff --name-only --diff-filter=U)"
 
-              for p in Core/CmdLine.cpp Core/CmdLine.h; do
+              for p in AGENTS.md Core/CMakeLists.txt Core/CmdLine.cpp Core/CmdLine.h; do
                 if printf '%s\n' "$UNMERGED" | grep -Fxq "$p"; then
                   git -C _ppsspp-build/ppsspp-wasm rm -f --ignore-unmatch "$p"
                 fi
@@ -102,6 +102,27 @@ jobs:
 
           git -C _ppsspp-build/ppsspp-wasm submodule sync --recursive
           git -C _ppsspp-build/ppsspp-wasm submodule update --init --recursive
+
+          # The WASM fork keeps core/UI sources in the top-level CMakeLists.
+          # Register source files introduced by the VSH/firmware PRs there.
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("_ppsspp-build/ppsspp-wasm/CMakeLists.txt")
+          s = p.read_text()
+          additions = [
+              ("\tCore/Util/RecentFiles.cpp\n", "\tCore/Util/PSARUnpack.cpp\n\tCore/Util/PSARUnpack.h\n"),
+              ("\tCore/HLE/sceUsbMic.cpp\n", "\tCore/HLE/sceResmgr.cpp\n\tCore/HLE/sceResmgr.h\n\tCore/HLE/sceVshBridge.cpp\n\tCore/HLE/sceVshBridge.h\n"),
+              ("\tCore/HW/BufferQueue.cpp\n", "\tCore/HW/GpioMMIO.cpp\n\tCore/HW/GpioMMIO.h\n"),
+              ("\tUI/InstallZipScreen.cpp\n", "\tUI/InstallUpdateScreen.cpp\n\tUI/InstallUpdateScreen.h\n"),
+          ]
+          for anchor, extra in additions:
+              if extra.splitlines()[0].strip() in s:
+                  continue
+              if anchor not in s:
+                  raise SystemExit(f"CMake anchor missing: {anchor!r}")
+              s = s.replace(anchor, anchor + extra, 1)
+          p.write_text(s)
+          PY
 
           # Add browser-native VSH boot glue.  The WASM fork intentionally removed
           # the newer desktop CmdLine layer, but its NativeInit still parses argv.
