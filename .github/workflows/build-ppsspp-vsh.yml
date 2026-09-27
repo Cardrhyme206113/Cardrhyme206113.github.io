@@ -126,16 +126,17 @@ jobs:
           s = p.read_text()
           signature = "static u32 sceKernelSm1ReferOperations()"
           if signature not in s:
-              anchor = "static const HLEFunction KDebugForKernel[] = {"
-              if anchor not in s:
-                  raise SystemExit("KDebugForKernel anchor missing")
+              import re
+              match = re.search(r"(?m)^(?:static )?const HLEFunction KDebugForKernel\[\]\s*=\s*\{", s)
+              if not match:
+                  raise SystemExit("KDebugForKernel definition anchor missing")
               stub = (
                   "// VSH: no SM1 operation provider is registered in HLE, so return NULL.\n"
                   "static u32 sceKernelSm1ReferOperations() {\n"
                   "\treturn hleLogDebug(Log::sceKernel, 0);\n"
                   "}\n\n"
               )
-              s = s.replace(anchor, stub + anchor, 1)
+              s = s[:match.start()] + stub + s[match.start():]
               p.write_text(s)
           PY
 
