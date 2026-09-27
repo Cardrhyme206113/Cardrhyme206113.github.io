@@ -2399,20 +2399,30 @@ body.spen-button-eraser #inkToggleState {
   height:24px!important;
   min-height:24px!important;
   padding:0!important;
-  grid-template-columns:10px 1fr 10px!important;
-  gap:3px!important;
+  grid-template-columns:9px minmax(0,1fr) 13px!important;
+  gap:2px!important;
+  overflow:hidden!important;
 }
 #drawMenu .compact-width .ui-icon{
   width:9px!important;
   height:9px!important;
 }
 #drawMenu .compact-width input{
-  width:49px!important;
+  width:100%!important;
   min-width:0!important;
+  max-width:100%!important;
 }
 #drawMenu .compact-width output{
+  display:block!important;
+  width:13px!important;
+  min-width:0!important;
+  max-width:13px!important;
+  overflow:hidden!important;
+  text-align:right!important;
+  white-space:nowrap!important;
   font-size:8px!important;
-  width:10px!important;
+  line-height:1!important;
+  font-variant-numeric:tabular-nums;
 }
 
 /* Clear is the only full-width action, but still follows the 72px tool width. */
@@ -2461,21 +2471,21 @@ body.spen-button-eraser #inkToggleState {
 /* ---------- Tablet-only compact reader chrome ----------
    Applied only when JS adds .tablet-ui after device classification. */
 html.tablet-ui {
-  --reader-top: 38px !important;
-  --reader-bottom: 40px !important;
+  --reader-top: 46px !important;
+  --reader-bottom: 48px !important;
 }
 
 html.tablet-ui .reader-top {
   min-height: var(--reader-top);
-  padding: max(3px, env(safe-area-inset-top)) 6px 3px;
-  gap: 3px;
+  padding: max(5px, env(safe-area-inset-top)) 8px 5px;
+  gap: 5px;
 }
 
 html.tablet-ui .reader-top .icon-btn {
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
-  border-radius: 7px;
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 8px;
 }
 
 html.tablet-ui .reader-top .icon-btn .ui-icon,
@@ -2499,8 +2509,8 @@ html.tablet-ui .reader-tools { gap: 3px; }
 
 html.tablet-ui .reader-bottom {
   min-height: var(--reader-bottom);
-  padding: 3px 6px max(3px, env(safe-area-inset-bottom));
-  gap: 4px;
+  padding: 5px 8px max(5px, env(safe-area-inset-bottom));
+  gap: 6px;
 }
 
 html.tablet-ui .reader-bottom .left,
@@ -2509,16 +2519,16 @@ html.tablet-ui .reader-bottom .right { gap: 3px; }
 
 html.tablet-ui .reader-bottom .icon-btn,
 html.tablet-ui .reader-bottom .page-btn {
-  height: 28px;
-  min-height: 28px;
-  border-radius: 7px;
+  height: 34px;
+  min-height: 34px;
+  border-radius: 8px;
 }
 
-html.tablet-ui .reader-bottom .icon-btn { width: 28px; }
+html.tablet-ui .reader-bottom .icon-btn { width: 34px; }
 html.tablet-ui .reader-bottom .page-btn {
-  min-width: 52px;
-  padding: 0 6px;
-  font-size: 10px;
+  min-width: 60px;
+  padding: 0 8px;
+  font-size: 11px;
 }
 
 html.tablet-ui .reader-bottom #prevBtn .ui-icon,
@@ -2654,8 +2664,12 @@ html.tablet-ui #drawMenu .compact-width input {
   height: 18px;
 }
 html.tablet-ui #drawMenu .compact-width output {
-  min-width: 24px;
-  font-size: 10px;
+  width: 13px!important;
+  min-width: 0!important;
+  max-width: 13px!important;
+  overflow: hidden!important;
+  text-align: right!important;
+  font-size: 8px!important;
 }
 html.tablet-ui #drawMenu .draw-clear-btn {
   min-height: 34px;
