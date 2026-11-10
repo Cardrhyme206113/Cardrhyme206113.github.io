@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#121314">
+  <title>404 — Not found</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100dvh; background: #121314; color: #ececec; font-family: system-ui, -apple-system, sans-serif; }
+    .page { width: min(100% - 40px, 520px); min-height: 100dvh; margin: auto; display: flex; flex-direction: column; }
+    main { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 45px 0; }
+    .code { margin: 0 0 14px; font-size: clamp(96px, 23vw, 150px); line-height: 1; font-weight: 750; letter-spacing: -.09em; }
+    h1 { margin: 0; font-size: 25px; line-height: 1.3; font-weight: 650; letter-spacing: -.8px; }
+    .desc { margin: 8px 0 0; color: #99999e; font-size: 13px; line-height: 1.5; }
+    .actions { display: flex; align-items: center; gap: 20px; margin-top: 27px; }
+    a, button { font: inherit; font-size: 13px; cursor: pointer; }
+    .home { display: inline-block; padding: 9px 17px; border-radius: 4px; background: #e8e8e8; color: #161616; text-decoration: none; font-weight: 600; }
+    .home:hover { background: #cfcfcf; }
+    .back { background: none; border: 0; padding: 9px 0; color: #a5a5a9; }
+    .back:hover { color: #eee; }
+    :is(a,button):focus-visible { outline: 2px solid #aaa; outline-offset: 4px; }
+    footer { padding: 0 0 22px; color: #65656a; font: 12px ui-monospace, Consolas, monospace; }
+    /* Desktop-only static file explorer */
+    .page { width: min(100% - 64px, 960px); }
+    .workspace { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 64px; align-items: center; }
+    .workspace main { flex: initial; min-width: 0; }
+    .explorer { border-left: 1px solid #303034; padding: 8px 0 8px 22px; max-height: min(70dvh, 620px); overflow-y: auto; scrollbar-color: #444448 transparent; }
+    .explorer-heading { display: flex; justify-content: space-between; color: #d7d7d9; font-size: 13px; font-weight: 650; margin: 0 0 12px; }
+    .explorer-heading span, .file-list summary span { font: 11px ui-monospace, Consolas, monospace; color: #727278; }
+    .file-list a { display: block; padding: 5px 0; color: #a9a9ae; text-decoration: none; font: 12px/1.5 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+    .file-list a:hover { color: #ededf0; }
+    .file-list details { margin-top: 5px; }
+    .file-list summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; color: #c6c6cb; font: 12px/1.5 ui-monospace, Consolas, monospace; padding: 5px 0; }
+    .file-list summary:hover { color: #fff; }
+    .file-list .folder-items { margin-left: 12px; padding-left: 11px; border-left: 1px solid #303034; }
+    @media (max-width: 760px) {
+      .page { width: min(100% - 40px, 520px); }
+      .workspace { display: flex; flex-direction: column; align-items: stretch; justify-content: center; }
+      .workspace main { flex: 1; }
+      .explorer { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="workspace">
+    <main>
+      <p class="code" aria-label="Error 404">404.</p>
+      <h1>Nothing here.</h1>
+      <p class="desc">This page doesn't exist or has moved.</p>
+      <div class="actions">
+        <a class="home" href="/">Go home</a>
+        <button class="back" type="button" onclick="if (history.length > 1) history.back(); else location.href='/'">Go back</button>
+      </div>
+    </main>
+    <aside class="explorer" aria-label="Site pages">
+      <div class="explorer-heading">Pages <span>13</span></div>
+      <nav class="file-list" aria-label="HTML file explorer">
+        <a href="/bergamot.html" title="bergamot.html">bergamot.html</a>
+        <a href="/jpdf.html" title="jpdf.html">jpdf.html</a>
+        <a href="/map.html" title="map.html">map.html</a>
+        <a href="/p2p.html" title="p2p.html">p2p.html</a>
+        <a href="/simbers1.html" title="simbers1.html">simbers1.html</a>
+        <a href="/simbers2.html" title="simbers2.html">simbers2.html</a>
+        <a href="/simbers3.html" title="simbers3.html">simbers3.html</a>
+        <a href="/simbers4.html" title="simbers4.html">simbers4.html</a>
+        <a href="/simbers5.html" title="simbers5.html">simbers5.html</a>
+        <details open>
+          <summary>reader/ <span>2</span></summary>
+          <div class="folder-items">
+            <a href="/reader/gt.html" title="reader/gt.html">gt.html</a>
+            <a href="/reader/index.html" title="reader/index.html">index.html</a>
+          </div>
+        </details>
+        <details open>
+          <summary>titan/ <span>2</span></summary>
+          <div class="folder-items">
+            <a href="/titan/builder.html" title="titan/builder.html">builder.html</a>
+            <a href="/titan/index.html" title="titan/index.html">index.html</a>
+          </div>
+        </details>
+      </nav>
+    </aside>
+    </div>
+    <footer>cardrhyme</footer>
+  </div>
+</body>
+</html>
