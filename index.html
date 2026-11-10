@@ -37,15 +37,14 @@
     .arrow { color: #68696e; font-size: 18px; line-height: 1; transform: translate(-3px, 2px); transition: transform .2s ease, color .2s ease; }
     .tile:hover .arrow, .tile:focus-visible .arrow { color: #d5d5d8; transform: translate(0, -1px); }
     .about { margin: 6px 0 0; color: #8d8d93; font-size: 12px; line-height: 1.45; }
-    .symbol .animate { transform-box: fill-box; transform-origin: center; transition: transform .28s cubic-bezier(.2,.75,.25,1), opacity .25s ease; }
-    .tile:hover .book-page { transform: translateX(3px) rotate(-4deg); transform-origin: 52px 73px; }
-    .tile:hover .sound-waves { transform: translateX(3px); }
-    .tile:hover .saber-red { transform: rotate(-6deg); }
-    .tile:hover .saber-blue { transform: rotate(6deg); }
-    .tile:hover .map-route { transform: translateY(-3px); }
-    .tile:hover .j-sheet { transform: translateY(-4px); }
-    .tile:hover .titan-cursor { opacity: .25; }
+    .symbol { transform-origin: center; transition: transform .2s cubic-bezier(.2,.75,.25,1); }
+    @media (hover:hover) {
+      .tile:hover .symbol { transform: scale(1.075); }
+    }
+    .tile:focus-visible .symbol { transform: scale(1.075); }
     footer { padding: 0 0 22px; color: #65656a; font: 12px ui-monospace, Consolas, monospace; }
+    footer a { color: #929298; text-decoration: none; }
+    footer a:hover { color: #dedee2; }
     @media (max-width: 700px) {
       .page { width: min(100% - 32px, 520px); }
       header { padding-top: 21px; }
@@ -64,7 +63,7 @@
       .tile .art { margin-bottom: 16px; }
     }
     @media (prefers-reduced-motion: reduce) {
-      .tile, .arrow, .symbol .animate { transition: none !important; }
+      .tile, .arrow, .symbol { transition: none !important; }
       .tile:hover { transform: none; }
     }
   </style>
@@ -77,79 +76,38 @@
       <p class="desc">A few things I've built. Pick one to open.</p>
       <nav class="grid" aria-label="Projects">
         <a class="tile" href="/reader/index.html">
-          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
-            <rect x="8" y="15" width="84" height="74" rx="15" fill="#303439"/>
-            <path d="M18 31c11-3 21-2 31 5v39c-10-7-20-8-31-5z" fill="#e9e6df" stroke="#24272b" stroke-width="2.5" stroke-linejoin="round"/>
-            <path class="animate book-page" d="M82 31c-11-3-21-2-31 5v39c10-7 20-8 31-5z" fill="#dc9f96" stroke="#24272b" stroke-width="2.5" stroke-linejoin="round"/>
-            <path d="M50 37v38M25 41c6-1 12 0 17 3M25 49c6-1 12 0 17 3M75 41c-6-1-12 0-17 3M75 49c-6-1-12 0-17 3" stroke="#5c5859" stroke-width="2" stroke-linecap="round" fill="none"/>
-          </svg></span>
+          <span class="art"><svg class="symbol" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><path fill="#8E8E8E" d="M32 7H4c-2.209 0-4 1.791-4 4v15c0 2.209 1.791 4 4 4h11.416c.52.596 1.477 1 2.584 1s2.065-.404 2.584-1H32c2.209 0 4-1.791 4-4V11c0-2.209-1.791-4-4-4z"/><path fill="#727272" d="M20 27c0 1.104-.896 2-2 2s-2-.896-2-2V9c0-1.104.896-2 2-2s2 .896 2 2v18z"/><path fill="#BDBDBD" d="M18 26c0 1.104-.896 2-2 2H4c-1.104 0-2-.896-2-2V8c0-1.104.896-2 2-2h12c1.104 0 2 .896 2 2v18z"/><path fill="#E4E4E4" d="M18 26c-.999-1.998-3.657-2-4-2-2 0-5 2-8 2-1 0-2-.896-2-2V8c0-1.104 1-2 2-2 3.255 0 6-2 8-2 3 0 4 1.896 4 3v19z"/><path fill="#BDBDBD" d="M34 26c0 1.104-.896 2-2 2H20c-1.104 0-2-.896-2-2V8c0-1.104.896-2 2-2h12c1.104 0 2 .896 2 2v18z"/><path fill="#D9D9D9" d="M18 26c.999-1.998 3.657-2 4-2 2 0 5 2 8 2 1 0 2-.896 2-2V8c0-1.104-1-2-2-2-3.256 0-6-2-8-2-3 0-4 1.896-4 3v19z"/></svg></span>
           <span class="name-row"><h2>Reader</h2><span class="arrow" aria-hidden="true">↗</span></span>
           <p class="about">A cleaner way to read.</p>
         </a>
         <a class="tile" href="/p2p.html">
-          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
-            <circle cx="35" cy="40" r="11" stroke="#d7dce3" stroke-width="3.5" fill="none"/>
-            <path d="M14 77c1-15 10-23 21-23 12 0 20 8 21 23" stroke="#d7dce3" stroke-width="3.5" stroke-linecap="round" fill="none"/>
-            <circle cx="72" cy="50" r="8.5" stroke="#8ea2b4" stroke-width="3" fill="none"/>
-            <path d="M63 64c9-5 22 0 24 13" stroke="#8ea2b4" stroke-width="3" stroke-linecap="round" fill="none"/>
-            <g class="animate sound-waves" stroke="#6ed99d" stroke-width="3.5" stroke-linecap="round" fill="none"><path d="M54 22c8 4 12 10 13 18"/><path d="M60 13c13 5 21 15 22 28"/></g>
-          </svg></span>
+          <span class="art"><svg class="symbol" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><path fill="#DBDBDB" d="M18 1C8.059 1 0 7.268 0 15c0 4.368 2.574 8.268 6.604 10.835C6.08 28.144 4.859 31.569 2 35c5.758-.96 9.439-3.761 11.716-6.416 1.376.262 2.805.416 4.284.416 9.941 0 18-6.268 18-14S27.941 1 18 1z"/><circle fill="#8F8F8F" cx="18" cy="15" r="2"/><circle fill="#8F8F8F" cx="26" cy="15" r="2"/><circle fill="#8F8F8F" cx="10" cy="15" r="2"/></svg></span>
           <span class="name-row"><h2>P2P</h2><span class="arrow" aria-hidden="true">↗</span></span>
           <p class="about">Voice, chat and screen sharing.</p>
         </a>
         <a class="tile" href="/simbers5.html">
-          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
-            <g class="animate saber-red" style="transform-origin:50px 50px">
-              <path d="M23 15L76 85" stroke="#ff496f" stroke-width="12" stroke-linecap="square"/>
-              <path d="M23 15L76 85" stroke="#ff7691" stroke-width="3" stroke-linecap="square"/>
-            </g>
-            <g class="animate saber-blue" style="transform-origin:50px 50px">
-              <path d="M76 15L23 85" stroke="#4e9fff" stroke-width="12" stroke-linecap="square"/>
-              <path d="M76 15L23 85" stroke="#96c8ff" stroke-width="3" stroke-linecap="square"/>
-            </g>
-          </svg></span>
+          <span class="art"><svg class="symbol" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><path fill="#B9B9B9" d="M14.182.168L7.818 1.469C7.368 1.561 7 2.012 7 2.471v15.857C6.387 18.12 5.712 18 5 18c-2.762 0-5 1.741-5 3.889 0 2.147 2.238 3.889 5 3.889 2.713 0 4.908-1.683 4.985-3.777H10V6.477l4.182-.855c.45-.092.818-.543.818-1.002V.835c0-.459-.368-.76-.818-.667zm21 4l-6.363 1.301c-.451.092-.819.543-.819 1.002v15.857c-.613-.209-1.288-.328-2-.328-2.762 0-5 1.741-5 3.889 0 2.147 2.238 3.889 5 3.889 2.713 0 4.908-1.683 4.985-3.777H31V10.477l4.182-.855c.45-.092.818-.543.818-1.002V4.835c0-.459-.368-.76-.818-.667z"/><path fill="#B9B9B9" d="M23.182 10.167l-6.363 1.301c-.451.093-.819.544-.819 1.003v15.857c-.613-.209-1.288-.328-2-.328-2.762 0-5 1.741-5 3.889s2.238 3.889 5 3.889c2.713 0 4.908-1.683 4.985-3.777H19V16.477l4.182-.855c.45-.092.818-.543.818-1.002v-3.785c0-.459-.368-.76-.818-.668z"/></svg></span>
           <span class="name-row"><h2>Simbers</h2><span class="arrow" aria-hidden="true">↗</span></span>
           <p class="about">Make rhythm maps from audio.</p>
         </a>
         <a class="tile" href="/map.html">
-          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
-            <path d="M13 27l24-9 26 9 24-9v54l-24 9-26-9-24 9z" fill="#282f30" stroke="#9ca9aa" stroke-width="3" stroke-linejoin="round"/>
-            <path d="M37 18v54M63 27v54" stroke="#657474" stroke-width="2" fill="none"/>
-            <g class="animate map-route" fill="none" stroke="#9dbea6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M27 51c5-13 21 3 28-8s18-4 21 9" stroke-dasharray="4 5"/>
-            </g>
-            <circle cx="27" cy="51" r="4.5" fill="#d2e7d6"/>
-            <path d="M76 52c-7 0-11-6-11-12a11 11 0 0 1 22 0c0 6-4 12-11 20z" fill="#8aaf9b"/>
-            <circle cx="76" cy="40" r="4" fill="#1c2723"/>
-          </svg></span>
+          <span class="art"><svg class="symbol" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><path fill="#D9D9D9" d="M12 7.607L3 5.196c-1.657-.444-3 .539-3 2.197v20c0 1.656 1.343 3.359 3 3.804l9 2.411V7.607zm12 22.786l9 2.411c1.656.443 3-.54 3-2.196v-20c0-1.657-1.344-3.36-3-3.804l-9-2.411v26z"/><path fill="#E4E4E4" d="M24 30.392l-12 3.215v-26l12-3.215z"/><path fill="#B7B7B7" d="M12 9.607L4 7.463c-1.104-.296-2 .36-2 1.464v18c0 1.104.896 2.24 2 2.535l8 2.145v-22zm20-1.072l-8-2.144v22l8 2.144c1.104.296 2-.359 2-1.465v-18c0-1.103-.896-2.239-2-2.535z"/><path fill="#CBCBCB" d="M24 28.392l-12 3.215v-22l12-3.215z"/><path fill="#A4A4A4" d="M12 21.506c-.268.006-.595.104-.845.145-.436.073-.329.517-.463.443-.135-.074-.475-.265-.812-.658-.337-.394.25-.477.418-.622.168-.145-.316-.172-.485-.332-.169-.159-.471.104-.739-.276-.27-.376-.101-.79-.133-1.18-.034-.39.436-.341.739-.334.303.003.538.144.538.602 0 .456.37.708.269.146-.101-.561.101-.657.235-.89.134-.23.37-.55.672-1.04.221-.358.389-.283.606-.164v-3.345c-.055-.044-.11-.09-.165-.113-.303-.132.096.753-.139 1.109-.237.356-.598.193-.97.094-.369-.099-.713-.545-.443-1.007.268-.462.782-.268 1.051-.653.269-.385-.957-.672-1.394-.941-.438-.271-.963-.409-1.4-.146-.437.264-1.373.133-1.743.186-.37.054-.436-.369-.503-.693-.067-.322-.653-.329-1.257-.338-.606-.01-1.741.281-1.547 1.759.068.514.605.124.707.036.101-.088.605.2.671.637.068.439.035.887-.099 1.232-.137.345.336 1.006.604 1.612.269.605.573.686.707.723.135.036.908.587.875.996-.033.411.706.991 1.009 1.34.303.35.494.662.887.846.393.183.852 1.035 1.054 1.165.155.1.418.451.576.58-.208.242-.612.748-.612 1.029 0 .383.44 1.103.608 1.3.167.196.65.442.751.85.101.407-.07 1.646-.372 1.907-.304.262-.414 1.043-.414 1.043s.107.293.465.124c.309-.144.776-.566 1.094-.801v-6.371z"/><path fill="#B7B7B7" d="M12.268 17.413c-.1.016-.187.012-.268.011v-3.345c.254.065.512.317.707.736.234.509.604.066.739.374.134.308.875.758.505.742-.371-.015-.741.008-.841.454-.102.448.168.794-.102.828-.27.033-.37.142-.74.2zm2.59 5.558c-.436-.074-.359-.023-.628-.599-.268-.577-.431-.743-1.036-.656-.605.087-.583.136-.751-.163-.072-.128-.241-.082-.443.031v6.37c.09-.114.17-.211.228-.267.505-.477.996-1.026 1.466-1.646.47-.621.3-.924.535-1.481.236-.558.541-.617.944-1.145.405-.53.122-.368-.315-.444zM24 15.731V9.417c-.04.004-.068.012-.11.015-.209.011-.482.135-.779.32-.024-.005-.046-.016-.07-.021-.896-.175-1.312 1.205-2.039 1.152-.729-.053-1.7-.344-2.332.514-.631.857-.777 1.53 0 1.294s1.312-1.425 1.7-1.089c.388.336.29.721-.632 1.105-.922.385-1.918.817-2.452.96-.534.143-.655.534-.292.822.364.288-.219.471-.826 1.02-.607.547.146.512.656.705.51.193.898-.323 1.117-.932.217-.608 1.158-1.521 1.55-1.544.392-.023.392.197.318.602-.013.071.001.103.011.138-.17.54-.31 1.03-.365 1.306-.026.135-.031.351-.027.595-.086.004-.183.021-.248.001-.438-.129-1.434-.22-1.701.043-.267.265-.412.502-.728.723-.317.219-1.603 1.224-1.627 2.084-.025.859-.049 1.83.461 1.721.51-.109 1.749-.826 2.137-1.288.387-.463.921-.522 1.092-.156.17.369.048.649-.12 1.354-.171.708.11.963.381 1.468.273.504.491.775.491 1.189 0 .412.389.723.97-.123.188-.27.367-.606.536-.957.409-.469.768-.923.758-1.096-.016-.281-.021-.434-.024-.624l.091-.22c.127-.293.241-.746.362-1.155.007-.01.013-.017.02-.024.237-.337.185-.353.58-.756.264-.27.254-.512.214-.678.105-.175.134-.28-.033-.235l-.016.004c-.002 0-.005.019-.006.014-.023-.149-.206.003-.501.148-.284.008-.566-.066-.668-.368-.133-.396-.602-.996-.639-1.336.003-.041.005-.077.01-.124.014-.036.033-.066.069-.088.038-.022.075-.03.112-.035.041.111.075.279.086.464.026.477.394.196.394.498 0 .303.53.492.661.548.037.016.094-.027.159-.098.031.011.06.033.093.037.292.031.922-.984 1.117-1.164.102-.095.104-.269.033-.394l.056-.025z"/><path fill="#A4A4A4" d="M27.634 20.221c-.053.44.184.201.606.705.423.508-.104.394-.289.316-.185-.08-.37-.131-.579-.518-.213-.391 0-.695 0-1.027 0 0 .316.084.262.524zm.362-.901c.389.166.114-.482.244-.841.132-.356.316-.368.555-.363.236.002.422-.191.581-.389.157-.199.448-.454.422-.733-.026-.279-.104-.482-.212-.843-.105-.36.316-.368.502-.711.184-.343 0 0 .421-.008.422-.008.238-.058.316-.218.08-.159.133-.327.054-.68-.078-.353-.37-.1-.66-.177-.289-.077.106-.425.132-.78.026-.356.397-.165.661-.125.263.039.342.484.421.597.081.112.895-.365 1.108-.641.211-.275-.186-.291-.079-.403.106-.111-.632-.337-.925-.469-.289-.133-1.028-.367-1.318-.649-.289-.283-1.396-.426-1.688-.337-.291.086-.476-.143-.606-.406-.131-.262-.686-.297-.844-.467-.158-.17-.316.127-.529.16-.21.035-.289.043-.554-.209-.263-.252.08-.371-.288-.621-.355-.238-.813-.182-1.71-.591v6.314c.157.014.309.036.364.051.131.035.448.573.448.784 0 .211.158.828.291 1.195.131.366.42.506.686.818.264.312.394.137.394.137s-.105-.544-.105-.965c0-.424.316-.701.316-.701s.5.558.528.685c.026.128.421.656.449.876.026.219.237.546.625.71zm2.092-2.068c.184.08.976.171.554-.334-.423-.506-.106-.299-.053-.738.053-.44-.264-.524-.264-.524 0 .332-.211.638 0 1.026.21.39-.423.49-.237.57zm2.004 5.371c-.131-.217-.421-.385-.738-.461-.315-.076-.29-.48-.606-.533-.316-.055-.544-.389-.686-.512-.312-.266-.106.209 0 .699.106.488.501.246.869.586.369.34.397.016.74.229.342.211.475.52.804.578.329.059-.25-.369-.383-.586zm-3.088-1.432c.262.402.159.043.504-.016.343-.059-.291-.561-.502-.799-.211-.238-.42-.301-.605.049-.21.399.342.364.603.766zm2.403 2.579c-.133-.338-.518-.713-.675-.91-.159-.193-.407-.312-.618-.279-.212.031-.343-.092-.448-.361-.106-.266-.29-.233-.449-.244-.157-.012-.791.119-1.161.23-.368.113-.537.252-.778.457-.382.32-.17.105 0 .424.168.318-.187 1.066-.213 1.543-.027.477.676.031.939.039.264.012.186-.189.396-.314.212-.125.349-.129.579.172.233.305.537.611.537.883 0 .27.834.947 1.151.852.316-.098.501-.408.791-.635.291-.225.186-.824.264-1.168.081-.344-.185-.354-.315-.689z"/></svg></span>
           <span class="name-row"><h2>Map</h2><span class="arrow" aria-hidden="true">↗</span></span>
           <p class="about">Explore rendered game worlds.</p>
         </a>
         <a class="tile" href="/jpdf.html">
-          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
-            <rect x="13" y="16" width="70" height="70" rx="10" fill="#8fb4ff"/>
-            <g class="animate j-sheet">
-              <path d="M36 28h32v48H33V31z" fill="#1b2941" opacity=".12"/>
-              <path d="M54 30v32c0 12-13 13-21 7" fill="none" stroke="#122035" stroke-width="8" stroke-linecap="square"/>
-            </g>
-          </svg></span>
+          <span class="art"><svg class="symbol" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><path fill="#E4E4E4" d="M32.415 9.586l-9-9C23.054.225 22.553 0 22 0c-1.104 0-1.999.896-2 2 0 .552.224 1.053.586 1.415l-3.859 3.859 9 9 3.859-3.859c.362.361.862.585 1.414.585 1.104 0 2.001-.896 2-2 0-.552-.224-1.052-.585-1.414z"/><path fill="#D9D9D9" d="M22 0H7C4.791 0 3 1.791 3 4v28c0 2.209 1.791 4 4 4h22c2.209 0 4-1.791 4-4V11h-9c-1 0-2-1-2-2V0z"/><path fill="#BDBDBD" d="M22 0h-2v9c0 2.209 1.791 4 4 4h9v-2h-9c-1 0-2-1-2-2V0zm-5 8c0 .552-.448 1-1 1H8c-.552 0-1-.448-1-1s.448-1 1-1h8c.552 0 1 .448 1 1zm0 4c0 .552-.448 1-1 1H8c-.552 0-1-.448-1-1s.448-1 1-1h8c.552 0 1 .448 1 1zm12 4c0 .552-.447 1-1 1H8c-.552 0-1-.448-1-1s.448-1 1-1h20c.553 0 1 .448 1 1zm0 4c0 .553-.447 1-1 1H8c-.552 0-1-.447-1-1 0-.553.448-1 1-1h20c.553 0 1 .447 1 1zm0 4c0 .553-.447 1-1 1H8c-.552 0-1-.447-1-1 0-.553.448-1 1-1h20c.553 0 1 .447 1 1zm0 4c0 .553-.447 1-1 1H8c-.552 0-1-.447-1-1 0-.553.448-1 1-1h20c.553 0 1 .447 1 1z"/></svg></span>
           <span class="name-row"><h2>JPDF</h2><span class="arrow" aria-hidden="true">↗</span></span>
           <p class="about">Books and documents in one place.</p>
         </a>
         <a class="tile" href="/titan/index.html">
-          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
-            <rect x="11" y="17" width="78" height="66" rx="5" fill="#1e180e" stroke="#b58a47" stroke-width="3"/>
-            <path d="M18 30h64" stroke="#775c38" stroke-width="2"/>
-            <circle cx="22" cy="24" r="2" fill="#d19b50"/><circle cx="30" cy="24" r="2" fill="#d19b50"/>
-            <path d="M27 48l11 9-11 9M47 67h17" stroke="#ffb86c" stroke-width="5" stroke-linecap="square" stroke-linejoin="miter" fill="none"/>
-            <rect class="animate titan-cursor" x="66" y="62" width="7" height="8" fill="#ffb86c"/>
-          </svg></span>
+          <span class="art"><svg class="symbol" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 36 36"><path fill="#D9D9D9" d="M33 3c-7-3-15-3-15-3S10 0 3 3C0 18 3 31 18 36c15-5 18-18 15-33z"/><path fill="#B7B7B7" d="M18 33.884C6.412 29.729 1.961 19.831 4.76 4.444 11.063 2.029 17.928 2 18 2c.071 0 6.958.04 13.24 2.444 2.799 15.387-1.652 25.285-13.24 29.44z"/><path fill="#8E8E8E" d="M31.24 4.444C24.958 2.04 18.071 2 18 2v31.884c11.588-4.155 16.039-14.053 13.24-29.44z"/></svg></span>
           <span class="name-row"><h2>TITAN-1</h2><span class="arrow" aria-hidden="true">↗</span></span>
           <p class="about">An interactive terminal experience.</p>
         </a>
       </nav>
     </main>
-    <footer>cardrhyme</footer>
+    <footer>cardrhyme · icons: <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener noreferrer">Twemoji</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>)</footer>
   </div>
 </body>
 </html>
