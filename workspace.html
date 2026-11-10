@@ -220,7 +220,7 @@ input,select{color:#eaeaec!important}
   const nav=Array.from(document.querySelectorAll("[data-app]"));
   const seenFrames=new WeakSet();
   const seenDocuments=new WeakSet();
-  let current="home";
+  let current="";
   let epoch=0;
 
   // Runs in the embedded offline Simbers viewer, not the parent app.
@@ -255,7 +255,7 @@ input,select{color:#eaeaec!important}
     if(!template||!doc.head)return;
     const style=doc.createElement("style");
     style.id=id;
-    style.textContent=template.textContent;
+    style.textContent=template.content.textContent;
     doc.head.appendChild(style);
   }
 
