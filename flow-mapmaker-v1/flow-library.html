@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="flow-library-version" content="1.5.0">
+<title>Expanded Flow Library · Mapmaker Copy</title>
+<style>
+:root{color-scheme:dark;--bg:#0c0d10;--panel:#17191f;--line:#303540;--text:#f5f7fb;--muted:#929baa;--red:#ef334f;--blue:#1689ff;--cyan:#78eaff}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+header{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line);background:rgba(12,13,16,.94);backdrop-filter:blur(14px)}
+.back{width:40px;height:40px;display:grid;place-items:center;border:1px solid var(--line);border-radius:9px;color:#fff;text-decoration:none;background:#191c22;font-size:22px}
+.logo{display:flex;gap:5px;transform:skew(-12deg)}.logo i{display:block;width:9px;height:32px;border-radius:3px}.logo i:first-child{background:#ef334f}.logo i:last-child{background:#1689ff}
+h1{margin:0;font-size:18px}.sub{margin:2px 0 0;color:var(--muted);font-size:11px}.tools{margin-left:auto;display:flex;gap:7px}.tools input,.tools button{height:38px;border:1px solid var(--line);border-radius:8px;background:#171a20;color:#fff;padding:0 10px}.tools input{width:min(240px,35vw)}.tools button{font-weight:800;cursor:pointer}
+main{max-width:1700px;margin:auto;padding:12px}.intro{padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:#14171c;color:var(--muted);font-size:12px;line-height:1.5;margin-bottom:10px}.intro strong{color:#fff}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.filters button{height:34px;padding:0 11px;border:1px solid var(--line);border-radius:8px;background:#191c22;color:#e6eaf2;font-weight:800}.filters button.active{background:#1478df;border-color:#2a94ff}
+.library{display:grid;gap:12px}.flow{border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}.flow.added{border-color:#816928}
+.flowHead{display:flex;gap:10px;align-items:flex-start;padding:10px 11px;border-bottom:1px solid var(--line)}.num{display:grid;place-items:center;width:34px;height:34px;border-radius:8px;background:#252a34;font:900 12px ui-monospace,monospace}.title h2{margin:0;font-size:14px}.title p{margin:2px 0 0;color:var(--muted);font-size:10px}.tags{margin-left:auto;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}.tag{padding:4px 6px;border:1px solid #555e6c;border-radius:999px;font-size:8px;font-weight:900;text-transform:uppercase}.tag.added{color:#ffe28a;border-color:#aa8b3e}
+.variants{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:7px}.variant{min-width:0;border:1px solid #2b3039;border-radius:9px;background:#101217;overflow:hidden}.variantHead{display:flex;justify-content:space-between;gap:8px;padding:7px 8px;border-bottom:1px solid #282c34}.variantHead h3{margin:0;font-size:11px}.variantHead span{color:#7d8796;font:800 8px ui-monospace,monospace}
+.beats{display:flex;gap:6px;overflow-x:auto;padding:7px}.beat{flex:0 0 104px}.beatLabel{display:flex;justify-content:space-between;color:#818b99;font:800 8px ui-monospace,monospace;margin-bottom:4px}.beat.bridge .beatLabel{color:var(--cyan)}
+.grid{position:relative;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(3,1fr);gap:3px;aspect-ratio:4/3;padding:4px;border:1px solid #383e49;border-radius:7px;background:#08090c}.beat.bridge .grid{border-color:var(--cyan)}
+.cell{border:1px solid #252a33;border-radius:3px;background:#12151a}.note{z-index:2;display:grid;place-items:center;margin:7%;border:2px solid rgba(255,255,255,.25);border-radius:6px;color:#fff;font-size:17px;font-weight:1000;text-shadow:0 2px 2px #000}.note.left{background:linear-gradient(145deg,#ff4561,#a30622)}.note.right{background:linear-gradient(145deg,#38a8ff,#045ab9)}
+.empty{padding:18px;border:1px solid var(--line);border-radius:10px;color:var(--muted)}
+@media(max-width:700px){header{flex-wrap:wrap}.tools{width:100%;margin-left:0}.tools input{flex:1;width:auto}.variants{gap:5px;padding:5px}.beat{flex-basis:88px}.note{font-size:14px}.sub{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="./" aria-label="Back to mapmaker">←</a>
+  <span class="logo"><i></i><i></i></span>
+  <div><h1>Expanded Flow Library</h1><p class="sub">20 multi-beat flows · 80 mapmaker-ready alternatives · source v1.5.0</p></div>
+  <div class="tools"><input id="search" type="search" placeholder="Search flows…"><button id="export">Export JSON</button></div>
+</header>
+<main>
+  <div class="intro"><strong>Generator behavior:</strong> each flow is treated as a complete multi-beat sequence. The copy chooses among its four alternatives according to the preceding hand positions and arrows; an unsafe entry falls back to one of the original 30 classic doubles.</div>
+  <nav class="filters"><button class="active" data-filter="all">All</button><button data-filter="easy">Easy</button><button data-filter="medium">Medium</button><button data-filter="hard">Hard</button><button data-filter="added">Added flow</button></nav>
+  <section class="library" id="library"></section>
+</main>
+<script type="module">
+import {loadExclusiveFlowLibrary} from "./flow-library-data.js";
+const DATA=await loadExclusiveFlowLibrary();
+const ARROW={up:"↑",down:"↓",left:"←",right:"→",upLeft:"↖",upRight:"↗",downLeft:"↙",downRight:"↘"};
+const library=document.getElementById("library"),search=document.getElementById("search");let filter="all";
+function cells(){return Array.from({length:12},()=>'<span class="cell"></span>').join("")}
+function note(value,hand){return value?`<span class="note ${hand}" style="grid-column:${value.x+1};grid-row:${3-value.y}">${ARROW[value.direction]}</span>`:""}
+function beat(value,index,variant){const bridge=(variant.spatialBridgeBeats||[]).includes(index+1)||variant.insertedTransitionBeat===index+1;return `<div class="beat ${bridge?"bridge":""}"><div class="beatLabel"><span>${bridge?"BRIDGE":`B${index+1}`}</span><span>${value.left&&value.right?"DOUBLE":"SINGLE"}</span></div><div class="grid">${cells()}${note(value.left,"left")}${note(value.right,"right")}</div></div>`}
+function variant(value,index){return `<section class="variant"><div class="variantHead"><h3>${value.name}</h3><span>${index+1}/4 · ${value.beats.length} BEATS</span></div><div class="beats">${value.beats.map((item,i)=>beat(item,i,value)).join("")}</div></section>`}
+function card(flow,index){return `<article class="flow ${flow.added?"added":""}"><div class="flowHead"><span class="num">${String(index+1).padStart(2,"0")}</span><div class="title"><h2>${flow.name}</h2><p>${flow.sourceName}</p></div><div class="tags"><span class="tag">${flow.difficulty}</span><span class="tag">4 variants</span>${flow.added?'<span class="tag added">Added</span>':""}</div></div><div class="variants">${flow.variants.map(variant).join("")}</div></article>`}
+function render(){const query=search.value.trim().toLowerCase();const flows=DATA.flows.filter(flow=>(filter==="all"||filter===flow.difficulty||(filter==="added"&&flow.added))&&(!query||flow.name.toLowerCase().includes(query)||flow.sourceName.toLowerCase().includes(query)));library.innerHTML=flows.length?flows.map(flow=>card(flow,DATA.flows.indexOf(flow))).join(""):'<div class="empty">No matching flows.</div>'}
+document.querySelectorAll("[data-filter]").forEach(button=>button.onclick=()=>{filter=button.dataset.filter;document.querySelectorAll("[data-filter]").forEach(item=>item.classList.toggle("active",item===button));render()});
+search.oninput=render;document.getElementById("export").onclick=()=>{const blob=new Blob([JSON.stringify(DATA,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download="expanded-flow-library-v1.5.0.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};render();
+</script>
+</body>
+</html>
