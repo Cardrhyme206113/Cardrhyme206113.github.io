@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#121314">
+  <meta name="description" content="Cardrhyme's web projects and experiments.">
+  <title>Projects — cardrhyme</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100dvh; background: #121314; color: #ececec;
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .page { width: min(100% - 48px, 950px); min-height: 100dvh; margin: auto; display: flex; flex-direction: column; }
+    header { padding: 29px 0 0; font: 600 13px ui-monospace, Consolas, monospace; color: #aaaab0; }
+    main { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 58px 0 76px; }
+    h1 { margin: 0; font-size: clamp(38px, 6vw, 57px); line-height: 1.1; font-weight: 750; letter-spacing: -.065em; }
+    .desc { margin: 10px 0 32px; color: #99999e; font-size: 13px; line-height: 1.5; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .tile {
+      display: flex; min-width: 0; min-height: 205px; flex-direction: column;
+      padding: 23px; background: #191a1c; border: 1px solid #2b2c30;
+      border-radius: 6px; color: inherit; text-decoration: none;
+      transition: background .2s ease, border-color .2s ease, transform .2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tile:hover { background: #202124; border-color: #48494f; transform: translateY(-3px); }
+    .tile:active { transform: translateY(0); background: #26272a; }
+    .tile:focus-visible { outline: 2px solid #a5a5aa; outline-offset: 3px; }
+    .tile .art { width: 68px; height: 68px; display: grid; place-items: center; margin: 0 0 25px; }
+    .symbol { display: block; width: 68px; height: 68px; overflow: visible; }
+    .name-row { display: flex; align-items: center; gap: 9px; justify-content: space-between; }
+    h2 { margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -.025em; }
+    .arrow { color: #68696e; font-size: 18px; line-height: 1; transform: translate(-3px, 2px); transition: transform .2s ease, color .2s ease; }
+    .tile:hover .arrow, .tile:focus-visible .arrow { color: #d5d5d8; transform: translate(0, -1px); }
+    .about { margin: 6px 0 0; color: #8d8d93; font-size: 12px; line-height: 1.45; }
+    .symbol .animate { transform-box: fill-box; transform-origin: center; transition: transform .28s cubic-bezier(.2,.75,.25,1), opacity .25s ease; }
+    .tile:hover .book-page { transform: translateX(3px) rotate(-4deg); transform-origin: 52px 73px; }
+    .tile:hover .sound-waves { transform: translateX(3px); }
+    .tile:hover .saber-red { transform: rotate(-6deg); }
+    .tile:hover .saber-blue { transform: rotate(6deg); }
+    .tile:hover .map-route { transform: translateY(-3px); }
+    .tile:hover .j-sheet { transform: translateY(-4px); }
+    .tile:hover .titan-cursor { opacity: .25; }
+    footer { padding: 0 0 22px; color: #65656a; font: 12px ui-monospace, Consolas, monospace; }
+    @media (max-width: 700px) {
+      .page { width: min(100% - 32px, 520px); }
+      header { padding-top: 21px; }
+      main { justify-content: flex-start; padding: 54px 0 45px; }
+      .desc { margin-bottom: 25px; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+      .tile { min-height: 180px; padding: 17px 15px; }
+      .tile .art { width: 58px; height: 58px; margin-bottom: 22px; }
+      .symbol { width: 58px; height: 58px; }
+      h2 { font-size: 15px; }
+      .about { font-size: 11px; }
+    }
+    @media (max-width: 360px) {
+      .page { width: min(100% - 24px, 520px); }
+      .tile { padding: 13px; min-height: 170px; }
+      .tile .art { margin-bottom: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .tile, .arrow, .symbol .animate { transition: none !important; }
+      .tile:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>cardrhyme</header>
+    <main>
+      <h1>Projects.</h1>
+      <p class="desc">A few things I've built. Pick one to open.</p>
+      <nav class="grid" aria-label="Projects">
+        <a class="tile" href="/reader/index.html">
+          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
+            <rect x="8" y="15" width="84" height="74" rx="15" fill="#303439"/>
+            <path d="M18 31c11-3 21-2 31 5v39c-10-7-20-8-31-5z" fill="#e9e6df" stroke="#24272b" stroke-width="2.5" stroke-linejoin="round"/>
+            <path class="animate book-page" d="M82 31c-11-3-21-2-31 5v39c10-7 20-8 31-5z" fill="#dc9f96" stroke="#24272b" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M50 37v38M25 41c6-1 12 0 17 3M25 49c6-1 12 0 17 3M75 41c-6-1-12 0-17 3M75 49c-6-1-12 0-17 3" stroke="#5c5859" stroke-width="2" stroke-linecap="round" fill="none"/>
+          </svg></span>
+          <span class="name-row"><h2>Reader</h2><span class="arrow" aria-hidden="true">↗</span></span>
+          <p class="about">A cleaner way to read.</p>
+        </a>
+        <a class="tile" href="/p2p.html">
+          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="35" cy="40" r="11" stroke="#d7dce3" stroke-width="3.5" fill="none"/>
+            <path d="M14 77c1-15 10-23 21-23 12 0 20 8 21 23" stroke="#d7dce3" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+            <circle cx="72" cy="50" r="8.5" stroke="#8ea2b4" stroke-width="3" fill="none"/>
+            <path d="M63 64c9-5 22 0 24 13" stroke="#8ea2b4" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <g class="animate sound-waves" stroke="#6ed99d" stroke-width="3.5" stroke-linecap="round" fill="none"><path d="M54 22c8 4 12 10 13 18"/><path d="M60 13c13 5 21 15 22 28"/></g>
+          </svg></span>
+          <span class="name-row"><h2>P2P</h2><span class="arrow" aria-hidden="true">↗</span></span>
+          <p class="about">Voice, chat and screen sharing.</p>
+        </a>
+        <a class="tile" href="/simbers5.html">
+          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
+            <g class="animate saber-red" style="transform-origin:50px 50px">
+              <path d="M23 15L76 85" stroke="#ff496f" stroke-width="12" stroke-linecap="square"/>
+              <path d="M23 15L76 85" stroke="#ff7691" stroke-width="3" stroke-linecap="square"/>
+            </g>
+            <g class="animate saber-blue" style="transform-origin:50px 50px">
+              <path d="M76 15L23 85" stroke="#4e9fff" stroke-width="12" stroke-linecap="square"/>
+              <path d="M76 15L23 85" stroke="#96c8ff" stroke-width="3" stroke-linecap="square"/>
+            </g>
+          </svg></span>
+          <span class="name-row"><h2>Simbers</h2><span class="arrow" aria-hidden="true">↗</span></span>
+          <p class="about">Make rhythm maps from audio.</p>
+        </a>
+        <a class="tile" href="/map.html">
+          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
+            <path d="M13 27l24-9 26 9 24-9v54l-24 9-26-9-24 9z" fill="#282f30" stroke="#9ca9aa" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M37 18v54M63 27v54" stroke="#657474" stroke-width="2" fill="none"/>
+            <g class="animate map-route" fill="none" stroke="#9dbea6" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M27 51c5-13 21 3 28-8s18-4 21 9" stroke-dasharray="4 5"/>
+            </g>
+            <circle cx="27" cy="51" r="4.5" fill="#d2e7d6"/>
+            <path d="M76 52c-7 0-11-6-11-12a11 11 0 0 1 22 0c0 6-4 12-11 20z" fill="#8aaf9b"/>
+            <circle cx="76" cy="40" r="4" fill="#1c2723"/>
+          </svg></span>
+          <span class="name-row"><h2>Map</h2><span class="arrow" aria-hidden="true">↗</span></span>
+          <p class="about">Explore rendered game worlds.</p>
+        </a>
+        <a class="tile" href="/jpdf.html">
+          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
+            <rect x="13" y="16" width="70" height="70" rx="10" fill="#8fb4ff"/>
+            <g class="animate j-sheet">
+              <path d="M36 28h32v48H33V31z" fill="#1b2941" opacity=".12"/>
+              <path d="M54 30v32c0 12-13 13-21 7" fill="none" stroke="#122035" stroke-width="8" stroke-linecap="square"/>
+            </g>
+          </svg></span>
+          <span class="name-row"><h2>JPDF</h2><span class="arrow" aria-hidden="true">↗</span></span>
+          <p class="about">Books and documents in one place.</p>
+        </a>
+        <a class="tile" href="/titan/index.html">
+          <span class="art"><svg class="symbol" viewBox="0 0 100 100" aria-hidden="true">
+            <rect x="11" y="17" width="78" height="66" rx="5" fill="#1e180e" stroke="#b58a47" stroke-width="3"/>
+            <path d="M18 30h64" stroke="#775c38" stroke-width="2"/>
+            <circle cx="22" cy="24" r="2" fill="#d19b50"/><circle cx="30" cy="24" r="2" fill="#d19b50"/>
+            <path d="M27 48l11 9-11 9M47 67h17" stroke="#ffb86c" stroke-width="5" stroke-linecap="square" stroke-linejoin="miter" fill="none"/>
+            <rect class="animate titan-cursor" x="66" y="62" width="7" height="8" fill="#ffb86c"/>
+          </svg></span>
+          <span class="name-row"><h2>TITAN-1</h2><span class="arrow" aria-hidden="true">↗</span></span>
+          <p class="about">An interactive terminal experience.</p>
+        </a>
+      </nav>
+    </main>
+    <footer>cardrhyme</footer>
+  </div>
+</body>
+</html>
