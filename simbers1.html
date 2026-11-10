@@ -472,9 +472,9 @@ body.viewer-open{align-items:flex-start}
     <section class="card">
       <div class="uiCluster">
         <div class="titleRow">
-        <a class="brandMark" href="./simbers-flow-library.html" aria-label="Open the original 30-flow library" title="Open flow library">
+        <div class="brandMark" aria-hidden="true">
           <span></span><span></span>
-        </a>
+        </div>
         <h1>Simplified Sabers</h1>
       </div>
       <p class="subtitle">Upload a song and create a complete five-difficulty Beat Saber map.</p>
@@ -619,7 +619,275 @@ body.viewer-open{align-items:flex-start}
 
 
 <script type="module">
-import { encodeOggVorbis } from "./simbers-ogg-encoder.js";
+const encodeOggVorbis = (() => {
+// Minimal Ogg Opus muxer. No UI side effects and no third-party dependencies.
+const textEncoder = new TextEncoder();
+
+function concat(parts) {
+  const size = parts.reduce((n, part) => n + part.length, 0);
+  const out = new Uint8Array(size);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+function writeU32LE(view, offset, value) {
+  view.setUint32(offset, value >>> 0, true);
+}
+
+function writeU64LE(view, offset, value) {
+  const result = BigInt(value);
+  view.setUint32(offset, Number(result & 0xffffffffn), true);
+  view.setUint32(offset + 4, Number((result >> 32n) & 0xffffffffn), true);
+}
+
+let crcTable;
+
+function getCrcTable() {
+  if (crcTable) return crcTable;
+  crcTable = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let result = i << 24;
+    for (let j = 0; j < 8; j++) {
+      result = (result & 0x80000000)
+        ? ((result << 1) ^ 0x04c11db7)
+        : (result << 1);
+    }
+    crcTable[i] = result >>> 0;
+  }
+  return crcTable;
+}
+
+function oggCrc(bytes) {
+  const table = getCrcTable();
+  let crc = 0;
+  for (let i = 0; i < bytes.length; i++) {
+    crc = ((crc << 8) ^ table[((crc >>> 24) ^ bytes[i]) & 255]) >>> 0;
+  }
+  return crc >>> 0;
+}
+
+function makePage(packet, { serial, sequence, granule, headerType }) {
+  const segments = [];
+  let remaining = packet.length;
+  while (remaining >= 255) {
+    segments.push(255);
+    remaining -= 255;
+  }
+  segments.push(remaining);
+
+  const header = new Uint8Array(27 + segments.length);
+  const view = new DataView(header.buffer);
+  header.set(textEncoder.encode("OggS"), 0);
+  header[4] = 0;
+  header[5] = headerType;
+  writeU64LE(view, 6, granule);
+  writeU32LE(view, 14, serial);
+  writeU32LE(view, 18, sequence);
+  writeU32LE(view, 22, 0);
+  header[26] = segments.length;
+  header.set(segments, 27);
+
+  const page = concat([header, packet]);
+  writeU32LE(new DataView(page.buffer), 22, oggCrc(page));
+  return page;
+}
+
+function opusHead(channels, preSkip, inputRate) {
+  const out = new Uint8Array(19);
+  const view = new DataView(out.buffer);
+  out.set(textEncoder.encode("OpusHead"), 0);
+  out[8] = 1;
+  out[9] = channels;
+  view.setUint16(10, preSkip, true);
+  view.setUint32(12, inputRate, true);
+  view.setInt16(16, 0, true);
+  out[18] = 0;
+  return out;
+}
+
+function opusTags(vendor = "Simplified Sabers WebCodecs") {
+  const vendorBytes = textEncoder.encode(vendor);
+  const out = new Uint8Array(8 + 4 + vendorBytes.length + 4);
+  const view = new DataView(out.buffer);
+  out.set(textEncoder.encode("OpusTags"), 0);
+  view.setUint32(8, vendorBytes.length, true);
+  out.set(vendorBytes, 12);
+  view.setUint32(12 + vendorBytes.length, 0, true);
+  return out;
+}
+
+function muxOpusToOgg(packets, options = {}) {
+  const channels = options.channels || 2;
+  const inputRate = options.inputRate || 48000;
+  const preSkip = options.preSkip ?? 312;
+  const serial = options.serial ?? ((Math.random() * 0xffffffff) >>> 0);
+  const pages = [];
+  let sequence = 0;
+
+  pages.push(makePage(opusHead(channels, preSkip, inputRate), {
+    serial,
+    sequence: sequence++,
+    granule: 0,
+    headerType: 2
+  }));
+  pages.push(makePage(opusTags(), {
+    serial,
+    sequence: sequence++,
+    granule: 0,
+    headerType: 0
+  }));
+
+  let granule = BigInt(preSkip);
+  for (let i = 0; i < packets.length; i++) {
+    const entry = packets[i];
+    granule += BigInt(entry.frames);
+    pages.push(makePage(entry.data, {
+      serial,
+      sequence: sequence++,
+      granule,
+      headerType: i === packets.length - 1 ? 4 : 0
+    }));
+  }
+  return concat(pages);
+}
+
+
+// Native WebCodecs Opus encoder. No external encoder or embedded WASM.
+// Encoding only: this module never creates or styles UI.
+const BITRATE_KEY = "simbers-audio-bitrate-kbps-v2";
+
+function selectedBitrateKbps() {
+  const value = 128;
+  return Math.max(16, Math.min(128, Math.round(value / 16) * 16));
+}
+
+function status(message) {
+  const element =
+    document.getElementById("mapStatus") ||
+    document.querySelector(".mapStatus");
+  if (element) element.textContent = message;
+}
+
+function resampleChannel(input, sourceRate, targetRate) {
+  if (sourceRate === targetRate) return input;
+  const length = Math.max(1, Math.round(input.length * targetRate / sourceRate));
+  const out = new Float32Array(length);
+  const scale = sourceRate / targetRate;
+  for (let i = 0; i < length; i++) {
+    const position = i * scale;
+    const first = Math.floor(position);
+    const second = Math.min(input.length - 1, first + 1);
+    const mix = position - first;
+    out[i] = input[first] * (1 - mix) + input[second] * mix;
+  }
+  return out;
+}
+
+function interleavePlanar(channels, offset, frames) {
+  const out = new Float32Array(frames * channels.length);
+  for (let channel = 0; channel < channels.length; channel++) {
+    out.set(channels[channel].subarray(offset, offset + frames), channel * frames);
+  }
+  return out;
+}
+
+async function encodeNative(audioChannels, sampleRate, options, bitrate) {
+  if (!("AudioEncoder" in globalThis) || !("AudioData" in globalThis)) {
+    throw new Error("WebCodecs AudioEncoder is unavailable.");
+  }
+
+  const targetRate = 48000;
+  const channels = audioChannels
+    .slice(0, 2)
+    .map(channel => resampleChannel(channel, sampleRate, targetRate));
+
+  if (!channels.length) throw new Error("No audio channels were provided.");
+
+  const config = {
+    codec: "opus",
+    sampleRate: targetRate,
+    numberOfChannels: channels.length,
+    bitrate,
+    bitrateMode: "constant"
+  };
+
+  const support = await AudioEncoder.isConfigSupported(config);
+  if (!support.supported) throw new Error("Native Opus configuration is unsupported.");
+
+  const packets = [];
+  let encoderError = null;
+  const encoder = new AudioEncoder({
+    output(chunk) {
+      const data = new Uint8Array(chunk.byteLength);
+      chunk.copyTo(data);
+      const frames = Math.max(
+        1,
+        Math.round((chunk.duration || 20000) * targetRate / 1_000_000)
+      );
+      packets.push({ data, frames });
+    },
+    error(error) {
+      encoderError = error;
+    }
+  });
+
+  encoder.configure(config);
+  const frameSize = 960;
+  const totalFrames = channels[0].length;
+  let offset = 0;
+
+  while (offset < totalFrames) {
+    const frames = Math.min(frameSize, totalFrames - offset);
+    const audioData = new AudioData({
+      format: "f32-planar",
+      sampleRate: targetRate,
+      numberOfFrames: frames,
+      numberOfChannels: channels.length,
+      timestamp: Math.round(offset * 1_000_000 / targetRate),
+      data: interleavePlanar(channels, offset, frames)
+    });
+    encoder.encode(audioData);
+    audioData.close();
+    offset += frames;
+
+    if (
+      options.onProgress &&
+      (offset % (frameSize * 24) === 0 || offset >= totalFrames)
+    ) {
+      await options.onProgress(offset / totalFrames);
+    }
+    while (encoder.encodeQueueSize > 48 && !encoderError) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+    if (encoderError) throw encoderError;
+  }
+
+  await encoder.flush();
+  encoder.close();
+  if (encoderError) throw encoderError;
+  if (!packets.length) throw new Error("Native Opus returned no packets.");
+
+  return muxOpusToOgg(packets, {
+    channels: channels.length,
+    inputRate: targetRate,
+    preSkip: 312
+  });
+}
+
+async function encodeOggVorbis(audioChannels, sampleRate, options = {}) {
+  const bitrateKbps = selectedBitrateKbps();
+  const bitrate = bitrateKbps * 1000;
+  status(`Encoding audio natively at ${bitrateKbps} kbps…`);
+  return encodeNative(audioChannels, sampleRate, options, bitrate);
+}
+
+
+return encodeOggVorbis;
+})();
 
 "use strict";
 
