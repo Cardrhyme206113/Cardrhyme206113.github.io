@@ -611,6 +611,8 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
   }
   #app:has(#chatPanel:not(.is-closed)) .call-dock {
     background:var(--bg);
+    border-inline:1px solid var(--border) !important;
+    border-bottom:1px solid var(--border) !important;
   }
   #app:has(#chatPanel.show-settings:not(.is-closed)) .call-dock { background:#0c1118; }
   #app:has(#chatPanel:not(.is-closed)) #chatPanel {
