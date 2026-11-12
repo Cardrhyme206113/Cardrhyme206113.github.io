@@ -995,7 +995,21 @@ dialog.call-confirm footer button.btn:last-child{background:#502b34!important;bo
   #app .dock-inner>.dock-button{min-width:34px!important;padding-inline:2px!important}
   .settings-docked .settings-nav button{font-size:10px!important}
 }
-</style><style id="green-join-lobby">
+</style><style id="p2p-debug-info-styles">
+.debug-info-pane{margin-top:18px;padding-top:17px;border-top:1px solid var(--border)}
+.debug-info-pane>.hint{margin:4px 0 12px;font-size:12px;line-height:1.45}
+.debug-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0 0 11px}
+.debug-totals>div{min-width:0;padding:12px;background:var(--panel2);border:1px solid var(--border);border-radius:8px}
+.debug-totals small{display:block;color:var(--muted);font-size:11px;margin-bottom:5px}
+.debug-totals strong{font-size:18px;font-variant-numeric:tabular-nums;font-weight:650}
+.debug-peer-list{display:grid;gap:7px}
+.debug-peer-row{border:1px solid var(--border);background:var(--panel2);padding:9px 11px;border-radius:8px;min-width:0}
+.debug-peer-head,.debug-peer-rates{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.debug-peer-head strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.debug-peer-head span{font-size:12px;font-variant-numeric:tabular-nums;color:#9bdab1;white-space:nowrap}
+.debug-peer-rates{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;margin-top:6px}
+</style>
+<style id="green-join-lobby">
 
 /* Pre-join lobby: intentionally scoped. In-call styling is unchanged. */
 .join-page.join-lobby {
@@ -2283,6 +2297,8 @@ function attachMember(conn,initiator){
  let chain=Promise.resolve();
  conn.on('data',msg=>{chain=chain.then(async()=>{
   if(!inRoom||livePeers.get(id)!==x||!msg)return;
+  if(msg.op==='debug-ping'){if(Number.isFinite(msg.sent)&&x.conn.open)x.conn.send({op:'debug-pong',sent:msg.sent});return}
+  if(msg.op==='debug-pong'){if(x.debugProbe===msg.sent){x.debugRtt=Math.max(0,Math.round(performance.now()-msg.sent));x.debugProbe=null;renderDebugInfo()}return}
   if(msg.op==='moderation'){
    if(id===directoryOwner)handleModeratedExit(msg.reason);
    return;
@@ -2331,6 +2347,60 @@ function attachMember(conn,initiator){
  }).catch(()=>{})});
 }
 const downloads=new Map();
+// Settings-only diagnostics; use the selected ICE candidate-pair counters when available.
+let debugPolling=false;
+function formatDebugRate(bps){if(!Number.isFinite(bps))return '—';return bps>=1e6?(bps/1e6).toFixed(2)+' Mbps':bps>=1e3?(bps/1e3).toFixed(1)+' kbps':Math.round(bps)+' bps'}
+function renderDebugInfo(){
+ const panel=document.getElementById('debugInfoPane');if(!panel)return;
+ const peers=[...livePeers.values()].filter(x=>x.joined&&x.conn.open&&x.pc.connectionState!=='closed');
+ let sent=0,received=0;
+ for(const x of peers){sent+=x.debugRate?.sent||0;received+=x.debugRate?.received||0}
+ panel.querySelector('#debugOutbound').textContent=inRoom?formatDebugRate(sent):'—';
+ panel.querySelector('#debugInbound').textContent=inRoom?formatDebugRate(received):'—';
+ const list=panel.querySelector('#debugPeers');
+ if(!inRoom||!peers.length){list.innerHTML='<p class="hint">'+(inRoom?'No other participants connected.':'Not connected to a room.')+'</p>';return}
+ list.innerHTML=peers.map(x=>{
+  const name=escapeHTML(x.person?.name||x.id);
+  const rtt=Number.isFinite(x.debugRtt)?x.debugRtt+' ms':x.pc.connectionState==='connected'?'Measuring…':'Connecting…';
+  return '<div class="debug-peer-row"><div class="debug-peer-head"><strong>'+name+'</strong><span>Ping '+rtt+'</span></div><div class="debug-peer-rates"><span>↑ '+formatDebugRate(x.debugRate?.sent)+'</span><span>↓ '+formatDebugRate(x.debugRate?.received)+'</span></div></div>';
+ }).join('');
+}
+async function pollDebugInfo(){
+ if(debugPolling||!document.getElementById('debugInfoPane'))return;
+ if(!inRoom){renderDebugInfo();return}
+ debugPolling=true;
+ try{
+  const peers=[...livePeers.values()].filter(x=>x.joined&&x.conn.open&&x.pc.connectionState!=='closed');
+  await Promise.all(peers.map(async x=>{
+   if(x.debugProbe==null||performance.now()-x.debugProbe>7000){
+    x.debugProbe=performance.now();x.debugRtt=null;
+    try{x.conn.send({op:'debug-ping',sent:x.debugProbe})}catch{}
+   }
+   try{
+    const stats=await x.pc.getStats();
+    const entries=[...stats.values()];
+    const transport=entries.find(v=>v.type==='transport'&&v.selectedCandidatePairId);
+    const pair=stats.get(transport?.selectedCandidatePairId)||entries.find(v=>v.type==='candidate-pair'&&v.nominated&&v.state==='succeeded');
+    let sent,received;
+    if(pair&&Number.isFinite(pair.bytesSent)&&Number.isFinite(pair.bytesReceived)){
+     sent=pair.bytesSent;received=pair.bytesReceived;
+    }else{
+     const traffic=entries.filter(v=>['inbound-rtp','outbound-rtp','data-channel'].includes(v.type)&&!v.isRemote);
+     sent=traffic.reduce((n,v)=>n+(Number(v.bytesSent)||0),0);
+     received=traffic.reduce((n,v)=>n+(Number(v.bytesReceived)||0),0);
+    }
+    const now=performance.now(),prev=x.debugSample;
+    if(prev&&now-prev.time>250){
+     const seconds=(now-prev.time)/1000;
+     x.debugRate={sent:Math.max(0,sent-prev.sent)*8/seconds,received:Math.max(0,received-prev.received)*8/seconds};
+    }else x.debugRate={sent:0,received:0};
+    x.debugSample={time:now,sent,received};
+   }catch{x.debugRate={sent:0,received:0}}
+  }));
+  renderDebugInfo();
+ }finally{debugPolling=false}
+}
+setInterval(()=>pollDebugInfo().catch(()=>{}),2000);
 function requestFile(m,save=true){
  const peer=livePeers.get(m.who);
  if(!peer?.conn.open){toast('The sender must be in the call to share this file.');return}
@@ -2796,7 +2866,7 @@ function modalShell(title,subtitle,body,footer=''){return `<div class="modal-hea
 const cancelButton=`<button class="btn" data-action="close-modal">Cancel</button>`;
 function openModal(type,id){if(state.modal?.type==='account')closeModal();if(type!=='welcome')playCue('open');$('#modalBackdrop').classList.toggle('settings-float',type==='account');$('#modal').setAttribute('aria-modal',type!=='account');state.modal={type,id};closeMenus();let html='';
  if(type==='welcome'){html=modalShell('Welcome to the call','Choose a name for your local profile.',`<div class="account-line"><img src="${state.avatar}" alt="Your avatar"></div><div class="input-group"><label for="welcomeName">Display name</label><input id="welcomeName" maxlength="28" type="text" value="${escapeHTML(state.name)}" placeholder="Your nickname" autocomplete="nickname"></div>`,`<button class="btn primary" data-action="welcome-save">Join call</button>`);}
- if(type==='account'){html=modalShell('Settings','',`<section id="profilePane"><h3 class="settings-section-title">Profile</h3><div class="account-line"><button class="avatar-edit" data-action="pick-avatar" aria-label="Change profile picture"><img id="editAvatarPreview" src="${state.avatar}" alt=""><span>Edit</span></button><div class="picture-actions"><button class="btn" data-action="pick-avatar">Change picture</button><button class="btn restore" data-action="reset-avatar">Reset to default</button></div></div><div class="input-group"><label for="editName">Display name</label><input id="editName" type="text" maxlength="28" value="${escapeHTML(state.name)}"></div></section>${audioSettings()}${streamSettings()}${moderationSettings()}<section id="appearancePane"><h3 class="settings-section-title">Appearance</h3><div class="field-row"><span>Reduce motion</span><button class="switch ${state.reduceMotion?'on':''}" data-switch="reduceMotion" aria-label="Reduce motion" aria-pressed="${state.reduceMotion}"></button></div></section>`,`<button class="btn primary" data-action="save-account">Done</button>`)}
+ if(type==='account'){html=modalShell('Settings','',`<section id="profilePane"><h3 class="settings-section-title">Profile</h3><div class="account-line"><button class="avatar-edit" data-action="pick-avatar" aria-label="Change profile picture"><img id="editAvatarPreview" src="${state.avatar}" alt=""><span>Edit</span></button><div class="picture-actions"><button class="btn" data-action="pick-avatar">Change picture</button><button class="btn restore" data-action="reset-avatar">Reset to default</button></div></div><div class="input-group"><label for="editName">Display name</label><input id="editName" type="text" maxlength="28" value="${escapeHTML(state.name)}"></div></section>${audioSettings()}${streamSettings()}${moderationSettings()}<section id="appearancePane"><h3 class="settings-section-title">Appearance</h3><div class="field-row"><span>Reduce motion</span><button class="switch ${state.reduceMotion?'on':''}" data-switch="reduceMotion" aria-label="Reduce motion" aria-pressed="${state.reduceMotion}"></button></div></section><section id="debugInfoPane" class="debug-info-pane" aria-label="Connection debug information"><h3 class="settings-section-title">Debug info</h3><p class="hint">Live WebRTC traffic and round-trip latency to each connected participant. Traffic includes media and data channels when reported by the browser.</p><div class="debug-totals"><div><small>Outbound</small><strong id="debugOutbound">—</strong></div><div><small>Inbound</small><strong id="debugInbound">—</strong></div></div><div id="debugPeers" class="debug-peer-list" aria-live="off"><p class="hint">Waiting for connections…</p></div></section>`,`<button class="btn primary" data-action="save-account">Done</button>`)}
  if(type==='technical'){html=modalShell('Technical Settings','P2P and media configuration · demonstration values',`<div class="settings-grid"><div class="metric"><small>Topology</small><strong>Mesh P2P</strong></div><div class="metric"><small>Participants</small><strong>${persons.length}/6</strong></div></div><div class="info-box"><strong>${I('wifi','sm')} PeerJS Cloud · planned</strong><div style="margin-top:5px">This HTML is a visual prototype. No peer connections, microphones or network transfers are active yet. STUN/TURN diagnostics will live here in the real app.</div></div><div class="input-group"><label for="codecSelect">Preferred screen-share codec</label><select id="codecSelect"><option${state.codec==='VP9 (preferred)'?' selected':''}>VP9 (preferred)</option><option${state.codec==='H.264 (compatible)'?' selected':''}>H.264 (compatible)</option><option${state.codec==='AV1 (experimental)'?' selected':''}>AV1 (experimental)</option></select></div><div class="input-group"><div class="range-row"><label for="bitrateRange">Screen-share video bitrate</label><output id="bitrateOutput">${state.bitrate.toFixed(1)} Mbps</output></div><input id="bitrateRange" type="range" min="0.5" max="4" step="0.25" value="${state.bitrate}"></div><div class="input-group"><label for="fpsSelect">Target frame rate</label><select id="fpsSelect"><option value="15"${state.frameRate===15?' selected':''}>15 FPS</option><option value="30"${state.frameRate===30?' selected':''}>30 FPS</option><option value="60"${state.frameRate===60?' selected':''}>60 FPS</option></select></div><div class="field-row"><div><div class="field-title">Noise suppression</div><div class="field-description">Request browser voice processing.</div></div><button class="switch ${state.noise?'on':''}" data-switch="noise" aria-label="Toggle noise suppression" aria-pressed="${state.noise}"></button></div><div class="field-row"><div><div class="field-title">Echo cancellation</div><div class="field-description">Request echo control when mic is enabled.</div></div><button class="switch ${state.echo?'on':''}" data-switch="echo" aria-label="Toggle echo cancellation" aria-pressed="${state.echo}"></button></div>`,`${cancelButton}<button class="btn primary" data-action="save-technical">Apply demo settings</button>`);}
  if(type==='invite'){const invite=location.protocol==='file:'?`https://yourname.github.io/your-repo/?room=${encodeURIComponent(state.roomID)}`:`${location.origin}${location.pathname}?room=${encodeURIComponent(state.roomID)}`;html=modalShell('Invite to voice call','Share a room link with up to six participants.',`<div class="join-room-card"><strong>${escapeHTML(state.roomName)}</strong><div class="hint" style="margin-top:7px"><span class="notice-dot"></span> ${persons.length} of 6 participants</div></div><div class="input-group"><label for="inviteLink">Invite link · concept only</label><div class="invite-url"><input id="inviteLink" type="text" value="${escapeHTML(invite)}" readonly><button class="btn primary" data-action="copy-invite">${I('copy','sm')} Copy</button></div></div>`,`<button class="btn" data-action="rename-room">Rename room</button><button class="btn primary" data-action="close-modal">Done</button>`);}
  if(type==='rename'){html=modalShell('Rename room','This name is only changed in the open prototype.',`<div class="input-group"><label for="renameInput">Call title</label><input type="text" id="renameInput" maxlength="50" value="${escapeHTML(state.roomName)}"></div>`,`${cancelButton}<button class="btn primary" data-action="save-rename">Save</button>`)}
@@ -2804,7 +2874,7 @@ function openModal(type,id){if(state.modal?.type==='account')closeModal();if(typ
  if(type==='share-details'){html=modalShell('Screen-share details','Simulated stream statistics',`<div class="settings-grid"><div class="metric"><small>Resolution</small><strong>${Math.round(state.streamHeight*16/9)}×${state.streamHeight}</strong></div><div class="metric"><small>Framerate</small><strong>${state.frameRate} FPS</strong></div><div class="metric"><small>Bitrate/viewer</small><strong>${state.bitrate.toFixed(2)} Mbps</strong></div><div class="metric"><small>Codec</small><strong>${escapeHTML(state.codec.split(' ')[0])}</strong></div></div><div class="info-box">At five remote peers, the estimated outgoing video bitrate would be ${(state.bitrate*5).toFixed(2)} Mbps before overhead. This is a UI estimate, not live telemetry.</div>`,`<button class="btn primary" data-action="close-modal">Close</button>`)}
  if(type==='leave'){html=modalShell('Leave call?','This is a local-only UI prototype.',`<p></p>`,`<button class="btn" data-action="close-modal">Stay</button><button class="btn danger" data-action="confirm-leave">Leave</button>`)}
  if(type==='left'){html=modalShell('You left the call','Your local profile was kept.',`<div class="join-room-card"></div>`,`<button class="btn primary" data-action="rejoin">Rejoin call</button>`)}
- $('#modal').innerHTML=html;if(type==='account'){setupAudioSettings();setupStreamSettings();mountSettingsPane()}$('#modalBackdrop').hidden=false;if(type==='account')animatePaneSwap('settings');setTimeout(()=>{if(type==='welcome')$('#welcomeName')?.focus();if(type==='account')$('#editName')?.blur()},0);
+ $('#modal').innerHTML=html;if(type==='account'){setupAudioSettings();setupStreamSettings();mountSettingsPane();pollDebugInfo().catch(()=>{})}$('#modalBackdrop').hidden=false;if(type==='account')animatePaneSwap('settings');setTimeout(()=>{if(type==='welcome')$('#welcomeName')?.focus();if(type==='account')$('#editName')?.blur()},0);
 }
 function closeModal(force=false){const closingSettings=state.modal?.type==='account';if(closingSettings)unmountSettingsPane();endPreview();if(state.modal?.type==='welcome'&&!force)return;state.modal=null;$('#modalBackdrop').hidden=true;$('#modal').innerHTML='';if(closingSettings){state.chatOpen=false;updateControls()}}
 function saveName(inputId){const el=$('#'+inputId);const name=(el?.value||'').trim().replace(/\s+/g,' ').slice(0,28);if(!name){toast('Please enter a display name.');el?.focus();return false}state.name=name;persist();redraw();renderChat();return true}
