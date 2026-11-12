@@ -995,7 +995,22 @@ dialog.call-confirm footer button.btn:last-child{background:#502b34!important;bo
   #app .dock-inner>.dock-button{min-width:34px!important;padding-inline:2px!important}
   .settings-docked .settings-nav button{font-size:10px!important}
 }
-</style><style id="p2p-debug-info-styles">
+</style><style id="p2p-reply-styles">
+.reply-preview[hidden]{display:none!important}
+.reply-preview{display:flex;align-items:center;gap:9px;padding:8px 10px;margin-bottom:6px;border-left:3px solid #64c88a;background:var(--panel2);border-radius:6px;min-width:0}
+.reply-preview-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.reply-preview small{font-size:11px;color:var(--muted)}
+.reply-preview strong{color:#8cdaad;font-weight:650}
+.reply-preview-copy>span{font-size:12px;color:var(--fg);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reply-preview>button{flex:0 0 27px;height:27px;border:0;border-radius:5px;background:transparent;color:var(--muted);font-size:22px;cursor:pointer}
+.reply-preview>button:hover{background:#ffffff14;color:var(--fg)}
+.message-reply-quote{display:flex;flex-direction:column;gap:3px;width:100%;min-width:0;padding:5px 9px;margin:0 0 6px;text-align:left;border:0;border-left:3px solid #6ac38b;border-radius:4px;background:#ffffff0a;color:var(--fg);cursor:pointer}
+.message-reply-quote:hover{background:#ffffff14}
+.message-reply-quote strong{font-size:12px;font-weight:650;color:#96d7ae}
+.message-reply-quote span{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;opacity:.78}
+.message-actions [data-message-action=reply]{font-size:20px;line-height:1}
+</style>
+<style id="p2p-debug-info-styles">
 .debug-info-pane{margin-top:18px;padding-top:17px;border-top:1px solid var(--border)}
 .debug-info-pane>.hint{margin:4px 0 12px;font-size:12px;line-height:1.45}
 .debug-totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:0 0 11px}
@@ -1248,6 +1263,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
    <div id="composerPlusMenu" class="chat-popup chat-plus-menu" hidden><button class="menu-btn" data-action="upload"><svg class="icon"><use href="#i-upload"/></svg>Upload file</button><button class="menu-btn" data-action="gif"><svg class="icon"><use href="#i-gif"/></svg>Send a GIF</button></div>
    <div id="emojiMenu" class="chat-popup emoji-menu" hidden><input id="emojiSearch" type="search" placeholder="Find an emoji" aria-label="Find an emoji"><nav id="category" aria-label="Emoji categories"></nav><strong id="emojiGroupName">Smileys &amp; Emotion</strong><div class="emoji-grid" id="emojiGrid"></div></div>
    <div id="gifMenu" class="chat-popup gif-menu" hidden><form id="gifSearch"><input type="search" placeholder="Search GIPHY · press Enter" aria-label="Search GIPHY"></form><div id="gifResults" aria-live="polite"></div><small>Powered by GIPHY</small></div>
+   <div id="replyPreview" class="reply-preview" hidden><div class="reply-preview-copy"><small>Replying to <strong id="replyAuthor"></strong></small><span id="replyExcerpt"></span></div><button type="button" id="cancelReply" aria-label="Cancel reply" title="Cancel reply">×</button></div>
    <div class="compose-shell"><button class="composer-plus" id="composerPlusBtn" title="Attachments and GIFs"><svg class="icon"><use href="#i-plus"/></svg></button><div id="chatInput" role="textbox" contenteditable="true" aria-label="Message" aria-multiline="true" data-placeholder="Message chat…"></div><button class="icon-btn" id="emojiBtn" title="Emoji" aria-label="Emoji"><svg class="icon"><use href="#i-smile"/></svg></button><button class="send-button" id="sendBtn" title="Send message" aria-label="Send message"><svg class="icon"><use href="#i-send"/></svg></button></div>
   </div>
  </aside>
@@ -2178,7 +2194,7 @@ function dropMember(x){
  if(inRoom){if(x.joined)playCue('leave',true);renderCall();refreshModerationSettings()}
 }
 function exitNetwork(){
- roomBans.clear();stopAdaptiveShare();inRoom=false;memberReturns.clear();hostEvents?.close();hostEvents=null;clearTimeout(hostTimer);registry?.destroy();registry=null;
+ clearReply();roomBans.clear();stopAdaptiveShare();inRoom=false;memberReturns.clear();hostEvents?.close();hostEvents=null;clearTimeout(hostTimer);registry?.destroy();registry=null;
  for(const x of [...livePeers.values()])dropMember(x);
  client?.destroy();client=null;pendingMembers.clear();wireStatus='';
 }
@@ -2444,7 +2460,7 @@ function historyPacket(x,msg){
  if(msg.op==='history-get'&&registry){
   if(msg.start===0)x.history=state.chatMessages.filter(m=>m.wireKey).slice();
   const list=x.history;if(!list||!Number.isSafeInteger(msg.start)||msg.start<0||msg.start>list.length)return;
-  const batch=list.slice(msg.start,msg.start+30).map(m=>({key:m.wireKey,type:m.type,text:m.text,url:m.url,name:m.filename,size:m.size,mime:m.mime||state.files.get(m.key)?.blob.type,author:getPerson(m.who)?.name,when:m.when,time:m.createdAt,edited:m.editedAt,reactions:[...(m.reactions||[])].map(([name,users])=>[name,[...users].map(id=>id==='aster'?memberId:id)])}));
+  const batch=list.slice(msg.start,msg.start+30).map(m=>({key:m.wireKey,type:m.type,text:m.text,url:m.url,name:m.filename,size:m.size,mime:m.mime||state.files.get(m.key)?.blob.type,author:getPerson(m.who)?.name,when:m.when,time:m.createdAt,edited:m.editedAt,replyTo:m.replyTo||null,reactions:[...(m.reactions||[])].map(([name,users])=>[name,[...users].map(id=>id==='aster'?memberId:id)])}));
   x.conn.send({op:'history',batch,next:msg.start+batch.length,total:list.length});if(msg.start+batch.length===list.length)x.history=null;return;
  }
  if(msg.op!=='history'||x.id!==directoryOwner||!x.historyKeys||!Array.isArray(msg.batch)||msg.batch.length>30)return;
@@ -2453,7 +2469,7 @@ function historyPacket(x,msg){
   const id=r.key.split('/')[0];if(!validMember(id)||r.key.length>130||(r.type==='gif'&&!giphyURL(r.url)))continue;
   if(r.type==='file'&&(!Number.isInteger(r.size)||r.size<0||r.size>MAX_FILE))continue;
   x.historyKeys.add(r.key);if(!knownPeople.has(id))knownPeople.set(id,cleanProfile(id,{name:r.author}));
-  state.chatMessages.push({id:r.key,wireKey:r.key,key:r.key,who:id===memberId?'aster':id,type:r.type,text:String(r.text||'').slice(0,4000),url:r.type==='gif'?giphyURL(r.url):'',when:String(r.when||'').slice(0,32),createdAt:Number(r.time)||0,editedAt:Number(r.edited)||0,filename:String(r.name||'Attachment').slice(0,200),size:r.size,mime:attachmentMime(r.name,r.mime),preview:true,reactions:new Map((Array.isArray(r.reactions)?r.reactions:[]).filter(([n,ids])=>byName.has(n)&&Array.isArray(ids)).map(([n,ids])=>[n,new Set(ids.filter(validMember).map(id=>id===memberId?'aster':id))]))});
+  state.chatMessages.push({id:r.key,wireKey:r.key,key:r.key,who:id===memberId?'aster':id,type:r.type,text:String(r.text||'').slice(0,4000),url:r.type==='gif'?giphyURL(r.url):'',when:String(r.when||'').slice(0,32),createdAt:Number(r.time)||0,editedAt:Number(r.edited)||0,replyTo:normalizeReply(r.replyTo),filename:String(r.name||'Attachment').slice(0,200),size:r.size,mime:attachmentMime(r.name,r.mime),preview:true,reactions:new Map((Array.isArray(r.reactions)?r.reactions:[]).filter(([n,ids])=>byName.has(n)&&Array.isArray(ids)).map(([n,ids])=>[n,new Set(ids.filter(validMember).map(id=>id===memberId?'aster':id))]))});
  }
  const status=$('#historyStatus');status.hidden=msg.next>=msg.total;
  if(!status.hidden){status.textContent='Syncing messages · '+msg.next+' / '+msg.total;x.conn.send({op:'history-get',start:msg.next})}
@@ -2471,8 +2487,8 @@ function receiveChat(x,msg){
   if(msg.type==='gif'&&(typeof msg.url!=='string'||!giphyURL(msg.url)))return;
   if(msg.type==='file'){
    if(!Number.isInteger(msg.size)||msg.size<0||msg.size>MAX_FILE)return;
-   addChat({who:id,type:'file',wireKey:key,key,filename:String(msg.name||'Attachment').slice(0,200),size:msg.size,mime:attachmentMime(msg.name,msg.mime),text});
-  }else addChat({who:id,type:msg.type,text,preview:true,url:msg.url,wireKey:key});
+   addChat({who:id,type:'file',wireKey:key,key,filename:String(msg.name||'Attachment').slice(0,200),size:msg.size,mime:attachmentMime(msg.name,msg.mime),text,replyTo:normalizeReply(msg.replyTo)});
+  }else addChat({who:id,type:msg.type,text,preview:true,url:msg.url,wireKey:key,replyTo:normalizeReply(msg.replyTo)});
   return;
  }
  const i=state.chatMessages.findIndex(m=>m.wireKey===key);if(i<0)return;
@@ -2491,7 +2507,7 @@ function receiveChat(x,msg){
  renderChat();
 }
 function postToRoom(m){
- const msg={op:'post',key:m.wireKey,type:m.type,text:m.text,url:m.url};
+ const msg={op:'post',key:m.wireKey,type:m.type,text:m.text,url:m.url,replyTo:m.replyTo||null};
  if(m.type==='file'){const entry=state.files.get(m.key);if(entry)broadcast({...msg,name:m.filename,mime:entry.blob.type,size:entry.blob.size})}
  else broadcast(msg);
 }
@@ -2793,7 +2809,33 @@ function toast(message){const box=$('#toastStack');const el=document.createEleme
 function closeMenus(){for(const q of ['#composerPlusMenu','#gifMenu','#emojiMenu'])$(q).hidden=true}
 function toggleMenu(selector){const el=$(selector),opening=el.hidden;closeMenus();el.hidden=!opening;}
 function hyperlinkify(txt){return escapeHTML(txt).replace(/(https?:\/\/[^\s<]+)/g,(match)=>{const clean=match.replace(/[),.!?]+$/,'');return `<a target="_blank" rel="noopener noreferrer" href="${clean}">${clean}</a>${match.slice(clean.length)}`})}
-function addChat(m,scroll=true){if(m.who==="aster"&&scroll)playCue("send");if(scroll&&!state.chatOpen&&m.who!=='aster'){state.unread++;updateControls()}const log=$('#chatMessages');const follow=scroll&&(m.who==='aster'||log.scrollHeight-log.clientHeight-log.scrollTop<64);state.chatMessages.push({...m,animateArrival:scroll,createdAt:Date.now(),id:'m'+Date.now()+Math.random(),when:m.when||new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});const inserted=state.chatMessages.at(-1);for(const x of livePeers.values())if(x.historyKeys&&m.wireKey)x.historyKeys.add(m.wireKey);if(inRoom&&m.who==='aster'){inserted.wireKey=memberId+'/'+inserted.id;postToRoom(inserted)}stickToEnd||=follow;queueChat()}
+// Replies use stable wire message keys and small text snapshots (also retained in history sync).
+let pendingReply=null;
+function normalizeReply(value){
+ if(!value||typeof value!=='object'||typeof value.key!=='string'||!value.key||value.key.length>130)return null;
+ return {key:value.key,author:String(value.author||'Participant').slice(0,48),text:String(value.text||'Message').slice(0,160)};
+}
+function replyExcerpt(m){return m.type==='file'?(m.filename||'Attachment'):m.type==='gif'?'GIF':(m.text||'Message').replace(/\s+/g,' ').trim().slice(0,160)}
+function updateReplyComposer(){
+ const bar=document.getElementById('replyPreview');if(!bar)return;
+ bar.hidden=!pendingReply;
+ if(pendingReply){bar.querySelector('#replyAuthor').textContent=pendingReply.author;bar.querySelector('#replyExcerpt').textContent=pendingReply.text}
+}
+function startReply(m){
+ if(!m?.wireKey)return;
+ pendingReply=normalizeReply({key:m.wireKey,author:getPerson(m.who)?.name||'Participant',text:replyExcerpt(m)});
+ updateReplyComposer();document.getElementById('chatInput')?.focus();
+}
+function clearReply(){pendingReply=null;updateReplyComposer()}
+function jumpToReply(key){
+ const i=state.chatMessages.findIndex(m=>m.wireKey===key);
+ if(i<0){toast('Original message is no longer in chat.');return}
+ const log=document.getElementById('chatMessages');indexHeights();
+ selectedMessage=state.chatMessages[i].id;stickToEnd=false;
+ log.scrollTop=Math.max(0,(offsets[i]||0)-Math.min(65,log.clientHeight/5));
+ refreshRows=true;queueChat();
+}
+function addChat(m,scroll=true){if(m.who==='aster'&&pendingReply&&['text','tts','gif','file'].includes(m.type)){m.replyTo=pendingReply;clearReply()}if(m.who==="aster"&&scroll)playCue("send");if(scroll&&!state.chatOpen&&m.who!=='aster'){state.unread++;updateControls()}const log=$('#chatMessages');const follow=scroll&&(m.who==='aster'||log.scrollHeight-log.clientHeight-log.scrollTop<64);state.chatMessages.push({...m,animateArrival:scroll,createdAt:Date.now(),id:'m'+Date.now()+Math.random(),when:m.when||new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});const inserted=state.chatMessages.at(-1);for(const x of livePeers.values())if(x.historyKeys&&m.wireKey)x.historyKeys.add(m.wireKey);if(inRoom&&m.who==='aster'){inserted.wireKey=memberId+'/'+inserted.id;postToRoom(inserted)}stickToEnd||=follow;queueChat()}
 function renderMessage(m,previous){if(m.type==='system')return `<article class="message system-message"><span class="system-icon">${I('message')}</span><div class="message-content"><div class="message-head"><span class="message-name">System</span></div><div class="message-text">${escapeHTML(m.text)}</div></div></article>`;const p=getPerson(m.who)||getPerson('aster');let body='';if(m.type==='text'||m.type==='tts'){const raw=(m.text||'').trim();const alias=/^:([\w+-]+):$/.exec(raw);const solo=byGlyph.has(raw)||!!(alias&&byName.has(alias[1]));body=`<div class="message-text${solo?' solo-emoji':''}">${m.type==='tts'?'<span class="tts-chip">TTS</span>':''}${messageMarkup(m.text||'')}</div>`;if(m.preview&&m.text){let url=(m.text.match(/https?:\/\/[^\s]+/)||[])[0];if(url)body+=genericLinkPreview(url);}}
  else if(m.type==='gif'){body=m.url?`<img class="attachment" src="${escapeHTML(m.url)}" alt="GIF from GIPHY">`:m.emoji?`<div class="sticker-card"><span class="sticker-emoji">${m.emoji}</span><span class="gif-tag">GIF</span></div>`:`<div class="gif-placeholder">${I('play')}<span>GIF</span></div>`;}
  else if(m.type==='file'){const record=state.files.get(m.key);
@@ -2801,6 +2843,7 @@ function renderMessage(m,previous){if(m.type==='system')return `<article class="
  if(auto&&!m.autoRequested){m.autoRequested=true;queueMicrotask(()=>{if(!state.files.has(m.key))requestFile(m,false)})}
  body=(record?.blob.type.startsWith('audio/')?`<audio class="attachment" controls preload="none" src="${record.url}"></audio>`:'')+(record?.blob.type.startsWith('video/')?`<video class="attachment" src="${record.url}" controls preload="none" playsinline></video>`:auto?`<small data-file-progress="${escapeHTML(m.key)}">Loading ${Math.round((downloads.get(m.key)?.offset||0)/Math.max(1,m.size)*100)}%</small>`:!record&&(m.mime==='video/mp4'||m.mime?.startsWith('image/'))?`<button class="btn" data-preview-file="${escapeHTML(m.key)}">${m.mime==='video/mp4'?'Preview video':'View image'}</button>`:'')+(record?.blob.type.startsWith("image/")?`<img class="attachment" src="${record.url}" alt="${escapeHTML(m.filename)}">`:"")+`<button class="file-card ${record||livePeers.has(m.who)?'':'file-unavailable'}" data-download="${escapeHTML(m.key)}"><span class="file-symbol">${I('file')}</span><span style="min-width:0;flex:1"><strong>${escapeHTML(m.filename)}</strong><small>${formatSize(m.size)}${record?'':livePeers.has(m.who)?' · Download':' · Sender offline'}</small></span>${I('download')}</button>${record?.preview?`<pre class="text-preview">${escapeHTML(record.preview)}</pre>`:''}${m.text?`<div class="message-text" style="margin-top:6px">${messageMarkup(m.text)}</div>`:''}`;}
  else body=`<div class="message-text">${hyperlinkify(m.text||'')}</div>`;
+ if(m.replyTo){const r=normalizeReply(m.replyTo);if(r)body=`<button type="button" class="message-reply-quote" data-reply-jump="${escapeHTML(r.key)}" title="Jump to original message"><strong>${escapeHTML(r.author)}</strong><span>${escapeHTML(r.text)}</span></button>`+body;}
  if(previous&&previous.who===m.who&&m.createdAt-previous.createdAt<7*60*1000)return `<article class="message continuation" aria-label="${escapeHTML(p.name)}, ${escapeHTML(m.when)}"><div class="message-content">${body}</div></article>`;
  return `<article class="message">${avatarMarkup(p,'message-avatar')}<div class="message-content"><div class="message-head"><span class="message-name">${escapeHTML(p.name)}</span><time class="message-time">${escapeHTML(m.when)}</time></div>${body}</div></article>`}
 const estimatedRow=80,heights=[],offsets=[0],visibleRows=new Map();
@@ -3708,7 +3751,7 @@ function decorateMessage(row,m){
   content.append(chips);
  }
  const bar=document.createElement('div');bar.className='message-actions';
- bar.innerHTML=actionButton('react','Add reaction',I('smile'));
+ bar.innerHTML=actionButton('reply','Reply to message','<span aria-hidden="true">↩</span>')+actionButton('react','Add reaction',I('smile'));
  if(m.who==='aster'){
   if(['text','tts','file'].includes(m.type))bar.innerHTML+=actionButton('edit','Edit message','<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 5 4 4M4 20l4-1L20 7a2.8 2.8 0 0 0-4-4L4 15z"/></svg>');
   bar.innerHTML+=actionButton('delete','Delete message',I('trash'));
@@ -3717,6 +3760,8 @@ function decorateMessage(row,m){
 }
 function setupMessageActions(){
  const log=$('#chatMessages'),picker=$('#emojiMenu');
+ $('#cancelReply').onclick=clearReply;
+ $('#chatInput').addEventListener('keydown',e=>{if(e.key==='Escape'&&pendingReply){e.stopPropagation();clearReply()}});
  let target=null;
  function toggle(m,name){
   if(!byName.has(name))return;
@@ -3739,9 +3784,12 @@ function setupMessageActions(){
   if(!row)return;
   const idx=Number(row.dataset.index),m=state.chatMessages[idx];
   if(m?.id!==selectedMessage)return;
+  const quote=e.target.closest('[data-reply-jump]');
+  if(quote){jumpToReply(quote.dataset.replyJump);return}
   const chip=e.target.closest('[data-reaction]');
   if(chip){toggle(m,chip.dataset.reaction);return}
   const action=e.target.closest('[data-message-action]')?.dataset.messageAction;
+  if(action==='reply'){startReply(m);return}
   if(action==='react'){
    e.stopImmediatePropagation();closeMenus();$('#emojiBtn').click();target=m;return;
   }
@@ -3854,6 +3902,7 @@ function setupContextMenus(){
   if(row){
    const m=state.chatMessages.find(m=>m.id===row.dataset.message);
    if(!m)return;
+   action('Reply',()=>startReply(m));
    action('Add reaction',()=>messageAction(m.id,'react'));
    if(m.text)action('Copy message',()=>navigator.clipboard.writeText(m.text));
    if(m.type==='file'){
