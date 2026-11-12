@@ -1967,13 +1967,14 @@ function networkUUID(){
 }
 const memberId='vc-'+networkUUID();
 // Stored in this browser only; a modified client can change it.
-const moderationIdentity=(()=>{
+function moderationIdentity(code){
+ const room=/^\d{6}$/.test(code||'')?code:'unknown';
  try{
-  const key='p2p-moderation-id-v1';let id=localStorage.getItem(key);
+  const key='p2p-moderation-id-v1-'+room;let id=localStorage.getItem(key);
   if(!/^vc-[a-f0-9-]{36}$/.test(id||'')){id='vc-'+networkUUID();localStorage.setItem(key,id)}
   return id;
  }catch{return 'vc-'+networkUUID()}
-})();
+}
 const roomBans=new Map(); // Host memory only, never persisted.
 const validMember=id=>typeof id==='string'&&/^vc-[a-f0-9-]{36}$/.test(id);
 let wasCreator=false,client,registry,roomSecret='',directoryOwner='',inRoom=false,wireStatus='',lastAvatar=null,hostTimer;
@@ -2011,7 +2012,7 @@ function forgetLink(x){
 }
 function dialMember(id){
  const token=networkUUID();memberReturns.set(id,token);
- const outgoing=client.connect(id,{reliable:true,metadata:{secret:roomSecret,returnToken:token,...(id===directoryOwner?{identity:moderationIdentity}:{})}});
+ const outgoing=client.connect(id,{reliable:true,metadata:{secret:roomSecret,returnToken:token,...(id===directoryOwner?{identity:moderationIdentity(roomCode)}:{})}});
  attachMember(outgoing,true);
  setTimeout(()=>{if(memberReturns.get(id)===token)memberReturns.delete(id)},25000);
 }
@@ -2046,7 +2047,7 @@ async function memberClient(){
    const old=livePeers.get(conn.peer);
    if(old?.conn.open||!client)return;
    if(old)forgetLink(old);
-   attachMember(client.connect(conn.peer,{reliable:true,metadata:{secret:roomSecret,memberReply:nonce,...(conn.peer===directoryOwner?{identity:moderationIdentity}:{})}}),true);
+   attachMember(client.connect(conn.peer,{reliable:true,metadata:{secret:roomSecret,memberReply:nonce,...(conn.peer===directoryOwner?{identity:moderationIdentity(roomCode)}:{})}}),true);
   });
   attachMember(conn,false);
  });
@@ -2103,7 +2104,7 @@ async function ownDirectory(code){
 async function queryRoom(code,op){
  if(op==='inspect')selectDirectory(defaultLocalSignal);
  if(lanDirectory&&localSignal&&!legacyLookup){
-  const r=await fetch('/directory/'+code+'/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:memberId,op,identity:moderationIdentity})});
+  const r=await fetch('/directory/'+code+'/query',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:memberId,op,identity:moderationIdentity(code)})});
   if(r.status===404&&op==='inspect'){
    selectDirectory(true,true);
    try{return await queryPeerRoom(code,op)}catch{}
@@ -2128,7 +2129,7 @@ async function queryPeerRoom(code,op){
    if(e.type==='peer-unavailable'&&e.message.includes(directory))done(null,'No host is registered for this code here. Check that the host still has the room open.');
   };
   const timer=setTimeout(()=>done(null,'The host connection timed out. Keep the host tab open and try again or switch networks.'),22000);
-  function listen(c){links.push(c);c.on('open',()=>c.send({op,identity:moderationIdentity}));c.once('data',data=>done(data))}
+  function listen(c){links.push(c);c.on('open',()=>c.send({op,identity:moderationIdentity(code)}));c.once('data',data=>done(data))}
   directoryReturns.set(token,{directory,listen});peer.on('error',failed);
   listen(peer.connect(directory,{reliable:true,metadata:{returnToken:token}}));
  });
@@ -2277,7 +2278,7 @@ function attachMember(conn,initiator){
   await Promise.all([x.voice.sender.replaceTrack(speechFeed?.stream.getAudioTracks()[0]||micGraph?.output.stream.getAudioTracks()[0]||null),x.screen.sender.replaceTrack(displayStream?.getVideoTracks()[0]||null),x.sound?.sender.replaceTrack(displayStream?.getAudioTracks()[0]||null)]);
  }
  conn.on('open',async()=>{try{
-  x.joined=true;playCue('join');refreshModerationSettings();conn.send({op:'profile',profile:selfProfile(),...(id===directoryOwner?{identity:moderationIdentity}:{})});if(id===directoryOwner){x.historyKeys=new Set(state.chatMessages.map(m=>m.wireKey));$('#historyStatus').hidden=false;$('#historyStatus').textContent='Syncing messages…';conn.send({op:'history-get',start:0})}syncNetwork();
+  x.joined=true;playCue('join');refreshModerationSettings();conn.send({op:'profile',profile:selfProfile(),...(id===directoryOwner?{identity:moderationIdentity(roomCode)}:{})});if(id===directoryOwner){x.historyKeys=new Set(state.chatMessages.map(m=>m.wireKey));$('#historyStatus').hidden=false;$('#historyStatus').textContent='Syncing messages…';conn.send({op:'history-get',start:0})}syncNetwork();
   if(initiator){pc.addTransceiver('audio');pc.addTransceiver('video');pc.addTransceiver('audio');await bindSlots();await sendSDP(await pc.createOffer())}
  }catch{dropMember(x)}});
  conn.on('close',()=>dropMember(x));conn.on('error',()=>dropMember(x));
@@ -2308,7 +2309,7 @@ function attachMember(conn,initiator){
    if(msg.desc.type==='offer'){await bindSlots();await sendSDP(await pc.createAnswer())}
    if(x.screen)(state.autoStreamQuality?applyAdaptiveSender(x):capSender(x.screen.sender,state.bitrate)).catch(()=>{});return;
   }
-  if(msg.op==='directory'){if(!livePeers.has(directoryOwner)&&directoryOwner!==memberId)directoryOwner=id;if(id===directoryOwner)conn.send({op:'identity',identity:moderationIdentity});return}
+  if(msg.op==='directory'){if(!livePeers.has(directoryOwner)&&directoryOwner!==memberId)directoryOwner=id;if(id===directoryOwner)conn.send({op:'identity',identity:moderationIdentity(roomCode)});return}
   if(msg.op==='profile'||msg.op==='status'){
    if(msg.op==='profile'&&isRoomHost()&&validMember(msg.identity)){x.identity=msg.identity;if(peerIsBanned(x)){enforceRemoval(x,'ban');return}}
    const before=x.person;x.person=cleanProfile(id,msg.profile);if(msg.op==='status')x.person.avatar=before.avatar;knownPeople.set(id,x.person);
