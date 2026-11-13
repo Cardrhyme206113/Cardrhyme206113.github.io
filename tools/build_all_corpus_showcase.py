@@ -51,6 +51,70 @@ def parse_corpus():
         raise AssertionError(f"Expected {expected.group(1)} corpus flows, found {len(patterns)}")
     return patterns
 
+def flow_familiarity(pattern):
+    # Corpus headers contain popularity and map-occurrence measurements.
+    # Larger values indicate more commonly encountered source flows.
+    return .45 * pattern["popularity"] + .55 * pattern["maps"]
+
+def style_features(pattern):
+    notes = pattern["notes"]
+    length = len(notes)
+    mean_x = sum(n[0] for n in notes) / length
+    mean_y = sum(n[1] for n in notes) / length
+    diagonal = sum(n[2] in (4, 5, 6, 7) for n in notes) / length
+    dot = sum(n[2] == 8 for n in notes) / length
+    leaps = sum(abs(notes[i][0] - notes[i - 1][0]) +
+                abs(notes[i][1] - notes[i - 1][1])
+                for i in range(1, length)) / max(1, length - 1)
+    # A compact fingerprint for geometry-based grouping within familiarity bands.
+    return (length / 10, mean_x / 3, mean_y / 2, diagonal, dot, leaps / 5)
+
+def style_distance(a, b):
+    return sum(w * abs(x-y) for w, x, y in zip(
+        (1.4, 1.2, 1.2, 1.0, .8, 1.1), a, b))
+
+def sort_by_familiarity(patterns):
+    # First order by actual corpus popularity/map statistics, most familiar first.
+    # Split into ten familiarity deciles: jumping a minute ahead traverses
+    # a substantially different popularity range, rather than random motifs.
+    ranked = sorted(patterns, key=lambda p: (
+        -flow_familiarity(p), -p["maps"], -p["popularity"], p["id"]))
+    ordered = []
+    groups = []
+    for group_index in range(10):
+        start = len(ranked) * group_index // 10
+        end = len(ranked) * (group_index + 1) // 10
+        group = ranked[start:end]
+        # Within each decile cluster related geometry: neighboring motifs look
+        # familiar, while groups encountered later in the track look different.
+        # A locality-based greedy ordering is cheap for <=326 items per decile.
+        features = {p["id"]: style_features(p) for p in group}
+        left = {p["id"]: p for p in group}
+        first = group[0]
+        section = [first]
+        del left[first["id"]]
+        while left:
+            last = section[-1]
+            target = min(left.values(), key=lambda p: (
+                style_distance(features[last["id"]], features[p["id"]]),
+                -flow_familiarity(p),
+                p["id"]))
+            section.append(target)
+            del left[target["id"]]
+        scores = [flow_familiarity(p) for p in group]
+        groups.append({
+            "decile": group_index + 1,
+            "name": f"Familiarity {100-group_index*10:02d}-{90-group_index*10:02d} percentile",
+            "flowCount": len(group),
+            "meanFamiliarity": round(sum(scores)/len(scores), 2),
+            "minFamiliarity": round(min(scores), 2),
+            "maxFamiliarity": round(max(scores), 2),
+        })
+        ordered.extend(section)
+    assert len(ordered) == len(patterns)
+    assert {p["id"] for p in ordered} == {p["id"] for p in patterns}
+    return ordered, groups
+
 def make_cover(path):
     width = height = 128
     raw = bytearray()
@@ -95,13 +159,18 @@ def synth_clicks(note_times, accents, duration, path):
         out.writeframes(samples.tobytes())
 
 def main():
-    patterns = parse_corpus()
+    patterns, sections = sort_by_familiarity(parse_corpus())
     OUTPUT.mkdir(exist_ok=True)
     notes = []
     note_times = []
     accents = []
     beats = INTRO_SECONDS * BPM / 60
-    for pattern in patterns:
+    per_decile = [len(patterns)*i//10 for i in range(11)]
+    for position, pattern in enumerate(patterns):
+        if position in per_decile[:-1]:
+            section = sections[per_decile.index(position)]
+            section["startSeconds"] = round(beats * 60 / BPM, 2)
+            section["startFlow"] = position
         accents.append(beats * 60 / BPM)
         for j, (x, y, d) in enumerate(pattern["notes"]):
             seconds = beats * 60 / BPM
@@ -112,11 +181,15 @@ def main():
                 "_lineLayer": y,
                 "_type": pattern["id"] % 2,
                 "_cutDirection": d,
-                "_customData": {"_corpusIndex": pattern["id"], "_corpusStep": j}
+                "_customData": {"_corpusIndex": pattern["id"], "_corpusStep": j,
+                                "_familiarity": round(flow_familiarity(pattern), 2)}
             })
             beats += BEAT_STEP
         beats += FLOW_GAP
     duration = beats * 60 / BPM + .4
+    for index, section in enumerate(sections):
+        section["endSeconds"] = (sections[index+1]["startSeconds"]
+                                 if index+1 < len(sections) else round(duration, 2))
     beatmap = {
         "_version": "2.0.0",
         "_notes": notes,
@@ -174,8 +247,10 @@ def main():
         "bpm": BPM,
         "seconds": round(duration, 2),
         "flowLengths": {str(n): sum(len(p["notes"]) == n for p in patterns) for n in range(3, 11)},
+        "ordering": "Descending corpus familiarity (45% popularity + 55% map occurrences), 10 chronological deciles, geometry-nearest ordering within deciles",
+        "familiaritySections": sections,
         "archive": archive.name,
-        "description": "Every curated SimbersV5 corpus flow once, original lane/direction geometry; alternating red/blue flow colors. Rapid synthetic click per note."
+        "description": "Every curated SimbersV5 flow once, ordered from most familiar to least familiar. Neighboring flows are geometrically grouped and each familiarity decile has an indexed timeline range. One rapid click per note."
     }
     (OUTPUT / "report.json").write_text(json.dumps(manifest, indent=2) + "\n")
     with zipfile.ZipFile(archive) as z:
@@ -183,6 +258,7 @@ def main():
         stored = json.loads(z.read("ExpertPlus.dat"))
         assert len(stored["_notes"]) == len(notes)
         assert {n["_customData"]["_corpusIndex"] for n in stored["_notes"]} == set(range(len(patterns)))
+    assert all(sections[i]["meanFamiliarity"] >= sections[i+1]["meanFamiliarity"] for i in range(9))
     print(json.dumps(manifest, indent=2))
 
 if __name__ == "__main__":
