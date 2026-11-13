@@ -2972,7 +2972,7 @@ html.viewport-side-by-side .intensityControl{
 .pastJobsNotice[hidden]{display:none!important}
 .pastJobsList{display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:10px;padding:0 0 36px}
 .pastJobsEmpty{border:1px dashed rgba(255,255,255,.20);border-radius:4px;background:rgba(20,20,22,.32);padding:40px 16px;text-align:center;color:#9a9a9a;font-size:12px;line-height:1.5}
-.pastJobsCard{display:grid;grid-template-columns:90px minmax(0,1fr);gap:16px;align-items:center;min-width:0;padding:13px;border:1px solid rgba(255,255,255,.12);border-radius:4px;background:rgba(20,20,22,.46);transition:background .15s,border-color .15s}
+.pastJobsCard{display:grid;grid-template-columns:minmax(0,1fr);gap:0;align-items:center;min-width:0;padding:13px;border:1px solid rgba(255,255,255,.12);border-radius:4px;background:rgba(20,20,22,.46);transition:background .15s,border-color .15s}
 .pastJobsCard:hover{background:rgba(28,28,32,.60);border-color:rgba(255,255,255,.20)}
 .pastJobsArt{width:90px;height:90px;display:block;object-fit:cover;border:1px solid rgba(255,255,255,.18);border-radius:3px;background:linear-gradient(145deg,#232a3d,#341a25)}
 .pastJobsDetails{min-width:0}
@@ -2992,7 +2992,7 @@ html.viewport-side-by-side .intensityControl{
   .pastJobsContent{padding:16px 11px!important}
   .pastJobsHeader .advancedHeaderButton{display:inline-flex!important;padding:0 9px!important;font-size:10px}
   .pastJobsPageHeader h2{font-size:25px}
-  .pastJobsCard{grid-template-columns:72px minmax(0,1fr);gap:10px;padding:10px}
+  .pastJobsCard{grid-template-columns:minmax(0,1fr);gap:0;padding:10px}
   .pastJobsArt{width:72px;height:72px}
   .pastJobsTitle{font-size:13px}
   .pastJobsMeta{font-size:9px;gap:2px 8px}
@@ -3002,7 +3002,7 @@ html.viewport-side-by-side .intensityControl{
   .pastJobsButtons .pastJobsDelete{margin-left:0}
 }
 @media(max-width:390px){
-  .pastJobsCard{grid-template-columns:60px minmax(0,1fr);gap:8px}
+  .pastJobsCard{grid-template-columns:minmax(0,1fr);gap:0}
   .pastJobsArt{width:60px;height:60px}
   .pastJobsButtons button{font-size:9px;padding:0 7px!important}
   .pastJobsClear .clearText{display:none}
@@ -3165,7 +3165,7 @@ html.viewport-side-by-side.viewport-wide .pastJobsEmpty{
   min-height:145px;padding:22px 10px!important;font-size:11px;
 }
 html.viewport-side-by-side.viewport-wide .pastJobsCard{
-  grid-template-columns:58px minmax(0,1fr);gap:9px;padding:9px;
+  grid-template-columns:minmax(0,1fr);gap:0;padding:9px;
 }
 html.viewport-side-by-side.viewport-wide .pastJobsArt{width:58px;height:58px}
 html.viewport-side-by-side.viewport-wide .pastJobsTitle{font-size:12px;margin-bottom:4px}
@@ -3250,7 +3250,7 @@ html.viewport-side-by-side.viewport-wide .pastJobsEmpty{
   border:0!important;background:transparent!important;
 }
 html.viewport-side-by-side.viewport-wide .pastJobsCard{
-  grid-template-columns:58px minmax(0,1fr);gap:9px;padding:9px;
+  grid-template-columns:minmax(0,1fr);gap:0;padding:9px;
   background:var(--bg-panel)!important;
 }
 html.viewport-side-by-side.viewport-wide .pastJobsArt{width:58px;height:58px}
@@ -3465,9 +3465,16 @@ export const oggEncoderVersion = WasmMediaEncoderApi.jsLibraryVersion();
   .simbersLongSongActions .simbersLongSongPrimary{grid-column:auto}
 }
 </style>
+<style id="simbersDropStyles">
+.simbersDropOverlay{position:fixed;inset:0;z-index:420000;pointer-events:none;display:none;align-items:center;justify-content:center;background:rgba(5,9,17,.82);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);padding:20px}
+.simbersDropOverlay.is-active{display:flex}
+.simbersDropHint{width:min(520px,100%);min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border:2px dashed var(--primary);border-radius:10px;background:rgba(20,28,40,.95);color:#fff;text-align:center;padding:28px}
+.simbersDropHint strong{font-size:clamp(21px,4vw,30px)}
+.simbersDropHint span{font-size:13px;color:#bfc9d7}
+</style>
 </head>
 <body>
-
+<div id="simbersDropOverlay" class="simbersDropOverlay" aria-hidden="true"><div class="simbersDropHint"><strong>Drop audio anywhere</strong><span>MP3 · FLAC · WAV · OGG · OPUS · AAC · M4A · WebM and more</span></div></div>
 <section id="simbersLongSongDialog" class="simbersLongSongDialog" role="dialog" aria-modal="true" aria-labelledby="simbersLongSongTitle" aria-describedby="simbersLongSongDescription" hidden>
   <div class="simbersLongSongCard">
     <h2 id="simbersLongSongTitle">Long audio · <span id="simbersLongSongDuration">5:00+</span></h2>
@@ -3532,7 +3539,7 @@ export const oggEncoderVersion = WasmMediaEncoderApi.jsLibraryVersion();
         <div id="simbersVersionInfo" class="simbersVersionInfo" title="Simplified Sabers V0.9.6 — Offline Core">V0.9.6</div>
       </div>
 <div class="actions">
-        <input id="file" class="fileInput" type="file" accept="audio/*">
+        <input id="file" class="fileInput" type="file" accept="audio/*,.mp3,.mp2,.mpeg,.mpga,.wav,.wave,.flac,.ogg,.oga,.opus,.aac,.m4a,.mp4,.webm,.weba,.aif,.aiff,.alac,.wma,.ape">
         <label class="uploadButton" for="file">Upload Song</label>
         <button id="analyzeBtn" disabled>Create Map</button>
         <button id="viewerDownload" type="button">Export ZIP</button>
@@ -11705,12 +11712,6 @@ function pastJobsPendingStage(generationId,stage,ctx=null){
       status.textContent=stage;
       const title=card.querySelector(".pastJobsTitle");
       if(title)title.textContent=pastJobsPending.name;
-      const image=card.querySelector(".pastJobsArt");
-      if(image&&!image.getAttribute("src")&&pastJobsPending.coverBlob instanceof Blob){
-        const url=URL.createObjectURL(pastJobsPending.coverBlob);
-        pastJobsCoverUrls.push(url);
-        image.src=url;image.alt="Map cover";
-      }
     }else void pastJobsRefresh();
   }
 }
@@ -12081,10 +12082,6 @@ async function pastJobsRefresh(){
       const inProgress=job===active;
       const card=document.createElement("article");card.className="pastJobsCard";
       if(inProgress)card.classList.add("isGenerating");
-      const img=document.createElement("img");img.className="pastJobsArt";img.alt=inProgress?"Generating map cover":"Map cover";
-      if(job.coverBlob instanceof Blob){
-        const url=URL.createObjectURL(job.coverBlob);pastJobsCoverUrls.push(url);img.src=url;
-      }
       const details=document.createElement("div");details.className="pastJobsDetails";
       const title=document.createElement("div");title.className="pastJobsTitle";title.textContent=job.name||"Untitled map";
       const meta=document.createElement("div");meta.className="pastJobsMeta";
@@ -12141,7 +12138,7 @@ async function pastJobsRefresh(){
         }
       }
       buttons.append(open,download,reprocess,del);
-      details.append(title,meta,buttons);card.append(img,details);pastJobsUI.list.appendChild(card);
+      details.append(title,meta,buttons);card.append(details);pastJobsUI.list.appendChild(card);
     }
   }catch(error){
     if(!pastJobsOpen||refreshToken!==pastJobsRefreshToken)return;
@@ -12496,8 +12493,17 @@ bindPair(els.tickVolume, els.tickVolumeNum);
 bindPair(els.patternThreshold, els.patternThresholdNum);
 bindPair(els.seconds, els.secondsNum);
 
-els.file.addEventListener("change",async ()=>{
-  const file=els.file.files[0];
+
+const SIMBERS_AUDIO_EXTENSIONS=/\.(?:mp3|mp2|mpeg|mpga|wav|wave|flac|ogg|oga|opus|aac|m4a|mp4|webm|weba|aif|aiff|alac|wma|ape)$/i;
+function simbersLooksLikeAudio(file){
+  return file instanceof Blob && (SIMBERS_AUDIO_EXTENSIONS.test(file.name||"")||
+    /^audio\//i.test(file.type||""));
+}
+async function simbersSelectAudioFile(file){
+  if(!simbersLooksLikeAudio(file)){
+    els.mapStatus.textContent="Unsupported selection. Drop an audio file (MP3, FLAC, WAV, OGG, AAC, etc.).";
+    return;
+  }
   if(!file)return;
   const pick=++simbersFilePickVersion;
   els.analyzeBtn.disabled=true;
@@ -12522,7 +12528,36 @@ els.file.addEventListener("change",async ()=>{
   if(duration>SIMBERS_DEFAULT_MAX_SECONDS){
     els.mapStatus.textContent=choice==="clip"?"First five minutes selected.":"Full song selected; processing may take longer.";
   }
-});
+}
+els.file.addEventListener("change",()=>{void simbersSelectAudioFile(els.file.files[0]);});
+const simbersDropOverlay=document.getElementById("simbersDropOverlay");
+function simbersFileDrag(event){
+  return Array.from(event.dataTransfer?.types||[]).includes("Files");
+}
+window.addEventListener("dragenter",event=>{
+  if(!simbersFileDrag(event))return;
+  event.preventDefault();
+  simbersDropOverlay.classList.add("is-active");
+},{capture:true});
+window.addEventListener("dragover",event=>{
+  if(!simbersFileDrag(event))return;
+  event.preventDefault();
+  if(event.dataTransfer)event.dataTransfer.dropEffect="copy";
+  simbersDropOverlay.classList.add("is-active");
+},{capture:true});
+window.addEventListener("dragleave",event=>{
+  if(event.relatedTarget==null)simbersDropOverlay.classList.remove("is-active");
+},{capture:true});
+window.addEventListener("drop",event=>{
+  simbersDropOverlay.classList.remove("is-active");
+  if(!simbersFileDrag(event))return;
+  event.preventDefault();
+  event.stopPropagation();
+  const files=Array.from(event.dataTransfer?.files||[]);
+  const file=files.find(simbersLooksLikeAudio)||files[0];
+  if(file)void simbersSelectAudioFile(file);
+},{capture:true});
+window.addEventListener("blur",()=>simbersDropOverlay.classList.remove("is-active"));
 
 function selectedIntensityPercent(){
   return Math.max(50,Math.min(200,Math.round(Number(els.mapIntensity?.value)||100)));
@@ -13108,7 +13143,13 @@ async function simbersDecodeForMap(blob,ctx,limitSeconds,durationHint){
   const readMs=performance.now()-readStart;
   setProgress(.04,"Decoding audio…");
   const decodeStart=performance.now();
-  const decoded=await ctx.decodeAudioData(data.slice(0));
+  let decoded;
+  try{
+    decoded=await ctx.decodeAudioData(data.slice(0));
+  }catch(error){
+    const ext=(blob.name||"").split(".").pop()?.toUpperCase()||"unknown";
+    throw new Error(`Cannot decode ${ext} audio in this browser. The codec or file may be unsupported or damaged. Try MP3, WAV, FLAC, OGG, AAC or M4A in a recent browser.`,{cause:error});
+  }
   const decodeMs=performance.now()-decodeStart;
   timingProfileNote("decodeInput",tryPrefix&&simbersSkipPartialMp3
     ?"MP3 prefix failed; single full-file fallback":"full original file (one decode)");
