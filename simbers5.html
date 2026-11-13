@@ -11697,7 +11697,22 @@ function pastJobsPendingStage(generationId,stage,ctx=null){
     if(ctx.coverBytes&&!pastJobsPending.coverBlob)
       pastJobsPending.coverBlob=new Blob([ctx.coverBytes],{type:"image/png"});
   }
-  if(pastJobsOpen)void pastJobsRefresh();
+  if(pastJobsOpen){
+    // Updating a stage must not reread every stored audio/ZIP Blob.
+    const card=pastJobsUI.list.querySelector(".pastJobsCard.isGenerating");
+    const status=card?.querySelector(".pastJobsMeta span");
+    if(status){
+      status.textContent=stage;
+      const title=card.querySelector(".pastJobsTitle");
+      if(title)title.textContent=pastJobsPending.name;
+      const image=card.querySelector(".pastJobsArt");
+      if(image&&!image.getAttribute("src")&&pastJobsPending.coverBlob instanceof Blob){
+        const url=URL.createObjectURL(pastJobsPending.coverBlob);
+        pastJobsCoverUrls.push(url);
+        image.src=url;image.alt="Map cover";
+      }
+    }else void pastJobsRefresh();
+  }
 }
 function pastJobsEndPending(generationId,refresh=true){
   if(!pastJobsPending||pastJobsPending.generationId!==generationId)return;
