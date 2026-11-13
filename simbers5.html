@@ -19155,6 +19155,141 @@ function sampleBeatContext(A,eventTimes,eventIndex,contextEvents,transposeInvari
   };
 }
 
+
+// Large-song mode avoids materializing the quadratic all-pairs matrix.
+// LSH-like multiview buckets retrieve likely candidates, then the existing
+// full musical fingerprint distance verifies every shortlisted pair.
+async function buildSparseMelodyGroups(segments,fingerprints,threshold,scale,contextBeats){
+  const n=fingerprints.length;
+  const bins=MELODY_FINGERPRINT_BINS;
+  const buckets=new Map();
+  const seen=new Int32Array(n);
+  const bestScores=new Float32Array(n);
+  const nearest=new Int32Array(n);
+  nearest.fill(-1);
+  const segmentCluster=new Int32Array(n);
+  const clusters=[];
+  let comparedPairs=0;
+  const distance=(i,j)=>{
+    comparedPairs++;
+    return melodyFingerprintDistance(fingerprints[i],fingerprints[j]);
+  };
+  const score=(i,j)=>Math.exp(-scale*distance(i,j));
+  const quant=(v,step)=>Math.floor(v/step);
+  function keys(fp){
+    const early=(fp[0]+fp[1]+fp[2]+fp[3])/4;
+    const late=(fp[8]+fp[9]+fp[10]+fp[11])/4;
+    const contour=(fp[bins+2]+fp[bins+5]+fp[bins+8])/3;
+    const rhythm=(fp[bins*3+2]+fp[bins*3+6]+fp[bins*3+9])/3;
+    const activity=fp[bins*4];
+    return [
+      "p:"+quant(early,.30)+":"+quant(late,.30),
+      "ps:"+quant(early+.15,.30)+":"+quant(late+.15,.30),
+      "c:"+quant(contour,.22)+":"+quant(rhythm,.32),
+      "a:"+quant(activity,.24)+":"+quant(late-early,.25)
+    ];
+  }
+
+  let lastYield=performance.now();
+  for(let i=0;i<n;i++){
+    const fpKeys=keys(fingerprints[i]);
+    let bestGroup=-1,bestGroupScore=threshold;
+    const groupChecks=new Map();
+    function consider(j){
+      if(j===i||seen[j]===i+1)return;
+      seen[j]=i+1;
+      const similarity=score(i,j);
+      if(Math.abs(segments[i].beatIndex-segments[j].beatIndex)>contextBeats){
+        if(similarity>bestScores[i]){
+          bestScores[i]=similarity;
+          nearest[i]=j;
+        }
+        if(similarity>bestScores[j]){
+          bestScores[j]=similarity;
+          nearest[j]=i;
+        }
+      }
+      if(similarity>=threshold){
+        const groupId=segmentCluster[j];
+        let representativeScore=groupChecks.get(groupId);
+        if(representativeScore===undefined){
+          const rep=clusters[groupId].medoid;
+          representativeScore=rep===j?similarity:score(i,rep);
+          groupChecks.set(groupId,representativeScore);
+        }
+        if(representativeScore>=threshold && representativeScore>bestGroupScore){
+          bestGroup=groupId;
+          bestGroupScore=representativeScore;
+        }
+      }
+    }
+    for(const key of fpKeys){
+      const bucket=buckets.get(key);
+      if(!bucket)continue;
+      const recentStart=Math.max(0,bucket.length-12);
+      const spacedCount=Math.min(24,recentStart);
+      for(let k=0;k<spacedCount;k++){
+        consider(bucket[Math.floor((k+.5)*recentStart/spacedCount)]);
+      }
+      for(let k=recentStart;k<bucket.length;k++)consider(bucket[k]);
+    }
+
+    if(bestGroup<0){
+      bestGroup=clusters.length;
+      clusters.push({members:[i],medoid:i});
+    }else{
+      clusters[bestGroup].members.push(i);
+    }
+    segmentCluster[i]=bestGroup;
+    for(const key of fpKeys){
+      let bucket=buckets.get(key);
+      if(!bucket){bucket=[];buckets.set(key,bucket);}
+      bucket.push(i);
+    }
+    const now=performance.now();
+    if(now-lastYield>25){
+      setProgress(.90+.07*i/Math.max(1,n),
+        "Comparing likely musical patterns "+(i+1)+"/"+n+"…");
+      await nextTick();
+      lastYield=performance.now();
+    }
+  }
+
+  // Compute a compact 1D musical placement from representative landmarks.
+  // This avoids the separate O(clusterCount^2) distance + MDS matrices.
+  const count=clusters.length;
+  const coords=new Float32Array(count);
+  if(count===1){
+    coords[0]=.5;
+  }else if(count>1){
+    const anchorCount=Math.min(32,count);
+    const anchors=Array.from({length:anchorCount},
+      (_,i)=>Math.min(count-1,Math.floor((i+.5)*count/anchorCount)));
+    const distances=anchors.map(ai=>anchors.map(aj=>
+      distance(clusters[ai].medoid,clusters[aj].medoid)));
+    const positions=mdsOneDimension(distances);
+    const anchorMap=new Map(anchors.map((index,i)=>[index,i]));
+    for(let c=0;c<count;c++){
+      if(anchorMap.has(c)){
+        coords[c]=positions[anchorMap.get(c)];
+        continue;
+      }
+      let closest=-1,second=-1,d1=Infinity,d2=Infinity;
+      for(let a=0;a<anchorCount;a++){
+        const d=distance(clusters[c].medoid,clusters[anchors[a]].medoid);
+        if(d<d1){second=closest;d2=d1;closest=a;d1=d;}
+        else if(d<d2){second=a;d2=d;}
+      }
+      if(second<0)coords[c]=positions[closest]??.5;
+      else{
+        const w1=1/Math.max(.02,d1),w2=1/Math.max(.02,d2);
+        coords[c]=(positions[closest]*w1+positions[second]*w2)/(w1+w2);
+      }
+    }
+  }
+  return {clusters,coords,segmentCluster,bestScores,nearest,comparedPairs};
+}
+
 async function analyzeBeatSynchronousPatterns(A,samples,sampleRate,opts){
   const detectorStart=performance.now();
   const detector=detectBeatEvents(samples,sampleRate,A,opts);
@@ -19209,74 +19344,75 @@ async function analyzeBeatSynchronousPatterns(A,samples,sampleRate,opts){
   for(let i=0;i<n;i++)fingerprints[i]=buildMelodyFingerprint(segments[i]);
   timingProfileSet("eventSignatures",performance.now()-signaturesStart);
 
-  const similarityData=new Float32Array(n*n);
-  const similarities=Array.from(
-    {length:n},
-    (_,i)=>similarityData.subarray(i*n,(i+1)*n)
-  );
 
   const similarityScale=advNumber("patterns.similarityScale",4);
+  let similarities=null;
+  let clusters=[],coords=[],segmentCluster=new Int32Array(n),sparseMatch=null;
+  let comparedPairs=n>1?n*(n-1)/2:0;
   const similarityStarted=performance.now();
-  let lastYield=similarityStarted;
-
-  // Global similarity is preserved: n*(n-1)/2 explicit comparisons.
-  for(let i=0;i<n;i++){
-    similarities[i][i]=1;
-    for(let j=i+1;j<n;j++){
-      const d=melodyFingerprintDistance(fingerprints[i],fingerprints[j]);
-      const sim=Math.exp(-similarityScale*d);
-      similarities[i][j]=sim;
-      similarities[j][i]=sim;
+  let similarityMs=0;
+  let similarityPostStart=similarityStarted;
+  if(n<=1400){
+    // Retain the original exact all-pairs matcher for ordinary songs.
+    const similarityData=new Float32Array(n*n);
+    similarities=Array.from({length:n},(_,i)=>similarityData.subarray(i*n,(i+1)*n));
+    let lastYield=similarityStarted;
+    for(let i=0;i<n;i++){
+      similarities[i][i]=1;
+      for(let j=i+1;j<n;j++){
+        const d=melodyFingerprintDistance(fingerprints[i],fingerprints[j]);
+        const sim=Math.exp(-similarityScale*d);
+        similarities[i][j]=sim;
+        similarities[j][i]=sim;
+      }
+      const now=performance.now();
+      if(now-lastYield>20){
+        setProgress(.90+.07*(i/Math.max(1,n)),
+          "Comparing event-state "+(i+1)+"/"+n+"…");
+        await nextTick();
+        lastYield=performance.now();
+      }
     }
-
-    const now=performance.now();
-    if(now-lastYield>20){
-      setProgress(.90+.07*(i/Math.max(1,n)),`Comparing event-state ${i+1}/${n}…`);
-      await nextTick();
-      lastYield=performance.now();
+    similarityMs=performance.now()-similarityStarted;
+    similarityPostStart=performance.now();
+    for(let i=0;i<n;i++){
+      let best=-1,bestSim=-1;
+      for(let c=0;c<clusters.length;c++){
+        const sim=similarities[i][clusters[c].medoid];
+        if(sim>bestSim){bestSim=sim;best=c;}
+      }
+      if(best>=0&&bestSim>=opts.threshold)clusters[best].members.push(i);
+      else clusters.push({members:[i],medoid:i});
     }
-  }
-
-  const similarityMs=performance.now()-similarityStarted;
-  timingProfileSet("similarityAllPairs",similarityMs);
-  timingProfileNote("similarityPairs",n>1?n*(n-1)/2:0);
-
-  const similarityPostStart=performance.now();
-  const clusters=[];
-  for(let i=0;i<n;i++){
-    let best=-1,bestSim=-1;
+    for(const cluster of clusters){
+      let bestMember=cluster.members[0],bestScore=-Infinity;
+      for(const candidate of cluster.members){
+        let score=0;
+        for(const member of cluster.members)score+=similarities[candidate][member];
+        if(score>bestScore){bestScore=score;bestMember=candidate;}
+      }
+      cluster.medoid=bestMember;
+    }
+    const clusterDistances=clusters.map(a=>clusters.map(b=>
+      melodyFingerprintDistance(fingerprints[a.medoid],fingerprints[b.medoid])));
+    coords=mdsOneDimension(clusterDistances);
     for(let c=0;c<clusters.length;c++){
-      const sim=similarities[i][clusters[c].medoid];
-      if(sim>bestSim){bestSim=sim;best=c;}
+      for(const member of clusters[c].members)segmentCluster[member]=c;
     }
-    if(best>=0&&bestSim>=opts.threshold)clusters[best].members.push(i);
-    else clusters.push({members:[i],medoid:i});
+  }else{
+    // Bounded-memory approximate discovery, exact musical comparisons on
+    // candidates; avoids n*n arrays and all-pairs O(n^2) processing.
+    sparseMatch=await buildSparseMelodyGroups(
+      segments,fingerprints,opts.threshold,similarityScale,opts.contextBeats);
+    clusters=sparseMatch.clusters;
+    coords=sparseMatch.coords;
+    segmentCluster=sparseMatch.segmentCluster;
+    comparedPairs=sparseMatch.comparedPairs;
+    similarityMs=performance.now()-similarityStarted;
+    similarityPostStart=performance.now();
   }
-
-  for(const cluster of clusters){
-    let bestMember=cluster.members[0],bestScore=-Infinity;
-    for(const candidate of cluster.members){
-      let score=0;
-      for(const member of cluster.members)score+=similarities[candidate][member];
-      if(score>bestScore){bestScore=score;bestMember=candidate;}
-    }
-    cluster.medoid=bestMember;
-  }
-
-  const clusterDistances=clusters.map(a=>
-    clusters.map(b=>
-      melodyFingerprintDistance(
-        fingerprints[a.medoid],
-        fingerprints[b.medoid]
-      )
-    )
-  );
-  const coords=mdsOneDimension(clusterDistances);
-
-  const segmentCluster=new Int32Array(n);
-  for(let c=0;c<clusters.length;c++){
-    for(const member of clusters[c].members)segmentCluster[member]=c;
-  }
+  timingProfileSet("similarityAllPairs",similarityMs);
+  timingProfileNote("similarityPairs",comparedPairs);
 
   for(let c=0;c<clusters.length;c++){
     const cluster=clusters[c];
@@ -19308,14 +19444,22 @@ async function analyzeBeatSynchronousPatterns(A,samples,sampleRate,opts){
     const ci=segmentCluster[i];
     const cluster=clusters[ci];
     let repeatScore=0,nearest=null;
-    for(let j=0;j<n;j++){
-      if(i===j||Math.abs(segments[i].beatIndex-segments[j].beatIndex)<=opts.contextBeats)continue;
-      if(similarities[i][j]>repeatScore){
-        repeatScore=similarities[i][j];
-        nearest=j;
+    if(sparseMatch){
+      repeatScore=sparseMatch.bestScores[i];
+      nearest=sparseMatch.nearest[i]<0?null:sparseMatch.nearest[i];
+    }else{
+      for(let j=0;j<n;j++){
+        if(i===j||Math.abs(segments[i].beatIndex-segments[j].beatIndex)<=opts.contextBeats)continue;
+        if(similarities[i][j]>repeatScore){
+          repeatScore=similarities[i][j];
+          nearest=j;
+        }
       }
     }
-    const simToMedoid=similarities[i][cluster.medoid]||1;
+    const simToMedoid=(similarities
+      ? similarities[i][cluster.medoid]
+      : Math.exp(-similarityScale*melodyFingerprintDistance(
+          fingerprints[i],fingerprints[cluster.medoid])))||1;
     const sign=((i*2654435761)>>>0)%2?1:-1;
     Object.assign(segments[i],{
       melodyValue:clamp(cluster.coordinate+sign*(1-simToMedoid)*advNumber("patterns.melodyJitter",.05),0,1),
@@ -19411,9 +19555,9 @@ async function analyzeBeatSynchronousPatterns(A,samples,sampleRate,opts){
   timingProfileSet("similarityPost",performance.now()-similarityPostStart);
   console.info("[Simplified Sabers] similarity",{
     segments:n,
-    comparedPairs:n>1?n*(n-1)/2:0,
+    comparedPairs,
     similarityMs:+similarityMs.toFixed(1),
-    method:"all-pairs compact fingerprint"
+    method:sparseMatch?"sparse candidates, exact fingerprint rerank":"all-pairs compact fingerprint"
   });
 
   return {
@@ -19442,7 +19586,7 @@ async function analyzeBeatSynchronousPatterns(A,samples,sampleRate,opts){
     intensityPool,
     performance:{
       similarityMs,
-      comparedPairs:n>1?n*(n-1)/2:0,
+      comparedPairs,
       fingerprintFloats:MELODY_FINGERPRINT_BINS*4+1
     },
     contextBeats:opts.contextBeats,
@@ -19459,7 +19603,10 @@ async function analyzeBeatSynchronousPatterns(A,samples,sampleRate,opts){
       members:c.members,
       occurrences:c.occurrences,
       averageSimilarity:c.members.length<=1?1:
-        c.members.reduce((sum,i)=>sum+(similarities[i][c.medoid]||0),0)/c.members.length
+        c.members.reduce((sum,i)=>sum+(similarities
+          ? similarities[i][c.medoid]
+          : Math.exp(-similarityScale*melodyFingerprintDistance(
+              fingerprints[i],fingerprints[c.medoid]))),0)/c.members.length
     })),
     repeatedGroups:clusters.filter(c=>c.repeated).length
   };
