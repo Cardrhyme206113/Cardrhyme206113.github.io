@@ -3606,10 +3606,10 @@ export const oggEncoderVersion = WasmMediaEncoderApi.jsLibraryVersion();
        <button id="detectorModeButton" class="detectorModeButton" type="button" aria-label="Onset detector V2, click to switch" aria-pressed="true" title="V2: Attack Lab onset detection. Click to switch to V1.">
          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg><span id="detectorModeText">V2</span>
        </button>
-      <label class="intensityControl" for="mapIntensity" title="Sets Expert+ note density from 50–200% of default. Easy/Normal/Hard/Expert target 20/40/60/80% of that Expert+ density. Applied when you release the slider.">
+      <label class="intensityControl" for="mapIntensity" title="Sets Expert+ note density from 10–200% of default. Easy/Normal/Hard/Expert target 20/40/60/80% of that Expert+ density. Applied when you release the slider.">
         <span class="intensityLabel">Intensity</span>
-        <input id="mapIntensity" class="intensityRange" type="range" min="50" max="200" step="5" value="100"
-               aria-label="Map intensity as percentage of default note count" aria-valuemin="50" aria-valuemax="200" aria-valuenow="100">
+        <input id="mapIntensity" class="intensityRange" type="range" min="10" max="200" step="5" value="100"
+               aria-label="Map intensity as percentage of default note count" aria-valuemin="10" aria-valuemax="200" aria-valuenow="100">
         <output id="mapIntensityValue" class="intensityValue" for="mapIntensity">100%</output>
       </label>
        </div>
@@ -12627,7 +12627,7 @@ if(simbersDropViewerFrame){
 }
 
 function selectedIntensityPercent(){
-  return Math.max(50,Math.min(200,Math.round(Number(els.mapIntensity?.value)||100)));
+  return Math.max(10,Math.min(200,Math.round(Number(els.mapIntensity?.value)||100)));
 }
 function selectedIntensityScale(){
   return selectedIntensityPercent()/100;
@@ -12655,7 +12655,7 @@ function intensityAdjustedConfig(
   percent=selectedIntensityPercent(),
   expertReference=[]
 ){
-  const expertPlusScale=Math.max(.5,Math.min(2,Number(percent)/100||1));
+  const expertPlusScale=Math.max(.1,Math.min(2,Number(percent)/100||1));
   const difficultyFraction=difficultyDensityFraction(baseConfig);
   const targetRelativeToExpertDefault=expertPlusScale*difficultyFraction;
   const targetEventCount=Math.max(
