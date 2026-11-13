@@ -12995,34 +12995,58 @@ function readAudioWithProgress(blob){
 
 /* Leading-prefix decoding avoids decoding the rest of a long streaming file.
    Extend for VBR; unsupported formats fall back to full native decoding. */
+/* Decode at most one short MP3 prefix. Truncated Ogg/WebM/AAC chunks
+ * frequently cause expensive speculative decodes; fall back immediately.
+ * Full-song mode always decodes the original file exactly once. */
+let simbersSkipPartialMp3=false;
 async function simbersDecodeForMap(blob,ctx,limitSeconds,durationHint){
   const name=(blob.name||"").toLowerCase(),mime=(blob.type||"").toLowerCase();
-  const prefixSafe=/\.(mp3|ogg|oga|opus|wav|wave|webm|aac)$/.test(name)||
-    /^audio\/(mpeg|mp3|ogg|opus|wav|x-wav|wave|webm|aac)(?:;|$)/.test(mime);
-  if(Number.isFinite(durationHint)&&durationHint>limitSeconds+1&&prefixSafe){
-    let bytes=Math.min(blob.size,Math.max(65536,Math.ceil(blob.size*Math.min(1,(limitSeconds+16)/durationHint*1.14))));
-    for(let attempt=1;bytes<blob.size&&attempt<=5;attempt++){
+  const isMp3=/\.mp3$/.test(name)||(!name.match(/\.[a-z0-9]+$/)&&/^audio\/(mpeg|mp3)(?:;|$)/.test(mime));
+  const tryPrefix=!simbersSkipPartialMp3&&isMp3&&
+    Number.isFinite(durationHint)&&durationHint>limitSeconds+2;
+  let wastedDecodeMs=0;
+  if(tryPrefix){
+    // Slight VBR headroom, plus bytes for a complete final MP3 frame.
+    const bytes=Math.min(blob.size,Math.max(65536,
+      Math.ceil(blob.size*Math.min(1,(limitSeconds+24)/durationHint*1.20))));
+    if(bytes<blob.size){
       setProgress(.025,"Reading first 5 minutes…");
+      const readStart=performance.now();
       const data=await readAudioWithProgress(blob.slice(0,bytes));
+      const readMs=performance.now()-readStart;
+      setProgress(.04,"Decoding first 5 minutes…");
+      const attemptStart=performance.now();
       try{
-        setProgress(.04,"Decoding first 5 minutes…");
         const decoded=await ctx.decodeAudioData(data.slice(0));
+        wastedDecodeMs=performance.now()-attemptStart;
         if(decoded.duration>=limitSeconds-.02){
-          timingProfileNote("decodeInput","partial "+bytes+"/"+blob.size+" bytes; attempt "+attempt);
+          timingProfileNote("decodeInput","MP3 prefix "+bytes+"/"+blob.size+" bytes (one attempt)");
+          timingProfileNote("audioReadMs",readMs.toFixed(1));
+          timingProfileNote("nativeDecodeMs",wastedDecodeMs.toFixed(1));
           return {data,decoded};
         }
-        const factor=Math.max(1.24,Math.min(3,(limitSeconds+12)/Math.max(1,decoded.duration)));
-        bytes=Math.min(blob.size,Math.max(bytes+65536,Math.ceil(bytes*factor)));
+        console.info("Partial MP3 decoded too short; falling back to original audio.");
       }catch(error){
-        bytes=Math.min(blob.size,Math.max(bytes+65536,Math.ceil(bytes*1.8)));
+        console.info("Partial MP3 unsupported; falling back to original audio.",error);
       }
+      wastedDecodeMs=performance.now()-attemptStart;
+      // Avoid repeated failures for subsequent uploads in this session.
+      simbersSkipPartialMp3=true;
     }
   }
   setProgress(.025,"Reading audio…");
+  const readStart=performance.now();
   const data=await readAudioWithProgress(blob);
+  const readMs=performance.now()-readStart;
   setProgress(.04,"Decoding audio…");
+  const decodeStart=performance.now();
   const decoded=await ctx.decodeAudioData(data.slice(0));
-  timingProfileNote("decodeInput","full file (container compatibility)");
+  const decodeMs=performance.now()-decodeStart;
+  timingProfileNote("decodeInput",tryPrefix&&simbersSkipPartialMp3
+    ?"MP3 prefix failed; single full-file fallback":"full original file (one decode)");
+  timingProfileNote("audioReadMs",readMs.toFixed(1));
+  timingProfileNote("nativeDecodeMs",decodeMs.toFixed(1));
+  if(wastedDecodeMs>0)timingProfileNote("failedPrefixDecodeMs",wastedDecodeMs.toFixed(1));
   return {data,decoded};
 }
 
@@ -17275,9 +17299,10 @@ async function runAnalysis(){
   try{
     const profile=timingProfileReset(safeBaseName(sourceBlob.name),0);
 
-    setProgress(.01,"Reading audio…");
-    let stage=performance.now();
+    setProgress(.01,"Checking audio duration…");
+    let stage;
     let data;
+    const probeStarted=performance.now();
     let knownDuration=simbersAudioDurationHints.get(buildBlob);
     if(!Number.isFinite(knownDuration)){
       knownDuration=await simbersProbeAudioDuration(buildBlob);
@@ -17293,6 +17318,8 @@ async function runAnalysis(){
       simbersLongSongMode=choice;
       simbersLongSongApprovedFile=buildBlob;
     }
+    timingProfileNote("durationProbeMs",(performance.now()-probeStarted).toFixed(1));
+    stage=performance.now(); // The decode stage includes file reads but not metadata/UI wait.
     const ctx=new (window.AudioContext||window.webkitAudioContext)();
     const decodeStarted=performance.now();
     setProgress(.04,"Decoding audio…");
