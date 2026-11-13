@@ -24,12 +24,11 @@ jobs:
           path = Path('simbers5.html')
           html = path.read_text(encoding='utf-8')
           marker = 'SIMBERS_MAP_ZIP_DROP_V1'
-          print('HTML bytes:',len(html))
-          for term in ['simbersFileDrag','simbersDropOverlay','window.addEventListener("drop"','function updateArcViewerJumpTiming','arcViewerNjs','activeDifficulty===','ExpertPlus','expertPlus','activeDifficultyMetadata','function loadMap','function openMap','zip.file','loadBeatmap','mapZip']:
-              p=html.find(term)
-              print('TERM',term,'COUNT',html.count(term),'OFFSET',p)
-              if p>=0: print('CONTEXT',repr(html[max(0,p-700):p+1800]))
-          print('SCRIPT TAGS',[(m.start(),m.group(0)[:150]) for m in list(re.finditer(r'<script\\b[^>]*>',html,re.I))[:10]])
+          from html import unescape
+          for term in ['function simbersBindViewerDrops','function openLocalViewer','function loadLocal','function loadMap','function launchLocal','lastMapZip','async function','njs:','noteJumpMovementSpeed','jumpSpeed','spawnOffset','const DIFFICULTY_CONFIGS','DEFAULT_ENV_LIFETIME_SCALE','function updateArcViewerJumpTiming','const simbersDropViewerFrame']:
+              ps=[m.start() for m in re.finditer(re.escape(term),html)]
+              print('TERM',term,'COUNT',len(ps))
+              for p in ps[:2]: print('CONTEXT',unescape(html[max(0,p-500):p+3400]).replace('\\n',' '))
           if marker not in html:
               scripts = list(re.finditer(r'<script\b[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S))
               candidates = [m for m in scripts if 'function launchArcViewer' in m.group(1) and 'SIMPLIFIED_SABERS_LOAD_MAP' in m.group(1)]
