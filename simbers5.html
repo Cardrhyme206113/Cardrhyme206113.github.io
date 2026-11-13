@@ -2981,7 +2981,8 @@ html.viewport-side-by-side .intensityControl{
 .pastJobsButtons{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
 .pastJobsButtons button{width:auto!important;height:36px!important;min-height:36px!important;padding:0 11px!important;display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid #454545;border-radius:4px;background:#202022;color:#e9e9e9;font:800 10px/1 system-ui,-apple-system,"Segoe UI",sans-serif;text-transform:uppercase;letter-spacing:.015em;white-space:nowrap}
 .pastJobsButtons button:hover:not(:disabled){background:#303036;border-color:var(--primary)}
-.pastJobsButtons button:disabled{opacity:.46;cursor:progress}
+.pastJobsButtons button:disabled{opacity:.38;cursor:not-allowed;filter:grayscale(1)}
+.pastJobsCard.isGenerating{border-style:dashed;border-color:rgba(126,171,240,.32)}
 .pastJobsButtons .pastJobsOpen{background:var(--primary);border-color:var(--primary);color:#fff}
 .pastJobsButtons .pastJobsOpen:hover:not(:disabled){background:var(--primary-hover)}
 .pastJobsButtons .pastJobsDelete{margin-left:auto;color:#c5c5c5;background:transparent}
@@ -11675,6 +11676,34 @@ let pastJobsSaveQueue=Promise.resolve();
 let pastJobsCoverUrls=[];
 let pastJobsOpen=false;
 let pastJobsActiveSaveError="";
+let pastJobsPending=null;
+let pastJobsRefreshToken=0;
+// In-progress rows are in-memory; only finished ZIPs enter persistent history.
+function pastJobsBeginPending(generationId,file){
+  pastJobsPending={
+    id:`pending-${generationId}`,generationId,
+    name:safeBaseName(file?.name||"Untitled")||"Untitled",
+    createdAt:Date.now(),audioSize:file?.size||0,
+    stage:"Generating map…",coverBlob:null,duration:0
+  };
+  if(pastJobsOpen)void pastJobsRefresh();
+}
+function pastJobsPendingStage(generationId,stage,ctx=null){
+  if(!pastJobsPending||pastJobsPending.generationId!==generationId)return;
+  pastJobsPending.stage=stage;
+  if(ctx){
+    pastJobsPending.name=ctx.songName||pastJobsPending.name;
+    pastJobsPending.duration=ctx.historyDuration||0;
+    if(ctx.coverBytes&&!pastJobsPending.coverBlob)
+      pastJobsPending.coverBlob=new Blob([ctx.coverBytes],{type:"image/png"});
+  }
+  if(pastJobsOpen)void pastJobsRefresh();
+}
+function pastJobsEndPending(generationId,refresh=true){
+  if(!pastJobsPending||pastJobsPending.generationId!==generationId)return;
+  pastJobsPending=null;
+  if(refresh&&pastJobsOpen)void pastJobsRefresh();
+}
 const pastJobsUI={
   button:document.getElementById("pastJobsBtn"),
   overlay:document.getElementById("pastJobsOverlay"),
@@ -12019,27 +12048,37 @@ function pastJobsRenderEmpty(loading=false){
 }
 async function pastJobsRefresh(){
   if(!pastJobsOpen)return;
+  const refreshToken=++pastJobsRefreshToken;
   pastJobsRevokeCoverUrls();
   pastJobsUI.list.replaceChildren();
   pastJobsRenderEmpty(true);
   try{
     const jobs=await pastJobsReadAll();
-    if(!pastJobsOpen)return;
+    if(!pastJobsOpen||refreshToken!==pastJobsRefreshToken)return;
+    const active=pastJobsPending;
+    const visibleJobs=active?[active,...jobs.filter(job=>job.id!==active.id)]:jobs;
     pastJobsUI.list.replaceChildren();
     pastJobsSetCapacity(jobs.length);
     pastJobsSetNotice(pastJobsActiveSaveError||pastJobsStorageWarning,Boolean(pastJobsActiveSaveError));
     pastJobsUI.clear.disabled=!jobs.length;
-    if(!jobs.length)pastJobsRenderEmpty();
-    for(const job of jobs){
+    if(!visibleJobs.length)pastJobsRenderEmpty();
+    for(const job of visibleJobs){
+      const inProgress=job===active;
       const card=document.createElement("article");card.className="pastJobsCard";
-      const img=document.createElement("img");img.className="pastJobsArt";img.alt="Map cover";
+      if(inProgress)card.classList.add("isGenerating");
+      const img=document.createElement("img");img.className="pastJobsArt";img.alt=inProgress?"Generating map cover":"Map cover";
       if(job.coverBlob instanceof Blob){
         const url=URL.createObjectURL(job.coverBlob);pastJobsCoverUrls.push(url);img.src=url;
       }
       const details=document.createElement("div");details.className="pastJobsDetails";
       const title=document.createElement("div");title.className="pastJobsTitle";title.textContent=job.name||"Untitled map";
       const meta=document.createElement("div");meta.className="pastJobsMeta";
-      const values=[
+      const values=inProgress?[
+        job.stage||"Generating map…",
+        `${pastJobsSize(job.audioSize)} AUDIO`,
+        Number.isFinite(job.duration)&&job.duration>0?`${Math.floor(job.duration/60)}:${String(Math.floor(job.duration%60)).padStart(2,"0")}`:"",
+        new Date(job.createdAt).toLocaleString()
+      ]:[
         Number.isFinite(job.nps)?`EXPERT+ ${job.nps.toFixed(2)} NPS`:"",
         `${pastJobsSize(job.zipSize||job.zipBlob?.size)} ZIP`,
         `${pastJobsSize(job.audioSize||job.audioBlob?.size)} AUDIO`,
@@ -12080,10 +12119,17 @@ async function pastJobsRefresh(){
           await pastJobsRefresh();
         }catch(error){pastJobsSetNotice(`Cannot delete map: ${error.message||error}`,true);del.disabled=false;}
       });
+      if(inProgress){
+        for(const button of [open,download,reprocess,del]){
+          button.disabled=true;
+          button.title="Available when the map ZIP and archive are ready";
+        }
+      }
       buttons.append(open,download,reprocess,del);
       details.append(title,meta,buttons);card.append(img,details);pastJobsUI.list.appendChild(card);
     }
   }catch(error){
+    if(!pastJobsOpen||refreshToken!==pastJobsRefreshToken)return;
     pastJobsUI.list.replaceChildren();
     pastJobsRenderEmpty();
     pastJobsSetCapacity(0);
@@ -12109,6 +12155,7 @@ function pastJobsHide({focus=true}={}){
   // reprocessing a saved map must not collapse/erase it.
   if(pastJobsIsInline())return;
   pastJobsOpen=false;
+  pastJobsRefreshToken++;
   pastJobsUI.overlay.classList.remove("is-open");
   pastJobsUI.overlay.classList.add("hidden");
   pastJobsUI.overlay.hidden=true;
@@ -12159,6 +12206,7 @@ function pastJobsEnqueueSave(ctx,zipBlob){
     duration:ctx.historyDuration||0,
     intensity:ctx.intensityPercent||100
   };
+  pastJobsPendingStage(ctx.historyGenerationId,"Saving archive…",ctx);
   pastJobsSaveQueue=pastJobsSaveQueue.catch(()=>{}).then(async()=>{
     try{
       await pastJobsTransaction("readwrite",store=>store.put(record));
@@ -12186,6 +12234,9 @@ function pastJobsEnqueueSave(ctx,zipBlob){
         pastJobsActiveSaveError=`Couldn't save map: ${error.message||error}`;
       }
     }
+    // Keep the row disabled if another intensity/ZIP build superseded this one.
+    if(lastFastBuildContext===ctx&&lastMapZip===zipBlob&&!lastMapZipDirty)
+      pastJobsEndPending(ctx.historyGenerationId,false);
     await pastJobsUpdateCount();
     if(pastJobsOpen)await pastJobsRefresh();
   });
@@ -12845,6 +12896,7 @@ function invalidateMapForFeatureChange(){
   if(!hadGeneratedMap)return;
 
   mapGenerationId++;
+  pastJobsEndPending(mapGenerationId-1);
   lastPackagePromise=null;
   lastMapZip=null;
   lastMapZipName="";
@@ -12946,6 +12998,7 @@ function setSource(blob){
   viewerStatus.textContent="Offline built-in viewer ready. Create map when ready.";
   sourceBlob=blob;
   mapGenerationId++;
+  pastJobsEndPending(mapGenerationId-1);
   lastPackagePromise=null;
   lastMapZip=null;
   lastMapZipName="";
@@ -17281,6 +17334,7 @@ async function packageFastContext(ctx){
 async function startBackgroundExport(ctx,audioChannels,sampleRate,generationId){
   if(!ctx)return;
   timingProfileNote("exportState","encoding in background");
+  pastJobsPendingStage(generationId,"Encoding audio…",ctx);
   const encodeStart=performance.now();
   const oggBytes=await encodeOggVorbis(audioChannels,sampleRate,{
     vbrQuality:3,
@@ -17294,6 +17348,7 @@ async function startBackgroundExport(ctx,audioChannels,sampleRate,generationId){
   if(generationId!==mapGenerationId)return;
   timingProfileSet("oggEncode",performance.now()-encodeStart);
   ctx.audioBytes=oggBytes;
+  pastJobsPendingStage(generationId,"Packaging ZIP…",ctx);
   timingProfileNote("exportState","packaging ZIP");
 
   const zipStart=performance.now();
@@ -17305,6 +17360,7 @@ async function startBackgroundExport(ctx,audioChannels,sampleRate,generationId){
   lastMapZipName=`${ctx.songName}_SimplifiedSabers.zip`;
   lastMapZipDirty=ctx.intensityPercent!==intensityAtStart;
   if(lastMapZipDirty){
+    pastJobsPendingStage(generationId,"Updating ZIP for current intensity…",ctx);
     // User adjusted intensity during the encoder pass; package the latest map
     // before archiving rather than saving a mismatched ZIP/metadata pair.
     rebuildDirtyZip().catch(error=>console.warn("Archive latest intensity ZIP failed:",error));
@@ -17327,6 +17383,8 @@ async function runAnalysis(){
   if(!sourceBlob)return;
   const buildBlob=sourceBlob;
   const generationId=++mapGenerationId;
+  let exportStarted=false;
+  pastJobsBeginPending(generationId,buildBlob);
   lastPackagePromise=null;
   lastMapZip=null;
   lastMapZipDirty=false;
@@ -17483,9 +17541,11 @@ async function runAnalysis(){
     lastLocalViewerPayload=prepared.viewerPayload;
     lastFastBuildContext=prepared.fastContext;
     lastFastBuildContext.historyId=pastJobsId();
+    lastFastBuildContext.historyGenerationId=generationId;
     lastFastBuildContext.historyCreatedAt=Date.now();
     lastFastBuildContext.historyAudioBlob=buildBlob;
     lastFastBuildContext.historyDuration=result.duration;
+    pastJobsPendingStage(generationId,"Preparing preview and export…",lastFastBuildContext);
     lastMapZipDirty=true;
     lastAppliedIntensityPercent=selectedIntensityPercent();
     els.analyzeBtn.textContent="Open Map";
@@ -17505,6 +17565,7 @@ async function runAnalysis(){
     refreshTimingProfiler();
 
     // Start export only after preview was dispatched/accepted into the UI path.
+    exportStarted=true;
     lastPackagePromise=startBackgroundExport(
       lastFastBuildContext,
       outputChannels,
@@ -17512,6 +17573,7 @@ async function runAnalysis(){
       generationId
     ).catch(error=>{
       if(generationId!==mapGenerationId)return;
+      pastJobsEndPending(generationId);
       console.error("Background export failed",error);
       timingProfileNote("exportState",`failed: ${error.message||error}`);
       viewerStatus.textContent=`Preview ready · background export failed: ${error.message||error}`;
@@ -17525,6 +17587,7 @@ async function runAnalysis(){
     els.mapStatus.textContent=message;
     els.analyzeBtn.textContent="Try Again";
   }finally{
+    if(!exportStarted)pastJobsEndPending(generationId);
     document.documentElement.scrollLeft=0;
     document.body.scrollLeft=0;
     window.scrollTo({left:0,top:window.scrollY,behavior:"auto"});
