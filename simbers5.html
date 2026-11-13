@@ -13702,6 +13702,32 @@ function sc2MotifNote(motif,hand,index){
   return {x:hand?3:0,y:even?2:0,d:even?1:0,source:false};
 }
 function sc2AngularError(a,b){return Math.abs((((a-b)+540)%360)-180);}
+
+const SC2_STATES=96;
+let SC2_STEP_ANGLE=null,SC2_STEP_REACH=null,SC2_CROSS_RISK=null;
+function sc2StateCode(x,y,d){return (x*3+y)*8+d;}
+// Constant geometry for the 4x3 playfield and eight cut directions.
+// Only static terms are cached: timing, wrist strain, scoring and all
+// safety thresholds are still evaluated independently on each candidate.
+function sc2InitGeometryCache(){
+  if(SC2_STEP_ANGLE)return;
+  const states=new Array(SC2_STATES);
+  for(let x=0;x<4;x++)for(let y=0;y<3;y++)for(let d=0;d<8;d++)
+    states[sc2StateCode(x,y,d)]={x,y,d};
+  const angles=new Float64Array(SC2_STATES*SC2_STATES);
+  const reach=new Float64Array(angles.length),cross=new Float64Array(angles.length);
+  for(let a=0;a<SC2_STATES;a++){
+    const previous=states[a],pv=SCF_DIRS[previous.d],base=a*SC2_STATES;
+    for(let b=0;b<SC2_STATES;b++){
+      const next=states[b],vec=SCF_DIRS[next.d],idx=base+b;
+      angles[idx]=sc2AngularError(SCF_ANGLES[next.d],(SCF_ANGLES[previous.d]+180)%360);
+      reach[idx]=Math.hypot(next.x-vec.x*.48-(previous.x+pv.x*.48),
+        next.y-vec.y*.48-(previous.y+pv.y*.48));
+      cross[idx]=sc2CrossRiskUncached(previous,next,0);
+    }
+  }
+  SC2_STEP_ANGLE=angles;SC2_STEP_REACH=reach;SC2_CROSS_RISK=cross;
+}
 function sc2HandStep(prev,note,t,hand,strict){
   if(note.x<0||note.x>3||note.y<0||note.y>2)return null;
   const d=note.d===8?(prev?SCF_OPPOSITE[prev.d]:1):note.d;
@@ -13713,12 +13739,13 @@ function sc2HandStep(prev,note,t,hand,strict){
     const dt=t-prev.t;if(dt<.082)return null;
     if(cross>0&&dt<.24*strict)return null;
     if(dt<1.3){
-      const err=sc2AngularError(SCF_ANGLES[d],(SCF_ANGLES[prev.d]+180)%360);
+      if(!SC2_STEP_ANGLE)sc2InitGeometryCache();
+      const stepIndex=sc2StateCode(prev.x,prev.y,prev.d)*SC2_STATES+sc2StateCode(note.x,note.y,d);
+      const err=SC2_STEP_ANGLE[stepIndex];
       const cap=dt<.23?60:dt<.34?95:dt<.50?130:180;
       if(err>cap/strict)return null;
       if(err>135&&dt<.62*strict)return null;
-      const pv=SCF_DIRS[prev.d];
-      const reach=Math.hypot(note.x-vec.x*.48-(prev.x+pv.x*.48),note.y-vec.y*.48-(prev.y+pv.y*.48));
+      const reach=SC2_STEP_REACH[stepIndex];
       if(reach/Math.max(.1,dt)> (11.5/strict))return null;
       strain=Math.max(0,(prev.strain||0)-dt*1.45)+err/210+.065*reach/Math.max(.22,dt)+cross*.14;
       if(strain>2.55/strict)return null;
@@ -13915,7 +13942,7 @@ function sc2PlanHandInMacro(macro,ev,hand,indices,previous,lib,seed,strict,cache
   }
   return {notes:planned,state,repairs,corpus,motif,score,selected};
 }
-function sc2CrossRisk(left,right,dt){
+function sc2CrossRiskUncached(left,right,dt){
   if(!left||!right)return 0;
   if(Math.abs(dt)>.17)return 0;
   if(left.x===right.x&&left.y===right.y)return 100;
@@ -13932,6 +13959,19 @@ function sc2CrossRisk(left,right,dt){
   const inward=lv.x>.33&&rv.x<-.33;
   if(inward&&left.x===1&&right.x===2&&Math.abs(left.y-right.y)<1.1)return 100;
   return Math.max(0,.6-min)*2;
+}
+function sc2CrossRisk(left,right,dt){
+  if(!left||!right||Math.abs(dt)>.17)return 0;
+  // Preserve exact behavior for unexpected out-of-grid geometry.
+  if(!Number.isInteger(left.x)||!Number.isInteger(left.y)||!Number.isInteger(left.d)||
+     !Number.isInteger(right.x)||!Number.isInteger(right.y)||!Number.isInteger(right.d)||
+     left.x<0||left.x>3||right.x<0||right.x>3||
+     left.y<0||left.y>2||right.y<0||right.y>2||
+     left.d<0||left.d>7||right.d<0||right.d>7)
+    return sc2CrossRiskUncached(left,right,dt);
+  if(!SC2_CROSS_RISK)sc2InitGeometryCache();
+  return SC2_CROSS_RISK[sc2StateCode(left.x,left.y,left.d)*SC2_STATES+
+    sc2StateCode(right.x,right.y,right.d)];
 }
 function sc2JointRepair(goal,prev,t,hand,other,strict){
   const dirs=[goal.d,prev?SCF_OPPOSITE[prev.d]:1,0,1,4,5,6,7];
