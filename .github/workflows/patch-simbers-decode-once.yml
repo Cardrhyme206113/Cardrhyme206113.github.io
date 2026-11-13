@@ -193,7 +193,7 @@ jobs:
           from pathlib import Path
           import re
           t=Path("simbers5.html").read_text(encoding="utf-8")
-          scripts=re.findall(r"<script\\b[^>]*>([\\s\\S]*?)</script>",t,re.IGNORECASE)
+          scripts=re.findall(r"<script[^>]*>(.*?)</script>",t,re.IGNORECASE|re.DOTALL)
           scripts=[s for s in scripts if "async function runAnalysis()" in s]
           if len(scripts)!=1: raise RuntimeError(f"Expected one main script, found {len(scripts)}")
           Path("/tmp/simbers-main.js").write_text(scripts[0],encoding="utf-8")
