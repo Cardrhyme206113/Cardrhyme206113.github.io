@@ -8918,6 +8918,9 @@ els.play.addEventListener(&quot;click&quot;,async()=&gt;{
     if(hitContext.state!==&quot;running&quot;)await hitContext.resume();
     await primeHitAudio();
     if(els.audio.paused){
+      if(Number.isFinite(maxViewerPlaybackSec)&amp;&amp;els.audio.currentTime&gt;=maxViewerPlaybackSec-.02){
+        els.audio.currentTime=0;
+      }
       rebuildHitQueue();
       await els.audio.play();
     }else{
