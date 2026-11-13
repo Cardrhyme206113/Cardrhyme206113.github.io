@@ -24,6 +24,12 @@ jobs:
           path = Path('simbers5.html')
           html = path.read_text(encoding='utf-8')
           marker = 'SIMBERS_MAP_ZIP_DROP_V1'
+          print('HTML bytes:', len(html))
+          for term in ['launchArcViewer','SIMPLIFIED_SABERS_LOAD_MAP','arcViewer','postMessage','dragover','drop','viewerShell']:
+              print('TERM',term,'COUNT',html.count(term),'OFFSET',html.find(term))
+              p=html.find(term)
+              if p>=0: print('CONTEXT',repr(html[max(0,p-180):p+350]))
+          print('SCRIPT TAGS',[(m.start(),m.group(0)[:170]) for m in list(re.finditer(r'<script\\b[^>]*>',html,re.I))[:20]])
           if marker not in html:
               scripts = list(re.finditer(r'<script\b[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S))
               candidates = [m for m in scripts if 'function launchArcViewer' in m.group(1) and 'SIMPLIFIED_SABERS_LOAD_MAP' in m.group(1)]
