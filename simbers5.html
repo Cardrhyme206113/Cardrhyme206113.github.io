@@ -9265,7 +9265,16 @@ window.addEventListener(&quot;message&quot;,event=&gt;{
 
 (function boot(){
   let savedQuality=&quot;native&quot;;
-  try{savedQuality=localStorage.getItem(&quot;simplifiedSabersViewerQuality&quot;)||&quot;native&quot;;}catch(_){}
+  try{
+    savedQuality=localStorage.getItem(&quot;simplifiedSabersViewerQuality&quot;)||&quot;native&quot;;
+    // Old builds stored Medium as their default. Upgrade that legacy default
+    // once to Native, while preserving deliberately selected other presets.
+    if(!localStorage.getItem(&quot;simbersNativeDefaultV1&quot;)){
+      if(savedQuality===&quot;medium&quot;)savedQuality=&quot;native&quot;;
+      localStorage.setItem(&quot;simbersNativeDefaultV1&quot;,&quot;1&quot;);
+      localStorage.setItem(&quot;simplifiedSabersViewerQuality&quot;,savedQuality);
+    }
+  }catch(_){}
   qualityKey=QUALITY_PROFILES[savedQuality]?savedQuality:&quot;native&quot;;
   quality=QUALITY_PROFILES[qualityKey];
   if(els.quality)els.quality.value=qualityKey;
