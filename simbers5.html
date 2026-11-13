@@ -3466,15 +3466,19 @@ export const oggEncoderVersion = WasmMediaEncoderApi.jsLibraryVersion();
 }
 </style>
 <style id="simbersDropStyles">
-.simbersDropOverlay{position:fixed;inset:0;z-index:420000;pointer-events:none;display:none;align-items:center;justify-content:center;background:rgba(5,9,17,.82);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);padding:20px}
+/* Same flat, squared-off dark surfaces and accent border as Simbers controls. */
+.simbersDropOverlay{position:fixed;inset:0;z-index:420000;pointer-events:none;display:none;align-items:center;justify-content:center;padding:clamp(12px,3vw,32px);background:rgba(12,12,14,.86);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px)}
 .simbersDropOverlay.is-active{display:flex}
-.simbersDropHint{width:min(520px,100%);min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border:2px dashed var(--primary);border-radius:10px;background:rgba(20,28,40,.95);color:#fff;text-align:center;padding:28px}
-.simbersDropHint strong{font-size:clamp(21px,4vw,30px)}
-.simbersDropHint span{font-size:13px;color:#bfc9d7}
+.simbersDropHint{box-sizing:border-box;width:min(560px,100%);min-height:190px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;border:2px dashed var(--primary);border-radius:4px;background:var(--bg-panel,#1e1e1e);color:var(--text,#f5f5f5);text-align:center;padding:clamp(22px,5vw,42px);box-shadow:0 12px 36px rgba(0,0,0,.3)}
+.simbersDropIcon{display:grid;place-items:center;width:52px;height:52px;color:var(--primary);border:2px solid var(--border,#454545);border-radius:4px;background:#171717}
+.simbersDropIcon svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.simbersDropHint strong{font:800 clamp(18px,3vw,24px)/1.2 system-ui,-apple-system,"Segoe UI",sans-serif;text-transform:uppercase;letter-spacing:.015em}
+.simbersDropHint span{max-width:410px;font:600 12px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--muted,#9b9b9b)}
+@media(max-width:520px){.simbersDropHint{min-height:160px;gap:10px}.simbersDropIcon{width:44px;height:44px}}
 </style>
 </head>
 <body>
-<div id="simbersDropOverlay" class="simbersDropOverlay" aria-hidden="true"><div class="simbersDropHint"><strong>Drop audio anywhere</strong><span>MP3 · FLAC · WAV · OGG · OPUS · AAC · M4A · WebM and more</span></div></div>
+<div id="simbersDropOverlay" class="simbersDropOverlay" aria-hidden="true"><div class="simbersDropHint"><div class="simbersDropIcon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5"/><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></svg></div><strong>Drop audio to upload</strong><span>MP3 · MPEG · FLAC · WAV · OGG · Opus · AAC · M4A · WebM and more</span></div></div>
 <section id="simbersLongSongDialog" class="simbersLongSongDialog" role="dialog" aria-modal="true" aria-labelledby="simbersLongSongTitle" aria-describedby="simbersLongSongDescription" hidden>
   <div class="simbersLongSongCard">
     <h2 id="simbersLongSongTitle">Long audio · <span id="simbersLongSongDuration">5:00+</span></h2>
@@ -12496,15 +12500,18 @@ bindPair(els.seconds, els.secondsNum);
 
 const SIMBERS_AUDIO_EXTENSIONS=/\.(?:mp3|mp2|mpeg|mpga|wav|wave|flac|ogg|oga|opus|aac|m4a|mp4|webm|weba|aif|aiff|alac|wma|ape)$/i;
 function simbersLooksLikeAudio(file){
-  return file instanceof Blob && (SIMBERS_AUDIO_EXTENSIONS.test(file.name||"")||
-    /^audio\//i.test(file.type||""));
+  // File from the embedded viewer belongs to another JS realm: instanceof Blob
+  // against the parent window rejects an otherwise valid dragged MP3.
+  return file!=null && typeof file.name==="string" &&
+    typeof file.size==="number" && typeof file.arrayBuffer==="function" &&
+    (SIMBERS_AUDIO_EXTENSIONS.test(file.name)||/^audio\//i.test(file.type||""));
 }
 async function simbersSelectAudioFile(file){
+  if(!file)return;
   if(!simbersLooksLikeAudio(file)){
-    els.mapStatus.textContent="Unsupported selection. Drop an audio file (MP3, FLAC, WAV, OGG, AAC, etc.).";
+    els.mapStatus.textContent="Choose an audio file: MP3, FLAC, WAV, OGG, AAC, M4A or another supported format.";
     return;
   }
-  if(!file)return;
   const pick=++simbersFilePickVersion;
   els.analyzeBtn.disabled=true;
   els.mapStatus.textContent="Checking audio duration…";
