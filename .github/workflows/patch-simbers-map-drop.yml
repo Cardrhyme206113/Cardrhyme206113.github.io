@@ -1,0 +1,71 @@
+name: Patch Simbers map ZIP drop
+on:
+  push:
+    branches: [pages]
+    paths:
+      - '.github/workflows/patch-simbers-map-drop.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pages
+          fetch-depth: 0
+      - name: Add drop-to-viewer support without rewriting the build
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          path = Path('simbers5.html')
+          html = path.read_text(encoding='utf-8')
+          marker = 'SIMBERS_MAP_ZIP_DROP_V1'
+          if marker not in html:
+              scripts = list(re.finditer(r'<script\b[^>]*>(.*?)</script\s*>', html, flags=re.I|re.S))
+              candidates = [m for m in scripts if 'function launchArcViewer' in m.group(1) and 'SIMPLIFIED_SABERS_LOAD_MAP' in m.group(1)]
+              if len(candidates) != 1:
+                  raise SystemExit(f'Expected one ArcViewer module script, found {len(candidates)}; aborting safely.')
+              m = candidates[0]
+              injection = '''
+          // SIMBERS_MAP_ZIP_DROP_V1: Import a completed Beat Saber map directly into the viewer.
+          // Capture ZIPs before the existing audio drop-to-generate handler; leave all other drops alone.
+          function simbersIsMapZip(file){
+            return !!file && /\\.zip$/i.test(file.name || "");
+          }
+          document.addEventListener("dragover", (event)=>{
+            if(!event.dataTransfer || !Array.from(event.dataTransfer.items || []).some(item=>item.kind==="file")) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect="copy";
+          },true);
+          document.addEventListener("drop", (event)=>{
+            const files=Array.from(event.dataTransfer?.files || []);
+            const map=files.find(simbersIsMapZip);
+            if(!map) return; // Preserve existing song drag-and-drop behavior.
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            lastMapZip=map;
+            lastMapZipName=map.name;
+            if(els.mapStatus) els.mapStatus.textContent="Opening dropped map: "+map.name;
+            launchArcViewer(map,map.name).catch(error=>{
+              console.error("Could not open dropped Beat Saber map",error);
+              showArcViewerPanel("Map could not be opened: "+(error?.message||String(error)));
+              if(els.mapStatus) els.mapStatus.textContent="Map import failed: "+(error?.message||String(error));
+            });
+          },true);
+          '''
+              html = html[:m.end(1)] + '\n' + injection + html[m.end(1):]
+              path.write_text(html, encoding='utf-8')
+              print('Patched simbers5.html')
+          else:
+              print('Already patched')
+          PY
+          git rm .github/workflows/patch-simbers-map-drop.yml
+          git add simbers5.html
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Allow dropping Beat Saber ZIP maps to open in Simbers viewer'
+          git push origin pages
