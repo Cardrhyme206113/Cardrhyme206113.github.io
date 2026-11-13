@@ -3466,8 +3466,8 @@ export const oggEncoderVersion = WasmMediaEncoderApi.jsLibraryVersion();
 /* A stacked mobile toolbar must never have its own few-pixel scroll region.
    Its actual contents are fitted by the lightweight viewport-size observer. */
 @media(max-width:899px){
-  html:not(.viewport-side-by-side) .app>.card{overflow:hidden!important}
-  html:not(.viewport-side-by-side) .app>.card>.uiCluster{
+  html .app>.card{overflow:hidden!important}
+  html .app>.card>.uiCluster{
     max-height:none!important;overflow:visible!important;
     zoom:var(--simbers-mobile-fit,1);
   }
@@ -11617,7 +11617,7 @@ document.getElementById("simbersLongSongDialog").addEventListener("keydown",even
   let raf=0;
   function fit(){
     raf=0;
-    if(window.innerWidth>899||root.classList.contains("viewport-side-by-side")){
+    if(window.innerWidth>899){
       cluster.style.removeProperty("--simbers-mobile-fit");
       return;
     }
