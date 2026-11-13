@@ -77,8 +77,19 @@ def sort_by_familiarity(patterns):
     # First order by actual corpus popularity/map statistics, most familiar first.
     # Split into ten familiarity deciles: jumping a minute ahead traverses
     # a substantially different popularity range, rather than random motifs.
+    # The archive's frequency counters have a large low-popularity plateau.
+    # Break identical popularity ties by novelty relative to common examples,
+    # so later minutes genuinely contain less familiar *shapes*.
+    canonical = sorted(patterns, key=lambda p: (
+        -flow_familiarity(p), -p["maps"], p["id"]))[:128]
+    canonical_features = [style_features(p) for p in canonical]
+    def novelty(pattern):
+        feature = style_features(pattern)
+        return min(style_distance(feature, other) for other in canonical_features)
+    for pattern in patterns:
+        pattern["novelty"] = novelty(pattern)
     ranked = sorted(patterns, key=lambda p: (
-        -flow_familiarity(p), -p["maps"], -p["popularity"], p["id"]))
+        -flow_familiarity(p), p["novelty"], p["id"]))
     ordered = []
     groups = []
     for group_index in range(10):
@@ -107,6 +118,7 @@ def sort_by_familiarity(patterns):
             "name": f"Familiarity {100-group_index*10:02d}-{90-group_index*10:02d} percentile",
             "flowCount": len(group),
             "meanFamiliarity": round(sum(scores)/len(scores), 2),
+            "meanNovelty": round(sum(p["novelty"] for p in group)/len(group), 3),
             "minFamiliarity": round(min(scores), 2),
             "maxFamiliarity": round(max(scores), 2),
         })
@@ -247,7 +259,7 @@ def main():
         "bpm": BPM,
         "seconds": round(duration, 2),
         "flowLengths": {str(n): sum(len(p["notes"]) == n for p in patterns) for n in range(3, 11)},
-        "ordering": "Descending corpus familiarity (45% popularity + 55% map occurrences), 10 chronological deciles, geometry-nearest ordering within deciles",
+        "ordering": "Descending corpus familiarity (45% popularity + 55% map occurrences). Ties sorted by novelty against 128 common reference motifs, then geometry-nearest ordering within 10 chronological deciles",
         "familiaritySections": sections,
         "archive": archive.name,
         "description": "Every curated SimbersV5 flow once, ordered from most familiar to least familiar. Neighboring flows are geometrically grouped and each familiarity decile has an indexed timeline range. One rapid click per note."
