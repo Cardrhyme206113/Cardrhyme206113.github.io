@@ -1,0 +1,51 @@
+name: Build all 3252 Simbers corpus showcase
+
+on:
+  push:
+    branches: [pages]
+    paths:
+      - tools/build_all_corpus_showcase.py
+      - .github/workflows/build-all-corpus-showcase.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pages
+      - name: Build complete corpus map and click-track OGG
+        run: |
+          ffmpeg -version | head -1
+          python3 tools/build_all_corpus_showcase.py
+      - name: Validate release and upload artifact
+        run: |
+          python3 - <<'PY'
+          import json,zipfile
+          from pathlib import Path
+          m=json.loads(Path('corpus-showcase/report.json').read_text())
+          assert m['patterns']==3252
+          with zipfile.ZipFile('corpus-showcase/'+m['archive']) as z:
+              assert set(z.namelist())=={'Info.dat','ExpertPlus.dat','song.ogg','cover.png'}
+              notes=json.loads(z.read('ExpertPlus.dat'))['_notes']
+              assert len(notes)==m['notes']
+              assert len({n['_customData']['_corpusIndex'] for n in notes})==3252
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SimbersV5-all-3252-corpus-flows
+          path: corpus-showcase/SimbersV5_All_3252_Corpus_Flows_Fast.zip
+      - name: Publish static ZIP
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add corpus-showcase/SimbersV5_All_3252_Corpus_Flows_Fast.zip corpus-showcase/report.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish complete 3252-flow Beat Saber demo ZIP"
+            git push origin HEAD:pages
+          fi
