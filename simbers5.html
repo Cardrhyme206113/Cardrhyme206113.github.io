@@ -3421,47 +3421,61 @@ export const oggEncoderVersion = WasmMediaEncoderApi.jsLibraryVersion();
 </script>
 
 <style id="simbersLongSongAndMobileFit">
-/* Long-audio confirmation uses the existing dark glass-panel design language. */
+/* Shared app palette and squared controls, matching Advanced Settings. */
 .simbersLongSongDialog[hidden]{display:none!important}
 .simbersLongSongDialog{
-  position:fixed;inset:0;z-index:110000;
+  position:fixed;inset:0;z-index:250001;
   display:grid;place-items:center;
-  padding:20px max(14px,env(safe-area-inset-right)) 20px max(14px,env(safe-area-inset-left));
-  background:rgba(4,7,13,.72);
-  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  padding:14px max(12px,env(safe-area-inset-right)) 14px max(12px,env(safe-area-inset-left));
+  background:rgba(0,0,0,.76);
+  -webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);
 }
 .simbersLongSongCard{
-  width:min(100%,480px);max-height:calc(100dvh - 36px);overflow-y:auto;
-  padding:25px;border:1px solid #424954;border-radius:13px;
-  background:#1c2027;box-shadow:0 24px 80px rgba(0,0,0,.5);color:#f2f5fa;
+  width:min(100%,510px);max-height:calc(100dvh - 28px);overflow-y:auto;
+  border:2px solid var(--border);border-radius:4px;
+  background:var(--bg-panel);color:var(--text);
+  box-shadow:0 16px 48px rgba(0,0,0,.55);
+}
+.simbersLongSongHeader{
+  padding:17px 20px 15px;
+  background:#1a1a1a;border-bottom:2px solid var(--border);
 }
 .simbersLongSongEyebrow{
-  display:block;margin-bottom:9px;color:#94b6df;
-  font-size:10px;font-weight:750;letter-spacing:.12em;text-transform:uppercase;
+  display:block;margin-bottom:6px;
+  color:var(--primary);font:800 10px/1.3 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:.12em;
 }
-.simbersLongSongCard h2{margin:0 0 10px;font-size:23px;line-height:1.2;font-weight:750}
-.simbersLongSongCard p{margin:0 0 13px;color:#b3bfcd;font-size:13px;line-height:1.55}
+.simbersLongSongCard h2{
+  margin:0;color:#fff;font-size:clamp(20px,4vw,25px);
+  line-height:1.18;font-weight:800;text-transform:uppercase;
+}
+.simbersLongSongBody{padding:17px 20px 20px}
+.simbersLongSongCard p{
+  margin:0 0 13px;color:#b6b6b6;font-size:13px;line-height:1.5;
+}
 .simbersLongSongDuration{
-  display:block;margin-bottom:15px;padding:10px 12px;
-  border:1px solid #323b49;border-radius:7px;background:#151a20;
-  font-size:12px;color:#dbe4ef;font-variant-numeric:tabular-nums;
+  display:block;margin:0 0 14px;padding:10px 12px;
+  border:2px solid var(--border);border-radius:4px;background:#111;
+  color:#fff;font:650 12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-variant-numeric:tabular-nums;
 }
-.simbersLongSongActions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.simbersLongSongActions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .simbersLongSongActions button{
-  width:100%;min-width:0;height:auto;min-height:42px;
-  margin:0;padding:10px 12px;border-radius:6px;
-  border:1px solid #495564;background:#2c333d;color:#eff3fa;
-  font:650 12px/1.25 system-ui,-apple-system,"Segoe UI",sans-serif;
-  cursor:pointer;white-space:normal;
+  width:100%;min-width:0;height:auto;min-height:44px;
+  margin:0;padding:10px 12px;border:2px solid var(--border);
+  border-radius:4px;background:#171717;color:#fff;
+  font:750 12px/1.25 system-ui,-apple-system,"Segoe UI",sans-serif;
+  text-transform:uppercase;cursor:pointer;white-space:normal;box-shadow:none;
 }
 .simbersLongSongActions button:hover,.simbersLongSongActions button:focus-visible{
-  border-color:#77a8e6;background:#354356;outline:none;
+  background:#242424;border-color:#777;outline:none;
 }
 .simbersLongSongActions .simbersLongSongPrimary{
-  grid-column:1/-1;border-color:#2684df;background:#136fcb;color:white;font-weight:750;
+  grid-column:1/-1;background:var(--primary);border-color:var(--primary);color:#fff;
 }
-.simbersLongSongActions .simbersLongSongPrimary:hover,.simbersLongSongActions .simbersLongSongPrimary:focus-visible{
-  background:#2485e5;
+.simbersLongSongActions .simbersLongSongPrimary:hover,
+.simbersLongSongActions .simbersLongSongPrimary:focus-visible{
+  background:var(--primary-hover);border-color:var(--primary-hover);
 }
 /* A stacked mobile toolbar must never have its own few-pixel scroll region.
    Its actual contents are fitted by the lightweight viewport-size observer. */
@@ -3484,15 +3498,19 @@ export const oggEncoderVersion = WasmMediaEncoderApi.jsLibraryVersion();
 
 <section id="simbersLongSongDialog" class="simbersLongSongDialog" role="dialog" aria-modal="true" aria-labelledby="simbersLongSongTitle" aria-describedby="simbersLongSongDescription" hidden>
   <div class="simbersLongSongCard">
-    <span class="simbersLongSongEyebrow">SIMPLIFIED SABERS · LONG AUDIO</span>
-    <h2 id="simbersLongSongTitle">Audio exceeds 5 minutes</h2>
-    <p id="simbersLongSongDescription">Longer songs take more time to analyze. Processing the entire audio may take 2–3 minutes on longer tracks, depending on your device.</p>
-    <span class="simbersLongSongDuration" id="simbersLongSongDuration"></span>
-    <p>Choose whether to generate a map for just the first five minutes or for the entire song.</p>
-    <div class="simbersLongSongActions">
-      <button type="button" class="simbersLongSongPrimary" data-long-song-choice="clip">Map first 5 minutes</button>
-      <button type="button" data-long-song-choice="full">Map entire audio</button>
-      <button type="button" data-long-song-choice="cancel">Cancel</button>
+    <div class="simbersLongSongHeader">
+      <span class="simbersLongSongEyebrow">SIMPLIFIED SABERS / AUDIO LIMIT</span>
+      <h2 id="simbersLongSongTitle">Song exceeds 5 minutes</h2>
+    </div>
+    <div class="simbersLongSongBody">
+      <p id="simbersLongSongDescription">Longer tracks may take 2–3 minutes to process, depending on your device.</p>
+      <span class="simbersLongSongDuration" id="simbersLongSongDuration"></span>
+      <p>Choose the first 5 minutes or create a map for the full song.</p>
+      <div class="simbersLongSongActions">
+        <button type="button" class="simbersLongSongPrimary" data-long-song-choice="clip">Map first 5 minutes</button>
+        <button type="button" data-long-song-choice="full">Map entire audio</button>
+        <button type="button" data-long-song-choice="cancel">Cancel</button>
+      </div>
     </div>
   </div>
 </section>
@@ -5000,6 +5018,7 @@ let activeSliders=[];
 let activeDifficulty=&quot;ExpertPlus&quot;;
 let activeMode=&quot;Standard&quot;;
 let duration=0;
+let maxViewerPlaybackSec=Infinity;
 let raf=0;
 let dpr=1;
 let width=0;
@@ -8483,7 +8502,12 @@ function render(now=performance.now()){
       els.fpsOverlay.title=browserRafFps&lt;85 ? &#x27;Chrome/Android is delivering about 60 animation callbacks per second. The Simbers render cap is 120 FPS.&#x27; : &#x27;Browser animation callback rate; independent of Simbers GPU rendering performance.&#x27;;
     }
   }
-  const t=els.audio.currentTime||0;
+  if(Number.isFinite(maxViewerPlaybackSec)&amp;&amp;els.audio.currentTime&gt;=maxViewerPlaybackSec&amp;&amp;!els.audio.paused){
+    els.audio.pause();
+    els.audio.currentTime=maxViewerPlaybackSec;
+    updatePlayButtonState();
+  }
+  const t=Math.min(els.audio.currentTime||0,duration||Infinity);
 
   // When paused, don&#x27;t rebuild/upload the same 3D scene 60 times per second.
   // Seeking, resizing, quality changes and map changes all set needsRedraw.
@@ -8907,11 +8931,11 @@ els.play.addEventListener(&quot;click&quot;,async()=&gt;{
 });
 
 els.seek.addEventListener(&quot;input&quot;,()=&gt;{
-  if(duration){els.audio.currentTime=Number(els.seek.value)*duration;rebuildHitQueue();resetLighting(els.audio.currentTime);clearMotionTrail();}
+  if(duration){els.audio.currentTime=Math.min(maxViewerPlaybackSec,Math.max(0,Number(els.seek.value)*duration));rebuildHitQueue();resetLighting(els.audio.currentTime);clearMotionTrail();}
 });
 
 els.audio.addEventListener(&quot;loadedmetadata&quot;,()=&gt;{
-  duration=els.audio.duration||0;
+  duration=Math.min(els.audio.duration||0,maxViewerPlaybackSec);
   rebuildHitQueue();
   els.status.textContent=`${characteristicLabel(activeMode)} · ${activeDifficulty===&quot;ExpertPlus&quot;?&quot;Expert+&quot;:activeDifficulty} · ${activeNotes.length} notes`;
 });
@@ -8934,6 +8958,9 @@ els.audio.addEventListener(&quot;pause&quot;,()=&gt;{
   needsRedraw=true;
 });
 els.audio.addEventListener(&quot;seeking&quot;,()=&gt;{
+  if(Number.isFinite(maxViewerPlaybackSec)&amp;&amp;els.audio.currentTime&gt;maxViewerPlaybackSec){
+    els.audio.currentTime=maxViewerPlaybackSec;
+  }
   stopBackgroundHitScheduler();
   cancelScheduledHitSounds();
 });
@@ -8944,6 +8971,13 @@ els.audio.addEventListener(&quot;seeked&quot;,()=&gt;{
 els.audio.addEventListener(&quot;ratechange&quot;,()=&gt;{
   rebuildHitQueue();
   if(!els.audio.paused)startBackgroundHitScheduler();
+});
+els.audio.addEventListener(&quot;timeupdate&quot;,()=&gt;{
+  if(Number.isFinite(maxViewerPlaybackSec)&amp;&amp;els.audio.currentTime&gt;=maxViewerPlaybackSec){
+    els.audio.pause();
+    if(els.audio.currentTime!==maxViewerPlaybackSec)els.audio.currentTime=maxViewerPlaybackSec;
+    updatePlayButtonState();
+  }
 });
 els.audio.addEventListener(&quot;ended&quot;,()=&gt;{
   stopBackgroundHitScheduler();
@@ -9081,6 +9115,8 @@ function arrayBufferFrom(value){
 }
 
 function clearLoadedMap(){
+  maxViewerPlaybackSec=Infinity;
+  duration=0;
   els.audio.pause();
   if(activeAudioUrl)URL.revokeObjectURL(activeAudioUrl);
   if(activeCoverUrl)URL.revokeObjectURL(activeCoverUrl);
@@ -9168,6 +9204,7 @@ function updateGeneratedMaps(payload){
 
 function loadGeneratedPayload(payload){
   clearLoadedMap();
+  maxViewerPlaybackSec=Number(payload?.maxDurationSec)>0?Number(payload.maxDurationSec):Infinity;
   const rawInfo=payload?.info||{};
   const characteristics=(payload?.characteristics||[]).map(set=&gt;({
     name:set.name||set.characteristic||&quot;Standard&quot;,
@@ -17107,6 +17144,7 @@ async function prepareMapBuild(result,previewAudioBytes,previewAudioMime){
     })),
     audioBytes:previewAudioBytes,
     audioMime:previewAudioMime||"audio/mpeg",
+    maxDurationSec:result.duration,
     coverBytes:viewerCoverBytes,
     coverMime:"image/png"
   };
