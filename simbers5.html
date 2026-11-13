@@ -12558,6 +12558,42 @@ window.addEventListener("drop",event=>{
   if(file)void simbersSelectAudioFile(file);
 },{capture:true});
 window.addEventListener("blur",()=>simbersDropOverlay.classList.remove("is-active"));
+// The preview is an embedded srcdoc iframe: its drag events do not bubble
+// into the host page, so connect the same upload behavior inside that frame.
+const simbersDropViewerFrame=document.getElementById("localViewerFrame");
+function simbersBindViewerDrops(){
+  let frameWindow;
+  try{frameWindow=simbersDropViewerFrame?.contentWindow;
+    if(!frameWindow||!simbersDropViewerFrame.contentDocument)return;}
+  catch(_){return;} // Preserve the viewer if its origin ever becomes isolated.
+  frameWindow.addEventListener("dragenter",event=>{
+    if(!simbersFileDrag(event))return;
+    event.preventDefault();
+    simbersDropOverlay.classList.add("is-active");
+  },true);
+  frameWindow.addEventListener("dragover",event=>{
+    if(!simbersFileDrag(event))return;
+    event.preventDefault();
+    if(event.dataTransfer)event.dataTransfer.dropEffect="copy";
+    simbersDropOverlay.classList.add("is-active");
+  },true);
+  frameWindow.addEventListener("dragleave",event=>{
+    if(event.relatedTarget==null)simbersDropOverlay.classList.remove("is-active");
+  },true);
+  frameWindow.addEventListener("drop",event=>{
+    simbersDropOverlay.classList.remove("is-active");
+    if(!simbersFileDrag(event))return;
+    event.preventDefault();
+    event.stopPropagation();
+    const files=Array.from(event.dataTransfer?.files||[]);
+    const file=files.find(simbersLooksLikeAudio)||files[0];
+    if(file)void simbersSelectAudioFile(file);
+  },true);
+}
+if(simbersDropViewerFrame){
+  simbersDropViewerFrame.addEventListener("load",simbersBindViewerDrops);
+  if(simbersDropViewerFrame.contentDocument?.readyState==="complete")simbersBindViewerDrops();
+}
 
 function selectedIntensityPercent(){
   return Math.max(50,Math.min(200,Math.round(Number(els.mapIntensity?.value)||100)));
