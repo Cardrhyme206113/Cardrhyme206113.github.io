@@ -1,0 +1,94 @@
+name: One-time lossless Simbers WASM packing
+on:
+  push:
+    branches: [pages]
+    paths:
+      - '.github/workflows/pack-simbers-ogg-wasm-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: pages
+          fetch-depth: 1
+          sparse-checkout: |
+            simbers5.html
+            .github/workflows/pack-simbers-ogg-wasm-once.yml
+          sparse-checkout-cone-mode: false
+      - name: Compress embedded OGG encoder with Python gzip
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, gzip, re, hashlib
+          path=Path('simbers5.html')
+          src=path.read_text('utf-8')
+          old=len(src.encode('utf-8'))
+          token=re.search(r'const EMBEDDED_OGG_WASM_B64 = "([A-Za-z0-9+/=]+)";',src)
+          if not token or src.count('const EMBEDDED_OGG_WASM_B64')!=1:
+              raise RuntimeError('Expected one original OGG WASM constant')
+          wasm=base64.b64decode(token.group(1),validate=True)
+          if not wasm.startswith(b'\0asm'):
+              raise RuntimeError('WASM magic mismatch')
+          packed=gzip.compress(wasm,compresslevel=9,mtime=0)
+          if gzip.decompress(packed)!=wasm:
+              raise RuntimeError('Lossless round trip verification failed')
+          encoded=base64.b64encode(packed).decode('ascii')
+          src=src[:token.start()]+'const EMBEDDED_OGG_WASM_GZIP_B64 = "'+encoded+'";'+src[token.end():]
+          # Keep encoder compilation and its callback unchanged.
+          old_line='embeddedOggWasmBytes = base64ToBytes(EMBEDDED_OGG_WASM_B64);'
+          if src.count(old_line)!=1:
+              raise RuntimeError('Encoder initialization did not match expected source')
+          src=src.replace(old_line,'embeddedOggWasmBytes = await inflateEmbeddedOggWasm();',1)
+          marker='async function getEmbeddedOggEncoder() {'
+          if src.count(marker)!=1:
+              raise RuntimeError('Could not identify encoder factory')
+          helper='''async function inflateEmbeddedOggWasm() {
+            if (typeof DecompressionStream !== "function") {
+              throw new Error("Offline OGG export requires a browser with gzip DecompressionStream support.");
+            }
+            const compressed = base64ToBytes(EMBEDDED_OGG_WASM_GZIP_B64);
+            const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream("gzip"));
+            const buffer = await new Response(stream).arrayBuffer();
+            if (buffer.byteLength !== WASM_EXPECTED_BYTES || new Uint8Array(buffer)[0] !== 0 ||
+                new Uint8Array(buffer)[1] !== 97 || new Uint8Array(buffer)[2] !== 115 ||
+                new Uint8Array(buffer)[3] !== 109) {
+              throw new Error("The embedded OGG encoder data is invalid.");
+            }
+            return new Uint8Array(buffer);
+          }
+
+          '''
+          helper='const WASM_EXPECTED_BYTES = '+str(len(wasm))+';\n'+helper
+          src=src.replace(marker,helper+marker,1)
+          if 'EMBEDDED_OGG_WASM_B64' in src:
+              raise RuntimeError('Reference to the uncompressed encoder remains')
+          path.write_text(src,encoding='utf-8')
+          new=len(src.encode('utf-8'))
+          print(f'Original encoder: {len(wasm):,} bytes; packed gzip: {len(packed):,} bytes')
+          print(f'Embedded base64: {len(token.group(1)):,} -> {len(encoded):,} chars')
+          print(f'HTML: {old:,} -> {new:,} bytes; saved {old-new:,} bytes ({(old-new)/old:.1%})')
+          print(f'SHA-256 of original/unpacked WASM: {hashlib.sha256(wasm).hexdigest()}')
+          print(f'Whole-page gzip comparison: {len(gzip.compress(path.read_bytes(),compresslevel=9)):,} bytes after packing')
+          PY
+          node --input-type=module --check < <(python3 - <<'PY'
+          import re
+          html=open('simbers5.html',encoding='utf-8').read()
+          code=re.search(r'<script type="text/plain" id="simbers-embedded-ogg">([\s\S]*?)</script>',html)
+          if not code:
+              raise RuntimeError('OGG module missing')
+          print(code.group(1))
+          PY
+          )
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add simbers5.html
+          git rm -f .github/workflows/pack-simbers-ogg-wasm-once.yml
+          git commit -m "Losslessly gzip-pack the bundled Vorbis WASM encoder"
+          git push origin HEAD:pages
