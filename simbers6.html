@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-<title>Simplified Sabers V0.9.7 — DefaultEnvironment Beat Lighting</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3Cfilter%20id%3D%22g%22%20x%3D%22-40%25%22%20y%3D%22-40%25%22%20width%3D%22180%25%22%20height%3D%22180%25%22%3E%3CfeGaussianBlur%20stdDeviation%3D%223%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3Cg%20fill%3D%22none%22%20stroke-linecap%3D%22square%22%3E%3Cpath%20d%3D%22M13%2014%2051%2050%22%20stroke%3D%22%230095ff%22%20stroke-width%3D%228%22%20opacity%3D%22.55%22%20filter%3D%22url%28%23g%29%22%2F%3E%3Cpath%20d%3D%22M51%2014%2013%2050%22%20stroke%3D%22%23ff315c%22%20stroke-width%3D%228%22%20opacity%3D%22.55%22%20filter%3D%22url%28%23g%29%22%2F%3E%3Cpath%20d%3D%22M13%2014%2051%2050%22%20stroke%3D%22%23168dff%22%20stroke-width%3D%226%22%2F%3E%3Cpath%20d%3D%22M51%2014%2013%2050%22%20stroke%3D%22%23ff315c%22%20stroke-width%3D%226%22%2F%3E%3Cpath%20d%3D%22M13%2014%2051%2050%22%20stroke%3D%22%2397dfff%22%20stroke-width%3D%221.8%22%20opacity%3D%22.8%22%2F%3E%3Cpath%20d%3D%22M51%2014%2013%2050%22%20stroke%3D%22%23ffc5d4%22%20stroke-width%3D%221.8%22%20opacity%3D%22.75%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E" />
+<title>Simbers V6 — Beat Saber Map Generator</title>
 <style>
 :root{
   color-scheme:dark;
@@ -3751,7 +3752,7 @@ export const oggEncoderVersion = WasmMediaEncoderApi.jsLibraryVersion();
           </svg>
         </div>
         <h1>Simplified Sabers</h1>
-        <div id="simbersVersionInfo" class="simbersVersionInfo" title="Simplified Sabers V0.9.7 — Offline Core">V0.9.7</div>
+        <div id="simbersVersionInfo" class="simbersVersionInfo" title="Simbers V6 — Offline Core">V6</div>
       </div>
 <div class="actions">
         <input id="file" class="fileInput" type="file" accept="audio/*,.mp3,.mp2,.mpeg,.mpga,.wav,.wave,.flac,.ogg,.oga,.opus,.aac,.m4a,.mp4,.webm,.weba,.aif,.aiff,.alac,.wma,.ape">
@@ -10922,7 +10923,7 @@ const timingExportStages=[
 ];
 function timingProfileReset(songName="",duration=0){
   latestTimingProfile={
-    version:"V0.9.7",detectorMode:simbersDetectorMode,
+    version:"V6",detectorMode:simbersDetectorMode,
     song:songName||"(unknown)",durationSec:Number(duration)||0,
     hardwareThreads:navigator.hardwareConcurrency||null,
     startedAt:performance.now(),startedUtc:new Date().toISOString(),
@@ -12408,6 +12409,7 @@ async function pastJobsRefresh(){
           type:job.audioType||job.audioBlob.type||"application/octet-stream",lastModified:Date.now()});
         try{const dt=new DataTransfer();dt.items.add(file);els.file.files=dt.files;}
         catch(_){els.file.value="";}
+        if(job.youtubeSource)file.simbersYoutubeSource=job.youtubeSource;
         setSource(file);
         pastJobsHide({focus:false});
         els.mapStatus.textContent=`Loaded ${file.name}. Change settings and select Create Map.`;
@@ -12501,6 +12503,7 @@ function pastJobsEnqueueSave(ctx,zipBlob){
   const record={
     id:ctx.historyId,createdAt:ctx.historyCreatedAt||Date.now(),
     name:ctx.songName||"Untitled",zipName:`${ctx.songName||"Generated"}_SimplifiedSabers.zip`,
+    youtubeSource:ctx.youtubeSource||null,
     zipBlob,zipSize:zipBlob.size,
     audioBlob:ctx.historyAudioBlob,audioName:ctx.historyAudioBlob.name||`${ctx.songName||"song"}.mp3`,
     audioType:ctx.historyAudioBlob.type||"audio/mpeg",audioSize:ctx.historyAudioBlob.size,
@@ -13156,6 +13159,10 @@ async function rebuildMapForIntensity(percent){
     percent
   );
   const info=makeInfo(ctx.songName,analysis.duration,built.characteristicSets);
+  if(ctx.youtubeSource){
+    info._songName=ctx.youtubeSource.title||ctx.songName;
+    info._songAuthorName=ctx.youtubeSource.author||"Unknown";
+  }
   const mapOnly=makeMapOnlyViewerPayload(
     info,
     built.characteristicSets,
@@ -17647,6 +17654,53 @@ async function createCover(songName,seed){
   return canvasBlob(canvas);
 }
 
+// YouTube video thumbnails are embedded as real PNG bytes in the ZIP and
+// viewer payload. Browser display of an <img> alone does not embed the image.
+async function simbersYoutubeSquareCover(meta){
+  const videoId=String(meta?.id||"");
+  if(!/^[\w-]{11}$/.test(videoId))throw new Error("Invalid YouTube video ID for cover");
+  const size=512;
+  const canvas=document.createElement("canvas");
+  canvas.width=canvas.height=size;
+  const g=canvas.getContext("2d",{alpha:false});
+  if(!g)throw new Error("Canvas unavailable for YouTube cover");
+
+  let artwork=null;
+  // Prefer a high-res preview but fall back to the exact mqdefault thumbnail
+  // already used in search results. CORS-restricted hosts get a proxy fallback.
+  for(const quality of ["hqdefault","mqdefault"]){
+    const url=`https://i.ytimg.com/vi/${videoId}/${quality}.jpg`;
+    for(const target of [url,`https://proxy.cors.dev/${url}`]){
+      let controller;
+      let timer;
+      try{
+        controller=new AbortController();
+        timer=setTimeout(()=>controller.abort(),4500);
+        const response=await fetch(target,{signal:controller.signal,credentials:"omit"});
+        if(!response.ok)continue;
+        const type=(response.headers.get("content-type")||"").toLowerCase();
+        if(type&&!type.startsWith("image/"))continue;
+        const blob=await response.blob();
+        if(blob.size<1000||blob.size>4*1024*1024)continue;
+        const bitmap=await createImageBitmap(blob);
+        if(bitmap.width<240||bitmap.height<135){bitmap.close();continue;}
+        artwork=bitmap;
+        break;
+      }catch(error){
+        console.info("[Simbers YouTube] Thumbnail source unavailable:",quality,error?.message||error);
+      }finally{clearTimeout(timer);}
+    }
+    if(artwork)break;
+  }
+  if(!artwork)throw new Error("Thumbnail not accessible from YouTube or the image proxy");
+  try{
+    // Center-crop the original image to an actual square map cover.
+    const edge=Math.min(artwork.width,artwork.height);
+    g.drawImage(artwork,(artwork.width-edge)/2,(artwork.height-edge)/2,edge,edge,0,0,size,size);
+  }finally{artwork.close();}
+  return canvasBlob(canvas,"image/png");
+}
+
 let crcTable=null;
 function getCrcTable(){
   if(crcTable)return crcTable;
@@ -17807,6 +17861,7 @@ async function prepareMapBuild(result,previewAudioBytes,previewAudioMime){
   const buildStart=performance.now();
   const seed=await songSeed(sourceBlob);
   const songName=safeBaseName(sourceBlob.name);
+  const youtubeSource=sourceBlob?.simbersYoutubeSource||null;
   const featureOptions={
     bombs:els.featureBombs.checked,
     walls:els.featureWalls.checked,
@@ -17837,12 +17892,24 @@ async function prepareMapBuild(result,previewAudioBytes,previewAudioMime){
 
   setProgress(.94,"Creating cover and preview…");
   const coverStart=performance.now();
-  const cover=await createCover(songName,seed);
+  let cover;
+  if(youtubeSource){
+    try{cover=await simbersYoutubeSquareCover(youtubeSource);}
+    catch(error){
+      console.warn("[Simbers YouTube] Thumbnail unavailable; using standard cover:",error);
+      cover=await createCover(songName,seed);
+    }
+  }else cover=await createCover(songName,seed);
   const coverBytes=await bytesFromBlob(cover);
   const coverGenerationMs=performance.now()-coverStart;
 
   const previewStart=performance.now();
   const info=makeInfo(songName,result.duration,characteristicSets);
+  if(youtubeSource){
+    info._songName=youtubeSource.title||songName;
+    info._songAuthorName=youtubeSource.author||"Unknown";
+    // Leave the map author (_levelAuthorName) as Simbers.
+  }
   const manifest=validateInfoCharacteristics(info,characteristicSets);
   const viewerCoverBytes=coverBytes.slice().buffer;
 
@@ -17889,7 +17956,7 @@ async function prepareMapBuild(result,previewAudioBytes,previewAudioMime){
       preparationMs:performance.now()-buildStart
     },
     fastContext:{
-      seed,songName,lightingEvents,featureOptions,
+      seed,songName,youtubeSource,lightingEvents,featureOptions,
       audioBytes:null,
       coverBytes,
       viewerAudioBytes:previewAudioBytes,
@@ -21683,6 +21750,9 @@ onmessage=e=>{const d=e.data;busy=busy.then(async()=>{
         throw Error('Downloaded WebM is not valid decodable Opus: '+error.message+'. Save raw audio and copy the diagnostic report.');
       }
     }
+    // Keep the chosen video's identity attached to this exact source file, even
+    // when WebM/Opus has been losslessly remuxed to Ogg/Opus.
+    importFile.simbersYoutubeSource={id:v.id,title:v.title||cleanName(v.id),author:v.author||'Unknown'};
     label('Audio ready · '+bytes(importFile.size)+'. Creating Beat Saber map…','success');
     els.mapStatus.textContent='YouTube audio ready · generating map…';
     try{const transfer=new DataTransfer();transfer.items.add(importFile);els.file.files=transfer.files;}catch(_){/* Browser file-input restrictions. */}
