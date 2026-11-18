@@ -23249,6 +23249,23 @@ async function buildCharacteristicSetsForIntensity(
     timingProfileNote("botVariants", "disabled");
   }
 
+  // Final bimanual path check MUST run after every direction/position bot
+  // correction and before Standard is copied into other characteristics.
+  const physicalMetrics = await simbersRunPhysicalFlowGuard(standardDifficulties, {
+    seed,
+    featureOptions,
+    isCurrent: featureOptions.isCurrent || null,
+    onProgress: featureOptions.onPhysicalProgress || null,
+  });
+  if (timingMapInstrumentationActive) {
+    timingProfileSet("physicalFlowPass", physicalMetrics.elapsedMs);
+    timingProfileNote("physicalFlagged", physicalMetrics.flagged);
+    timingProfileNote("physicalRepairedPhrases", physicalMetrics.repairedPhrases);
+    timingProfileNote("physicalRiskBefore", +physicalMetrics.riskBefore.toFixed(2));
+    timingProfileNote("physicalRiskAfter", +physicalMetrics.riskAfter.toFixed(2));
+    timingProfileNote("physicalUnresolved", physicalMetrics.unresolved);
+  }
+
   const characteristicSets = [];
   if (advBoolean("output.standard", true)) {
     characteristicSets.push({
@@ -23338,7 +23355,8 @@ async function rebuildMapForDensity(percent) {
     arcs: els.featureArcs.checked,
     botOptimizer: els.featureBotOptimizer.checked,
     isCurrent: () => startGeneration === mapGenerationId && lastFastBuildContext === ctx,
-    onBotProgress: (fraction, label) => setProgress(0.86 + 0.085 * fraction, `Intensity update · ${label}`),
+    onBotProgress: (fraction, label) => setProgress(0.86 + 0.055 * fraction, `Intensity update · ${label}`),
+    onPhysicalProgress: (fraction, label) => setProgress(0.918 + 0.024 * fraction, `Intensity update · ${label}`),
   };
 
   els.mapStatus.textContent = `Updating intensity ${percent}% · NPS ${selectedNpsCap()}…`;
@@ -28535,6 +28553,391 @@ async function simbersRunBotSecondPass(standardDifficulties, {
 }
 
 </script>
+    <script data-modular-source="js/generation/dual-hand-trajectory.js">
+"use strict";
+/* Human-flow guard, after density, swing, and bot passes.
+ * This is a conservative 2-D two-hand trajectory proxy, not inverse kinematics
+ * or a guarantee of human biomechanics. It checks swept wrist paths and reach
+ * between notes, then changes entire short motifs only when risk is reduced.
+ */
+const SIMBERS_GUARD_SAMPLES = [-0.16, -0.08, 0, 0.08, 0.16];
+const SIMBERS_GUARD_SWING_RADIUS = 0.39;
+
+function simbersGuardTracePose(stream, t, cursor, hand) {
+  if (!stream.length) return { x: hand ? 2.32 : 0.68, y: -0.55, active: false };
+  while (cursor.i + 1 < stream.length && stream[cursor.i + 1].time <= t) cursor.i++;
+  while (cursor.i > 0 && stream[cursor.i].time > t) cursor.i--;
+  const before = stream[cursor.i].time <= t ? stream[cursor.i] : null;
+  const after = cursor.i + 1 < stream.length ? stream[cursor.i + 1] : (before ? null : stream[0]);
+  const current = before && after
+    ? (t - before.time < after.time - t ? before : after)
+    : before || after;
+  if (!current) return { x: hand ? 2.32 : 0.68, y: -0.55, active: false };
+  const dist = Math.abs(t - current.time);
+  const d = SCF_DIRS[current.cutDirection] || SCF_DIRS[0];
+  if (dist <= 0.17) {
+    const s = clamp((t - current.time) / 0.17, -1, 1) * SIMBERS_GUARD_SWING_RADIUS;
+    return { x: current.lineIndex + d.x * s, y: current.lineLayer + d.y * s,
+      active: true, speed: 1 };
+  }
+  if (before && after && t > before.time && t < after.time) {
+    const available = after.time - before.time - 0.34;
+    const bd = SCF_DIRS[before.cutDirection] || SCF_DIRS[0];
+    const ad = SCF_DIRS[after.cutDirection] || SCF_DIRS[0];
+    const start = { x: before.lineIndex + bd.x * SIMBERS_GUARD_SWING_RADIUS,
+      y: before.lineLayer + bd.y * SIMBERS_GUARD_SWING_RADIUS };
+    const end = { x: after.lineIndex - ad.x * SIMBERS_GUARD_SWING_RADIUS,
+      y: after.lineLayer - ad.y * SIMBERS_GUARD_SWING_RADIUS };
+    const u = available > 0.01 ? clamp((t - before.time - 0.17) / available, 0, 1) :
+      clamp((t - before.time) / (after.time - before.time), 0, 1);
+    const smooth = u * u * (3 - 2 * u);
+    return { x: start.x + smooth * (end.x - start.x),
+      y: start.y + smooth * (end.y - start.y), active: true, speed: 0.5 };
+  }
+  if (dist > 0.72) return { x: hand ? 2.32 : 0.68, y: -0.55, active: false };
+  const s = t > current.time ? SIMBERS_GUARD_SWING_RADIUS : -SIMBERS_GUARD_SWING_RADIUS;
+  return { x: current.lineIndex + d.x * s,
+    y: current.lineLayer + d.y * s, active: true, speed: 0 };
+}
+
+function simbersGuardLinesCross(a, b, c, d) {
+  const abx = b.x - a.x, aby = b.y - a.y;
+  const cdx = d.x - c.x, cdy = d.y - c.y;
+  const den = abx * cdy - aby * cdx;
+  if (Math.abs(den) < 0.0001) return false;
+  const acx = c.x - a.x, acy = c.y - a.y;
+  const u = (acx * cdy - acy * cdx) / den;
+  const v = (acx * aby - acy * abx) / den;
+  return u > 0.07 && u < 0.93 && v > 0.07 && v < 0.93;
+}
+
+// Compact, non-song-specific movement-shape prior extracted from independently
+// human-mapped same-time doubles. This is a *soft reference*, never a guarantee
+// that an unfamiliar movement is impossible or an exact match is safe.
+const SIMBERS_GUARD_HUMAN_DOUBLES = [[1,0,1,2,2,0],[1,2,0,2,0,1],[1,2,0,2,2,0],[1,0,1,2,0,1],[0,1,6,1,0,6],[2,0,7,3,1,7],[1,0,1,3,1,5],[0,1,4,2,0,1],[0,1,4,3,0,1],[1,0,1,3,2,5],[0,0,1,3,1,5],[0,2,0,2,0,1],[0,2,0,1,0,6],[0,2,4,2,0,1],[2,0,7,3,2,0],[0,0,1,2,2,0],[2,0,7,3,1,1],[1,2,0,3,0,1],[1,0,7,2,2,0],[0,0,4,2,0,1],[0,1,1,1,0,6],[0,1,4,3,1,5],[1,2,5,2,0,6],[0,1,6,3,2,5],[1,0,7,2,2,4],[0,2,4,3,1,7],[1,2,0,2,0,6],[1,0,1,3,0,5],[0,1,1,3,1,5],[0,1,4,2,2,0],[1,0,1,3,2,0],[0,2,0,3,2,5],[0,2,4,3,2,5],[1,2,0,3,1,5],[1,0,1,3,1,0],[0,0,1,2,0,1],[1,0,1,3,0,1],[0,2,4,2,2,0],[1,2,0,3,2,5],[0,1,0,2,0,1],[0,1,4,3,1,1],[0,2,0,2,2,0],[0,0,1,0,1,1],[0,1,0,3,1,0],[0,1,1,3,1,1],[0,1,6,3,1,5],[1,0,1,1,1,1],[1,2,0,3,2,0],[2,1,0,2,2,0],[0,1,7,1,0,7],[0,1,4,3,1,7],[0,2,4,3,2,0],[0,1,1,3,2,5],[0,2,4,2,1,1],[0,2,0,2,1,1],[3,0,1,3,1,1],[0,1,1,3,1,0],[2,0,5,3,1,5],[1,2,0,3,1,0],[0,1,6,3,1,7],[1,0,1,3,1,1],[0,2,0,3,2,0],[1,2,5,2,1,5],[1,1,4,2,2,4]];
+
+function simbersGuardShapeDistance(a, b) {
+  const coord = 0.40 * (Math.abs(a[0]-b[0]) + Math.abs(a[1]-b[1]) +
+                         Math.abs(a[3]-b[3]) + Math.abs(a[4]-b[4]));
+  const rotations = 0.45 * (sc2AngularError(SCF_ANGLES[a[2]], SCF_ANGLES[b[2]]) +
+                            sc2AngularError(SCF_ANGLES[a[5]], SCF_ANGLES[b[5]])) / 90;
+  return coord + rotations;
+}
+
+function simbersGuardAudit(notes, { from = -Infinity, to = Infinity } = {}) {
+  const byHand = [[], []], batches = new Map();
+  for (const n of notes) if (n.type === 0 || n.type === 1) {
+    byHand[n.type].push(n);
+    const key = n.time.toFixed(4);
+    if (!batches.has(key)) batches.set(key, []);
+    batches.get(key).push(n);
+  }
+  for (const hand of byHand) hand.sort((a,b) => a.time - b.time);
+  const times = [...batches.keys()].map(Number).sort((a,b)=>a-b)
+    .filter(t => t >= from && t <= to);
+  const cursor = [{ i: 0 }, { i: 0 }];
+  let risk = 0, crossingRisk = 0, recoveryRisk = 0, worst = 0;
+  const hotspots = [];
+  for (const t of times) {
+    const batch = batches.get(t.toFixed(4));
+    if (!batch || batch.length !== 2) continue;
+    const red = batch.find(n=>n.type===0), blue=batch.find(n=>n.type===1);
+    if (!red || !blue) continue;
+    const shape = [red.lineIndex, red.lineLayer, red.cutDirection,
+                   blue.lineIndex, blue.lineLayer, blue.cutDirection];
+    const proximity = Math.min(...SIMBERS_GUARD_HUMAN_DOUBLES.map(template =>
+      simbersGuardShapeDistance(shape, template)));
+    // Soft unfamiliarity score: genuine human maps contain same-arrow doubles,
+    // wide lateral movements, and occasional near-column overlap. None of
+    // those alone should be classified as impossible.
+    let eventRisk = Math.max(0, proximity - 0.42) * 4.0;
+    // Only apply geometric stress to *novel* configurations. The older 2-D
+    // proxy systematically marked the verified human reference as impossible.
+    if (proximity > 0.42) {
+      let minDist = Infinity;
+      for (const offset of SIMBERS_GUARD_SAMPLES) {
+        const left = simbersGuardTracePose(byHand[0], t + offset, cursor[0], 0);
+        const right = simbersGuardTracePose(byHand[1], t + offset, cursor[1], 1);
+        if (left.active && right.active) {
+          minDist = Math.min(minDist,Math.hypot(left.x-right.x,left.y-right.y));
+        }
+      }
+      if (minDist < 0.30) eventRisk += 1.3;
+      else if (minDist < 0.44) eventRisk += 0.45;
+      if (red.lineIndex > blue.lineIndex) eventRisk += 3;
+    }
+    risk += eventRisk;
+    crossingRisk += eventRisk;
+    worst = Math.max(worst, eventRisk);
+    if (eventRisk >= 1.2) hotspots.push({ time:t, risk:eventRisk });
+  }
+  // Recovery speed thresholds calibrated to the upper end of the known-good
+  // human map at each density. No artificial 130-ms subtraction from dt:
+  // that mistake marked thousands of legal human return swings as failures.
+  for (const hand of byHand) for (let i=1;i<hand.length;i++) {
+    const a=hand[i-1], b=hand[i];
+    if (b.time < from || b.time > to) continue;
+    const dt=b.time-a.time;
+    if (dt<=0 || dt>=1.3) continue;
+    const av=SCF_DIRS[a.cutDirection]||SCF_DIRS[0];
+    const bv=SCF_DIRS[b.cutDirection]||SCF_DIRS[0];
+    const dx=b.lineIndex-bv.x*0.39-a.lineIndex-av.x*0.39;
+    const dy=b.lineLayer-bv.y*0.39-a.lineLayer-av.y*0.39;
+    const speed=Math.hypot(dx,dy)/Math.max(0.05,dt);
+    const safe=dt<0.16?32:dt<0.24?17.5:dt<0.34?11.5:dt<0.5?8.8:dt<0.8?5.7:3.7;
+    const value=Math.max(0,speed/safe-1)*5;
+    if (value) {
+      risk+=value;recoveryRisk+=value;
+      if(value>=1.2)hotspots.push({time:b.time,risk:value,recovery:true});
+    }
+  }
+  return {risk,crossingRisk,recoveryRisk,worst,hotspots,eventsChecked:times.length};
+}
+
+function simbersGuardFlows(notes, items, hand, cache, seed) {
+  const original = items.map(n => ({ x: n.lineIndex, y: n.lineLayer, d: n.cutDirection }));
+  if (!items.length) return [original];
+  const results = [original], seen = new Set([original.map(n => `${n.x}${n.y}${n.d}`).join('|')]);
+  const add = (seq) => {
+    if (!seq || seq.length !== items.length || seq.some(n => n.d === 2 || n.d === 3 || n.d > 7)) return;
+    for (let j = 1; j < seq.length; j++)
+      if (sc2AngularError(SCF_ANGLES[seq[j].d], SCF_ANGLES[seq[j-1].d]) < 135) return;
+    const key = seq.map(n => `${n.x}${n.y}${n.d}`).join('|');
+    if (!seen.has(key)) { seen.add(key); results.push(seq); }
+  };
+  const cadence = items.slice(1).map((n, i) => Math.round((n.time - items[i].time) / 0.09)).join(',');
+  const key = `${hand}/${items.length}/${cadence}`;
+  if (cache.has(key)) add(cache.get(key).map(n => ({ ...n })));
+  // Preserve full corpus phrases; do not build an incompatible note-by-note
+  // set of 'optimizations'. Candidate count remains bounded.
+  if (items.length >= 3 && items.length <= 10) {
+    const lib = scfLoadLibrary();
+    for (const entry of sc2Candidates(lib, items.length, `${seed}|${key}`, null, 10, 0.65)) {
+      const corpus = sc2ReadSource(entry, hand);
+      if (corpus.length === items.length) add(corpus.map(n => ({ ...n })));
+      if (results.length >= 11) break;
+    }
+  }
+  // Safe compact back-and-forth templates, inspired by the recurring vertical
+  // four-note motifs in the reference maps. All notes in the phrase move together.
+  for (const start of [0, 1]) for (const lane of (hand ? [3,2] : [0,1])) {
+    add(items.map((_, j) => {
+      const d = (start + j) % 2;
+      return { x: lane, y: d === 0 ? 0 : 2, d };
+    }));
+    add(items.map((_, j) => {
+      const d = (start + j) % 2;
+      return { x: lane, y: d === 0 ? 1 : 2, d };
+    }));
+  }
+  // Translate an intact motif toward its home side without altering its shape.
+  const minX = Math.min(...original.map(n => n.x)), maxX = Math.max(...original.map(n => n.x));
+  for (const delta of (hand === 0 ? [-2,-1,1] : [2,1,-1])) {
+    if (minX + delta < 0 || maxX + delta > 3) continue;
+    add(original.map(n => ({ ...n, x: n.x + delta })));
+  }
+  return results;
+}
+
+function simbersGuardValidRegion(notes, from, to) {
+  for (const hand of [0, 1]) {
+    let previous = null;
+    for (const n of notes.filter(n => n.type === hand).sort((a,b) => a.time - b.time)) {
+      if (n.cutDirection === 2 || n.cutDirection === 3 || n.cutDirection > 7) return false;
+      if (previous && sc2AngularError(SCF_ANGLES[n.cutDirection], SCF_ANGLES[previous.cutDirection]) < 135)
+        return false;
+      previous = n;
+    }
+  }
+  const batch = new Map();
+  for (const note of notes) if (note.time >= from && note.time <= to) {
+    const key = note.time.toFixed(4);
+    if (!batch.has(key)) batch.set(key, []);
+    batch.get(key).push(note);
+  }
+  for (const pair of batch.values()) if (pair.length === 2) {
+    const left = pair.find(n => n.type === 0), right = pair.find(n => n.type === 1);
+    if (left && right && (left.lineIndex >= right.lineIndex ||
+        sc2CrossRisk({ x: left.lineIndex, y: left.lineLayer, d: left.cutDirection },
+          { x: right.lineIndex, y: right.lineLayer, d: right.cutDirection }, 0) >= 100)) return false;
+  }
+  return true;
+}
+
+async function simbersRunPhysicalFlowGuard(standardDifficulties, {
+  onProgress = null, isCurrent = null, featureOptions = null, seed = "",
+} = {}) {
+  const started = performance.now();
+  const metrics = { evaluated: 0, flagged: 0, repairedPhrases: 0, movedNotes: 0,
+    changedArrows: 0, riskBefore: 0, riskAfter: 0, unresolved: 0 };
+  const cache = new Map();
+  const check = () => { if (isCurrent && !isCurrent()) throw new DOMException('Physical check canceled', 'AbortError'); };
+  for (let di = 0; di < standardDifficulties.length; di++) {
+    check();
+    const difficulty = standardDifficulties[di];
+    const notes = difficulty.sourceNotes;
+    const before = simbersGuardAudit(notes);
+    metrics.evaluated += notes.length;
+    metrics.flagged += before.hotspots.length;
+    metrics.riskBefore += before.risk;
+    const repairBudget = Math.min(18, Math.max(5, Math.ceil(notes.length * 0.023)));
+    let repairedHere = 0;
+    // Recheck changed neighborhoods: a repair may expose the next adjacent
+    // double that was previously just outside the short motif window.
+    for (let sweep = 0; sweep < 3 && repairedHere < repairBudget; sweep++) {
+      const hotspots = simbersGuardAudit(notes).hotspots.sort((a,b) => b.risk - a.risk);
+      const processed = new Set();
+      let repairedThisSweep = 0;
+      for (const hotspot of hotspots) {
+      check();
+      if (repairedHere >= repairBudget) break;
+      const center = hotspot.time;
+      if ([...processed].some(t => Math.abs(t - center) < 0.9)) continue;
+      const near = [0,1].map(hand => notes.filter(n => n.type === hand &&
+        n.time >= center - 0.59 && n.time <= center + 0.73).slice(0, 6));
+      if (!near[0].length && !near[1].length) continue;
+      const from = Math.min(...near.flat().map(n => n.time));
+      const to = Math.max(...near.flat().map(n => n.time));
+      const scope = notes.filter(n => n.time >= from - 0.75 && n.time <= to + 0.75);
+      const baseline = simbersGuardAudit(scope, { from: from - 0.22, to: to + 0.22 }).risk;
+      if (baseline < 1.2) { processed.add(center); continue; }
+      const original = near.map(hand => hand.map(n => ({ x: n.lineIndex, y: n.lineLayer, d: n.cutDirection })));
+      const candidates = [0,1].map(hand => simbersGuardFlows(notes, near[hand], hand, cache,
+        `${seed}|${difficulty.config.id}|${Math.round(center * 5)}`));
+      let best = { risk: baseline, penalty: 0, seq: null, score: baseline };
+      function set(seq, hand) {
+        for (let i = 0; i < near[hand].length; i++) {
+          near[hand][i].lineIndex = seq[i].x;
+          near[hand][i].lineLayer = seq[i].y;
+          near[hand][i].cutDirection = seq[i].d;
+        }
+      }
+      for (const left of candidates[0]) for (const right of candidates[1]) {
+        set(left, 0); set(right, 1);
+        if (!simbersGuardValidRegion(notes, from, to)) continue;
+        const risk = simbersGuardAudit(scope, { from: from - 0.22, to: to + 0.22 }).risk;
+        let penalty = 0;
+        for (let hand = 0; hand < 2; hand++) {
+          const seq = hand === 0 ? left : right;
+          for (let i = 0; i < seq.length; i++) {
+            const old = original[hand][i], n = seq[i];
+            penalty += (old.d !== n.d ? 0.20 : 0) +
+              (old.x !== n.x ? 0.13 : 0) + (old.y !== n.y ? 0.11 : 0);
+          }
+        }
+        const score = risk + penalty;
+        if (score < best.score - 0.025) best = { risk, penalty, score,
+          seq: [left.map(n=>({...n})),right.map(n=>({...n}))] };
+      }
+      // Restore everything before deciding; rejecting a phrase must never
+      // leave the final candidate's edits in the live map.
+      set(original[0], 0); set(original[1], 1);
+      processed.add(center);
+      if (best.seq && best.risk < baseline - 0.65 && best.risk <= baseline * 0.68) {
+        for (const hand of [0,1]) for (let i = 0; i < near[hand].length; i++) {
+          const old = original[hand][i], next = best.seq[hand][i];
+          if (old.d !== next.d) metrics.changedArrows++;
+          if (old.x !== next.x || old.y !== next.y) metrics.movedNotes++;
+        }
+        set(best.seq[0],0);set(best.seq[1],1);
+        repairedHere++; repairedThisSweep++; metrics.repairedPhrases++;
+        for (const hand of [0,1]) if (near[hand].length) {
+          const timing = near[hand].slice(1).map((n,j)=>Math.round((n.time-near[hand][j].time)/0.09)).join(',');
+          const key = `${hand}/${near[hand].length}/${timing}`;
+          cache.set(key,best.seq[hand].map(n=>({...n})));
+        }
+      }
+      if (repairedHere % 3 === 0 && processed.size % 4 === 0) await nextTick();
+      }
+      if (!repairedThisSweep) break;
+    }
+    // Hard safety invariant: never serialize two simultaneous color notes in
+    // precisely the same grid cell. Try intact-phrase repair first; only this
+    // impossible residual gets an emergency position-only correction.
+    let emergencyHere = 0;
+    const grouped = new Map();
+    for (const note of notes) {
+      const key = note.time.toFixed(4);
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(note);
+    }
+    for (const pair of grouped.values()) {
+      if (pair.length !== 2) continue;
+      const left = pair.find(n=>n.type===0), right=pair.find(n=>n.type===1);
+      if (!left || !right || left.lineIndex !== right.lineIndex ||
+          left.lineLayer !== right.lineLayer) continue;
+      let best = null;
+      for (const lx of [left.lineIndex,0,1])
+      for (const rx of [right.lineIndex,3,2])
+      for (const ly of [left.lineLayer,0,1,2])
+      for (const ry of [right.lineLayer,0,1,2]) {
+        if (lx === rx && ly === ry) continue;
+        if (lx > rx) continue;
+        if (sc2CrossRisk({x:lx,y:ly,d:left.cutDirection},
+             {x:rx,y:ry,d:right.cutDirection},0) >= 100) continue;
+        const cost=5*(Math.abs(lx-left.lineIndex)+Math.abs(rx-right.lineIndex))+
+          6*(Math.abs(ly-left.lineLayer)+Math.abs(ry-right.lineLayer));
+        if (!best || cost < best.cost) best = {lx,rx,ly,ry,cost};
+      }
+      if (!best) continue;
+      if (left.lineIndex !== best.lx || left.lineLayer !== best.ly) metrics.movedNotes++;
+      if (right.lineIndex !== best.rx || right.lineLayer !== best.ry) metrics.movedNotes++;
+      left.lineIndex=best.lx; left.lineLayer=best.ly;
+      right.lineIndex=best.rx;right.lineLayer=best.ry;
+      emergencyHere++;
+    }
+    const after = simbersGuardAudit(notes);
+    metrics.riskAfter += after.risk;
+    metrics.unresolved += after.hotspots.length;
+    if (simbersHumanFlowAudit(notes)) {
+      const prior=[null,null], offenders=[];
+      for(const n of notes.slice().sort((a,b)=>a.time-b.time||a.type-b.type)){
+        const p=prior[n.type];if(p && sc2AngularError(SCF_ANGLES[n.cutDirection],SCF_ANGLES[p.cutDirection])<135)
+          offenders.push({t:n.time,type:n.type,prev:p.cutDirection,now:n.cutDirection, prevTime:p.time});
+        prior[n.type]=n;
+      }
+      console.warn('HAND FLOW FAILURE',difficulty.config.label, JSON.stringify(offenders.slice(0,20)), metrics.repairedPhrases);
+      throw new Error('Physical pass introduced invalid return swings');
+    }
+    // Export and local preview use the same source notes. Refresh derived
+    // collisions and arcs after movement changes, before chart variants exist.
+    const colorNotes = difficulty.beatmap._notes.filter(n => n._type === 0 || n._type === 1);
+    if (colorNotes.length !== notes.length) throw new Error('Physical pass note count mismatch');
+    for (let i = 0; i < notes.length; i++) {
+      colorNotes[i]._lineIndex = notes[i].lineIndex;
+      colorNotes[i]._lineLayer = notes[i].lineLayer;
+      colorNotes[i]._cutDirection = notes[i].cutDirection;
+    }
+    if (repairedHere || emergencyHere) {
+      const arcs = featureOptions?.arcs
+        ? buildArcsForDifficulty(notes, difficulty.config, `${seed}|physical-flow`) : [];
+      difficulty.beatmap._sliders = arcs;
+      difficulty.arcCount = arcs.length;
+      const bombs = featureOptions?.bombs
+        ? buildBombsForDifficulty(notes, arcs, difficulty.config, `${seed}|physical-flow`) : [];
+      const walls = featureOptions?.walls
+        ? buildWallsForDifficulty(notes, arcs, bombs, difficulty.config, `${seed}|physical-flow`) : [];
+      difficulty.beatmap._notes = [...colorNotes, ...bombs].sort((a,b)=> a._time-b._time || a._type-b._type);
+      difficulty.beatmap._obstacles = walls;
+      difficulty.bombCount = bombs.length;
+      difficulty.wallCount = walls.length;
+    }
+    difficulty.beatmap._customData = { ...difficulty.beatmap._customData,
+      _physicalFlowAlgorithm: 'dual-hand swept-wrist/recovery proxy; whole-phrase replacements',
+      _physicalFlowFlagged: before.hotspots.length,
+      _physicalFlowRepairedPhrases: repairedHere,
+      _physicalFlowRiskBefore: +before.risk.toFixed(2),
+      _physicalFlowRiskAfter: +after.risk.toFixed(2),
+      _physicalFlowUnresolved: after.hotspots.length,
+      _physicalFlowEmergencySeparations: emergencyHere };
+    onProgress?.((di+1)/standardDifficulties.length,
+      `Hand-path check · ${difficulty.config.label} · ${repairedHere} phrases repaired`);
+    await nextTick();
+  }
+  return { ...metrics, elapsedMs: performance.now() - started };
+}
+
+</script>
     <script data-modular-source="js/export/package.js">
 "use strict";
 
@@ -28551,7 +28954,11 @@ async function prepareMapBuild(result, previewAudioBytes, previewAudioMime, opti
     isCurrent: options.isCurrent || null,
     onBotProgress: (fraction, label) => {
       if (!options.isCurrent || options.isCurrent())
-        setProgress(0.865 + 0.07 * fraction, label);
+        setProgress(0.865 + 0.046 * fraction, label);
+    },
+    onPhysicalProgress: (fraction, label) => {
+      if (!options.isCurrent || options.isCurrent())
+        setProgress(0.913 + 0.025 * fraction, label);
     },
   };
 
