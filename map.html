@@ -1117,6 +1117,13 @@ class Unmined {
             controls: ol.control.defaults.defaults().extend([
                 mousePositionControl
             ]),
+            // One-handed double-tap-hold drag zoom. Negative delta matches
+            // Google Maps: drag down to zoom in, drag up to zoom out.
+            // The interaction is placed after defaults so it handles second
+            // pointer-down before DragPan; normal pinch/pan still works.
+            interactions: ol.interaction.defaults.defaults().extend([
+                new ol.interaction.DblClickDragZoom({ delta: -0.01, duration: 220 })
+            ]),
             layers: [
                 unminedLayer,
                 /*
