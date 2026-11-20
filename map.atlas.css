@@ -215,3 +215,26 @@ position:absolute;bottom:-.5rem;left:calc(50% - .7rem)
 .atlas-shell.leaflet-popup .atlas-poi-coordinates{font:1.3rem monospace;margin-top:.7rem;color:var(--text-subtle)}
 /* Keep all optional map chrome hidden on print. */
 @media print{.atlas-shell.sidebar,.atlas-shell.leaflet-top,.atlas-shell.leaflet-bottom,.atlas-shell.leaflet-popup{display:none!important}}
+
+
+/* Non-overlapping controls: dock zoom independently at the bottom-right.
+   The sidebar remains at the top-right, while coordinates occupy bottom-left. */
+.atlas-shell.atlas-zoom-dock {
+    position: fixed;
+    right: var(--ui-element-spacing);
+    bottom: var(--ui-element-spacing);
+    left: auto;
+    top: auto;
+    z-index: 1003;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    pointer-events: none;
+}
+.atlas-shell.atlas-zoom-dock .leaflet-control { pointer-events: auto; }
+.atlas-shell.sidebar .sidebar__content {
+    max-height: calc(100dvh - 15rem);
+}
+@supports not (height: 100dvh) {
+    .atlas-shell.sidebar .sidebar__content { max-height: calc(100vh - 15rem); }
+}
