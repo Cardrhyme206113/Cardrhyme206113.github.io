@@ -479,10 +479,72 @@ div.ol-mouse-position, .mouseposition, .ol-ctx-menu-container { background: #292
 
 /* Force native block pixels at 1:1 through 4x display zoom. */
 #map, #map canvas, #map img, .ol-layer canvas, .ol-layer img { image-rendering: pixelated !important; }
+
+/* LiveAtlas-inspired lightweight map chrome; existing OpenLayers renderer and tiles are retained. */
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+#map{position:absolute;inset:0}
+#map .ol-zoom,#map .ol-mouse-position{display:none!important}
+.atlas-ui{position:fixed;z-index:11000;font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;color:#edf1f5}
+.atlas-toolbar{top:12px;left:12px;display:flex;align-items:center;gap:6px;max-width:calc(100vw - 24px)}
+.atlas-pill,.atlas-button,.atlas-zoom button,.atlas-panel{background:rgba(28,32,37,.93);color:#edf1f5;border:1px solid #454c55;box-shadow:0 2px 12px #0005;backdrop-filter:blur(12px)}
+.atlas-pill{height:38px;display:flex;align-items:center;gap:8px;padding:0 11px;border-radius:8px}
+.atlas-brand{font-weight:700;letter-spacing:.2px;white-space:nowrap}
+.atlas-select{min-width:0;max-width:180px;appearance:auto;background:transparent;color:inherit;border:0;font:inherit;outline-offset:3px}
+.atlas-select option{background:#24282e;color:#fff}
+.atlas-button{height:38px;border-radius:8px;padding:0 12px;cursor:pointer;font:inherit;white-space:nowrap}
+.atlas-button:hover,.atlas-zoom button:hover{background:#404851}
+.atlas-button[aria-expanded=true]{border-color:#7aa8d6}
+.atlas-count{opacity:.6;font-size:11px;margin-left:5px}
+.atlas-panel{top:58px;left:12px;width:min(320px,calc(100vw - 24px));max-height:min(70vh,500px);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.atlas-panel[hidden],.atlas-popup[hidden]{display:none!important}
+.atlas-panel-head{padding:13px 14px 8px;display:flex;justify-content:space-between;align-items:center}
+.atlas-panel-head strong{font-size:14px}
+.atlas-panel-close{border:0;color:#bfc6cd;background:transparent;font-size:21px;cursor:pointer;padding:0 2px}
+.atlas-search{margin:2px 12px 10px;padding:9px 11px;border:1px solid #48515a;border-radius:7px;outline:none;background:#15191ed9;color:#f0f3f7;font:inherit}
+.atlas-search:focus{border-color:#7aa8d6}
+.atlas-poi-list{overflow:auto;overscroll-behavior:contain;padding:0 7px 8px}
+.atlas-poi{width:100%;text-align:left;color:inherit;background:transparent;border:0;border-radius:7px;padding:10px 9px;cursor:pointer;display:block;font:inherit}
+.atlas-poi:hover,.atlas-poi:focus-visible{background:#ffffff17}
+.atlas-poi-name{display:block;font-weight:600;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.atlas-poi-sub{display:block;color:#aab4bf;font-size:11px;margin-top:3px}
+.atlas-empty{padding:14px 12px 18px;color:#acb6c1}
+.atlas-zoom{top:50%;right:12px;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px}
+.atlas-zoom button{width:40px;height:40px;border-radius:8px;font-size:22px;line-height:1;cursor:pointer}
+.atlas-coords{bottom:12px;right:12px;padding:6px 10px;border-radius:7px;background:#1b2025db;border:1px solid #40474e;font-variant-numeric:tabular-nums;color:#d8e0e8;pointer-events:none}
+.atlas-popup{bottom:12px;left:12px;width:min(290px,calc(100vw - 85px));padding:12px 15px;border-radius:9px;background:#21272dee;border:1px solid #576474;box-shadow:0 4px 22px #0008}
+.atlas-popup-title{font-size:14px;font-weight:650;padding-right:22px}
+.atlas-popup-detail{margin-top:5px;white-space:pre-wrap;color:#bec8d1;overflow-wrap:anywhere}
+.atlas-popup-close{position:absolute;right:10px;top:7px;color:#c3ccd4;background:transparent;border:0;font-size:21px;cursor:pointer}
+.atlas-popup-coords{margin-top:7px;font-variant-numeric:tabular-nums;color:#94bde2;font-size:12px}
+@media(max-width:570px){.atlas-toolbar{top:8px;left:8px;gap:5px;max-width:calc(100vw - 16px)}.atlas-pill{height:36px;padding:0 8px}.atlas-brand{display:none}.atlas-select{max-width:148px}.atlas-button{height:36px;padding:0 9px}.atlas-panel{left:8px;top:51px;max-height:min(65vh,400px)}.atlas-zoom{right:8px}.atlas-zoom button{width:36px;height:36px}.atlas-coords{bottom:8px;right:8px;font-size:11px}.atlas-popup{left:8px;bottom:8px}}
+
 </style>
 </head>
 <body>
 <div id="map"></div>
+<div id="atlas-header" class="atlas-ui atlas-toolbar">
+  <label class="atlas-pill"><span class="atlas-brand">ATLAS</span>
+    <select id="atlas-world" class="atlas-select" aria-label="Select world"></select>
+  </label>
+  <button id="atlas-pois-toggle" class="atlas-button" type="button" aria-controls="atlas-poi-panel" aria-expanded="false">Places<span id="atlas-poi-count" class="atlas-count">0</span></button>
+</div>
+<aside id="atlas-poi-panel" class="atlas-ui atlas-panel" aria-label="Points of interest" hidden>
+  <div class="atlas-panel-head"><strong>Points of interest</strong><button class="atlas-panel-close" id="atlas-pois-close" aria-label="Close places" type="button">×</button></div>
+  <input id="atlas-poi-search" class="atlas-search" type="search" placeholder="Search places" aria-label="Search points of interest" autocomplete="off">
+  <div id="atlas-poi-list" class="atlas-poi-list"></div>
+</aside>
+<div class="atlas-ui atlas-zoom" aria-label="Map zoom controls">
+  <button id="atlas-zoom-in" type="button" aria-label="Zoom in">+</button>
+  <button id="atlas-zoom-out" type="button" aria-label="Zoom out">−</button>
+  <button id="atlas-home" type="button" aria-label="Reset map view" title="Reset view" style="font-size:17px">⌂</button>
+</div>
+<div id="atlas-coords" class="atlas-ui atlas-coords">X 0 · Z 0</div>
+<div id="atlas-popup" class="atlas-ui atlas-popup" role="dialog" aria-label="Point of interest" hidden>
+  <button id="atlas-popup-close" class="atlas-popup-close" type="button" aria-label="Close point of interest">×</button>
+  <div id="atlas-popup-title" class="atlas-popup-title"></div>
+  <div id="atlas-popup-description" class="atlas-popup-detail"></div>
+  <div id="atlas-popup-coordinates" class="atlas-popup-coords"></div>
+</div>
 <script type="text/plain" id="third-party-licenses">======= shared/lib/ol.LICENSE.txt =======
 BSD 2-Clause License
 
@@ -1976,46 +2038,171 @@ return {properties: UnminedMapProperties, regions: UnminedRegions, players: Unmi
 
 </script>
 <script>
-/* World switcher */
+
+/* Minimal LiveAtlas-style controls for existing uNmINeD/OpenLayers map. */
 const worldNames = ['CardSMP', 'CardSMP-Legacy', 'IslandCraft'];
-// Bounds of fully opaque terrain, inset one block to keep edge pixels offscreen.
+// Preserve the original camera bounds, per-world view memory and existing tile pack.
 const worldViews = {
     'CardSMP': { cameraBounds: [-511, -2047, 2047, 511], centerX: 1560, centerZ: -90, defaultZoom: 1, maxDisplayZoom: 2 },
     'CardSMP-Legacy': { cameraBounds: [-1023, -1023, 1023, 1023], centerX: 0, centerZ: 0, defaultZoom: 0, maxDisplayZoom: 2 },
     'IslandCraft': { cameraBounds: [-1023, -1503, 991, 511], centerX: 80, centerZ: -32, defaultZoom: 0, maxDisplayZoom: 2 }
 };
-let currentWorld = '', viewer = null;
+let currentWorld = '', viewer = null, poiLayer = null, poiData = {}, activePOIs = [];
 const views = new Map();
-const controlElement = document.createElement('div');
-controlElement.className = 'world-selector ol-unselectable ol-control';
-const selector = document.createElement('select');
-selector.setAttribute('aria-label', 'World');
+const selector = document.getElementById('atlas-world');
+const poiPanel = document.getElementById('atlas-poi-panel');
+const poiToggle = document.getElementById('atlas-pois-toggle');
+const poiSearch = document.getElementById('atlas-poi-search');
+const poiList = document.getElementById('atlas-poi-list');
+const popup = document.getElementById('atlas-popup');
 for (const name of worldNames) {
     const option = document.createElement('option');
-    option.value = name; option.textContent = name.replace('-Legacy', ' Legacy');
+    option.value = name;
+    option.textContent = name.replace('-Legacy', ' Legacy');
     selector.append(option);
 }
-controlElement.append(selector);
+function togglePOIs(open) {
+    poiPanel.hidden = !open;
+    poiToggle.setAttribute('aria-expanded', String(open));
+    if (open) {
+        renderPOIList();
+        poiSearch.focus({preventScroll: true});
+    }
+}
+poiToggle.addEventListener('click', () => togglePOIs(poiPanel.hidden));
+document.getElementById('atlas-pois-close').addEventListener('click', () => togglePOIs(false));
+poiSearch.addEventListener('input', renderPOIList);
+document.getElementById('atlas-popup-close').addEventListener('click', () => { popup.hidden = true; });
+document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { togglePOIs(false); popup.hidden = true; }
+});
+const poiReady = fetch(new URL('map.pois.json', document.baseURI), { cache: 'default' })
+    .then(response => {
+        if (!response.ok) throw Error('POI file HTTP ' + response.status);
+        return response.json();
+    })
+    .then(data => { if (data && typeof data === 'object') poiData = data; })
+    .catch(error => { console.warn('Optional points of interest unavailable:', error); });
+function getWorldPOIs(world) {
+    const group = poiData[world] ?? poiData.worlds?.[world] ?? [];
+    const items = Array.isArray(group) ? group : (Array.isArray(group.pois) ? group.pois : []);
+    return items.filter(item => item && Number.isFinite(Number(item.x)) &&
+        Number.isFinite(Number(item.z)) && typeof item.name === 'string' && item.name.trim())
+        .map(item => ({ ...item, x: Number(item.x), z: Number(item.z) }));
+}
+function showPOI(item) {
+    if (!viewer) return;
+    const view = viewer.olMap.getView();
+    const coordinate = ol.proj.transform([item.x, item.z], viewer.dataProjection, viewer.viewProjection);
+    view.animate({ center: coordinate, zoom: Math.min(view.getMaxZoom(), Math.max(view.getZoom() || 0, 6)), duration: 320 });
+    document.getElementById('atlas-popup-title').textContent = item.name;
+    document.getElementById('atlas-popup-description').textContent = item.description || '';
+    document.getElementById('atlas-popup-coordinates').textContent = 'X ' + Math.round(item.x) + ' · Z ' + Math.round(item.z);
+    popup.hidden = false;
+    togglePOIs(false);
+}
+function renderPOIList() {
+    const search = poiSearch.value.trim().toLowerCase();
+    const filtered = activePOIs.filter(p =>
+        !search || (p.name + ' ' + (p.category || '') + ' ' + (p.description || '')).toLowerCase().includes(search));
+    poiList.replaceChildren();
+    if (!filtered.length) {
+        const empty = document.createElement('div');
+        empty.className = 'atlas-empty';
+        empty.textContent = activePOIs.length ? 'No matching places.' : 'No places yet. Add them to map.pois.json.';
+        poiList.append(empty);
+        return;
+    }
+    const fragment = document.createDocumentFragment();
+    for (const item of filtered) {
+        const row = document.createElement('button');
+        row.type = 'button'; row.className = 'atlas-poi';
+        const title = document.createElement('span');
+        title.className = 'atlas-poi-name'; title.textContent = item.name;
+        const detail = document.createElement('span');
+        detail.className = 'atlas-poi-sub';
+        detail.textContent = (item.category ? item.category + ' · ' : '') + 'X ' + Math.round(item.x) + ', Z ' + Math.round(item.z);
+        row.append(title, detail);
+        row.addEventListener('click', () => showPOI(item));
+        fragment.append(row);
+    }
+    poiList.append(fragment);
+}
+function installPOIs() {
+    if (!viewer) return;
+    activePOIs = getWorldPOIs(currentWorld);
+    document.getElementById('atlas-poi-count').textContent = String(activePOIs.length);
+    const features = activePOIs.map(item => {
+        const feature = new ol.Feature({
+            geometry: new ol.geom.Point(ol.proj.transform([item.x, item.z], viewer.dataProjection, viewer.viewProjection))
+        });
+        feature.set('atlasPOI', item);
+        const label = String(item.name).slice(0, 55);
+        feature.setStyle(new ol.style.Style({
+            image: new ol.style.Circle({
+                radius: 7,
+                fill: new ol.style.Fill({ color: item.color || '#76b9ed' }),
+                stroke: new ol.style.Stroke({ color: '#17212c', width: 2 })
+            }),
+            text: new ol.style.Text({
+                text: label,
+                font: '600 12px system-ui, sans-serif',
+                offsetY: 19,
+                fill: new ol.style.Fill({ color: '#ffffff' }),
+                stroke: new ol.style.Stroke({ color: '#151719', width: 3 })
+            })
+        }));
+        return feature;
+    });
+    poiLayer = new ol.layer.Vector({ source: new ol.source.Vector({ features }), zIndex: 1500 });
+    viewer.olMap.addLayer(poiLayer);
+    viewer.olMap.on('singleclick', event => {
+        const match = viewer.olMap.forEachFeatureAtPixel(event.pixel, feature => feature.get('atlasPOI') || undefined);
+        if (match) showPOI(match);
+    });
+    viewer.olMap.on('pointermove', event => {
+        if (event.dragging) return;
+        const point = ol.proj.transform(event.coordinate, viewer.viewProjection, viewer.dataProjection);
+        document.getElementById('atlas-coords').textContent = 'X ' + Math.round(point[0]) + ' · Z ' + Math.round(point[1]);
+    });
+    viewer.olMap.on('moveend', () => {
+        if (!viewer) return;
+        const point = ol.proj.transform(viewer.olMap.getView().getCenter(), viewer.viewProjection, viewer.dataProjection);
+        document.getElementById('atlas-coords').textContent = 'X ' + Math.round(point[0]) + ' · Z ' + Math.round(point[1]);
+    });
+    renderPOIList();
+}
+function zoomBy(delta) {
+    if (!viewer) return;
+    const view = viewer.olMap.getView();
+    const zoom = Math.max(view.getMinZoom(), Math.min(view.getMaxZoom(), (view.getZoom() || 0) + delta));
+    view.animate({ zoom, duration: 180 });
+}
+document.getElementById('atlas-zoom-in').addEventListener('click', () => zoomBy(1));
+document.getElementById('atlas-zoom-out').addEventListener('click', () => zoomBy(-1));
+document.getElementById('atlas-home').addEventListener('click', () => {
+    if (!viewer) return;
+    const bounds = worldViews[currentWorld], view = viewer.olMap.getView();
+    view.animate({
+        center: ol.proj.transform([bounds.centerX, bounds.centerZ], viewer.dataProjection, viewer.viewProjection),
+        zoom: (bounds.defaultZoom ?? 0) + 6, duration: 280
+    });
+});
 selector.addEventListener('change', () => loadWorld(selector.value));
 async function loadWorld(name, updateUrl = true) {
     if (!worldNames.includes(name) || selector.disabled) return;
     selector.disabled = true;
     document.querySelector('.map-error')?.remove();
     try {
-        await MapImages.ready;
+        await Promise.all([MapImages.ready, poiReady]);
         const { properties, regions, players, customMarkers } = WorldData[name]();
-        const options = { ...properties, ...worldViews[name], assetBasePath: `${name}/`, enableGrid: false, showGrid: false, background: '#151719' };
+        const options = { ...properties, ...worldViews[name], assetBasePath: name + '/', enableGrid: false, showGrid: false, background: '#151719' };
         options.markers = [...(options.markers || [])];
-        if (customMarkers?.isEnabled && customMarkers.markers) {
-            options.markers.push(...customMarkers.markers);
-        }
-        if (Array.isArray(players) && players.length) {
-            options.playerMarkers = Unmined.createPlayerMarkers(players);
-        }
+        if (customMarkers?.isEnabled && customMarkers.markers) options.markers.push(...customMarkers.markers);
+        if (Array.isArray(players) && players.length) options.playerMarkers = Unmined.createPlayerMarkers(players);
         for (const marker of [...(options.markers || []), ...(options.playerMarkers || [])]) {
             if (marker.image && !/^(?:[a-z]+:|\/|#)/i.test(marker.image)) {
-                const packedPath = options.assetBasePath + marker.image;
-                const url = await MapImages.getAsync(packedPath);
+                const url = await MapImages.getAsync(options.assetBasePath + marker.image);
                 if (url) marker.image = url;
             }
         }
@@ -2025,24 +2212,31 @@ async function loadWorld(name, updateUrl = true) {
             viewer.dispose();
         }
         viewer = new Unmined(document.getElementById('map'), options, regions);
-        viewer.olMap.addControl(new ol.control.Control({ element: controlElement }));
         if (views.has(name)) {
             const saved = views.get(name), view = viewer.olMap.getView();
-            view.setCenter(saved.center); view.setZoom(saved.zoom);
+            view.setCenter(saved.center);
+            view.setZoom(saved.zoom);
         }
-        currentWorld = name; selector.value = name;
-        document.title = `${name} - uNmINeD`;
+        currentWorld = name;
+        selector.value = name;
+        popup.hidden = true;
+        installPOIs();
+        document.title = name + ' - Atlas';
         if (updateUrl) {
-            const url = new URL(location.href); url.searchParams.set('world', name);
+            const url = new URL(location.href);
+            url.searchParams.set('world', name);
             try { history.replaceState(null, '', url); } catch {}
         }
     } catch (error) {
+        console.error(error);
         selector.value = currentWorld || worldNames[0];
         const message = document.createElement('div');
         message.className = 'map-error'; message.setAttribute('role', 'alert');
-        message.textContent = `${error.message} Please reload to try again.`;
+        message.textContent = error.message + ' Please reload to try again.';
         document.body.append(message);
-    } finally { selector.disabled = false; }
+    } finally {
+        selector.disabled = false;
+    }
 }
 const requestedWorld = new URLSearchParams(location.search).get('world');
 loadWorld(worldNames.includes(requestedWorld) ? requestedWorld : worldNames[0]);
