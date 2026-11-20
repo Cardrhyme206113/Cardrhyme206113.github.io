@@ -1,5 +1,414 @@
 {
-  "CardSMP": [],
-  "CardSMP-Legacy": [],
-  "IslandCraft": []
+  "CardSMP": [
+    {
+      "name": "Map Arts of CardSMP",
+      "category": "Landmark",
+      "description": "",
+      "x": 158,
+      "z": -731
+    },
+    {
+      "name": "Spawn",
+      "category": "Landmark",
+      "description": "",
+      "x": 31,
+      "z": -72
+    },
+    {
+      "name": "Mob Farm",
+      "category": "Building",
+      "description": "",
+      "x": 1414,
+      "z": -107
+    },
+    {
+      "name": "Cibo and Merttomert's Base",
+      "category": "Base",
+      "description": "",
+      "x": 1500,
+      "z": -132
+    },
+    {
+      "name": "The Mariana Trench",
+      "category": "Landmark",
+      "description": "",
+      "x": 1544,
+      "z": -183
+    },
+    {
+      "name": "Farm House",
+      "category": "Building",
+      "description": "",
+      "x": 1530,
+      "z": -128
+    },
+    {
+      "name": "Animal Farm",
+      "category": "Farm",
+      "description": "",
+      "x": 1526,
+      "z": -116
+    },
+    {
+      "name": "Villager Trading Hall",
+      "category": "Farm",
+      "description": "",
+      "x": 1527,
+      "z": -92
+    },
+    {
+      "name": "Regulars Totally Legit Base",
+      "category": "Base",
+      "description": "",
+      "x": 1555,
+      "z": -71
+    },
+    {
+      "name": "Public Chest Area",
+      "category": "Building",
+      "description": "",
+      "x": 1567,
+      "z": -94
+    },
+    {
+      "name": "Rüzgar's Base",
+      "category": "Base",
+      "description": "",
+      "x": 1569,
+      "z": -44
+    },
+    {
+      "name": "Mehmet's Base",
+      "category": "Base",
+      "description": "",
+      "x": 1605,
+      "z": -66
+    },
+    {
+      "name": "Auto Smelter",
+      "category": "Farm",
+      "description": "",
+      "x": 1609,
+      "z": -90
+    },
+    {
+      "name": "Wool Farm",
+      "category": "Farm",
+      "description": "",
+      "x": 1608,
+      "z": -104
+    },
+    {
+      "name": "Sugarcane Farm",
+      "category": "Farm",
+      "description": "",
+      "x": 1575,
+      "z": -106
+    },
+    {
+      "name": "Dx's (Not) Offensive Build",
+      "category": "Base",
+      "description": "",
+      "x": 1568,
+      "z": -120
+    },
+    {
+      "name": "Public Apartment",
+      "category": "Base",
+      "description": "",
+      "x": 1549,
+      "z": -122
+    },
+    {
+      "name": "Serklones' House.",
+      "category": "Base",
+      "description": "",
+      "x": 1678,
+      "z": -33
+    },
+    {
+      "name": "Abandoned House",
+      "category": "Base",
+      "description": "",
+      "x": 1592,
+      "z": 14
+    },
+    {
+      "name": "Villager Trading Hall",
+      "category": "Farm",
+      "description": "",
+      "x": 1942,
+      "z": 270
+    },
+    {
+      "name": "Villager Breeding Room",
+      "category": "Building",
+      "description": "",
+      "x": 1940,
+      "z": 321
+    },
+    {
+      "name": "Eycest's Base",
+      "category": "Base",
+      "description": "",
+      "x": 1914,
+      "z": 292
+    },
+    {
+      "name": "Farm",
+      "category": "Farm",
+      "description": "",
+      "x": 1889,
+      "z": 273
+    },
+    {
+      "name": "Totally Legit Admin House",
+      "category": "Base",
+      "description": "",
+      "x": 1771,
+      "z": 313
+    },
+    {
+      "name": "Highway to End (3.5km long)",
+      "category": "Path",
+      "description": "",
+      "x": 1457,
+      "z": 209
+    },
+    {
+      "name": "Spawn Highway (1.5km long)",
+      "category": "Path",
+      "description": "",
+      "x": 1139,
+      "z": -100
+    },
+    {
+      "name": "The 1 Chunk To Bedrock Base",
+      "category": "Base",
+      "description": "",
+      "x": -176,
+      "z": -1552
+    },
+    {
+      "name": "Admin Island Base",
+      "category": "Base",
+      "description": "",
+      "x": -210,
+      "z": -1519
+    },
+    {
+      "name": "10A OG Friends Base (Stealing Diamond Shenanigans)",
+      "category": "Base",
+      "description": "",
+      "x": 1726,
+      "z": -431
+    }
+  ],
+  "CardSMP-Legacy": [
+    {
+      "name": "Possibly Regulars Base",
+      "category": "Base",
+      "description": "",
+      "x": 151,
+      "z": -55
+    },
+    {
+      "name": "Possibly Zojkus Base",
+      "category": "Base",
+      "description": "",
+      "x": 156,
+      "z": 5
+    },
+    {
+      "name": "Main Base of Everyone (Dih House)",
+      "category": "Base",
+      "description": "",
+      "x": 640,
+      "z": -247
+    },
+    {
+      "name": "Underground Exit",
+      "category": "Path",
+      "description": "",
+      "x": 605,
+      "z": -255
+    },
+    {
+      "name": "Underground Base Cave Extension",
+      "category": "Base",
+      "description": "",
+      "x": 619,
+      "z": -255
+    },
+    {
+      "name": "Party Area (Birthday Lore)",
+      "category": "Landmark",
+      "description": "",
+      "x": 655,
+      "z": -244
+    }
+  ],
+  "IslandCraft": [
+    {
+      "name": "1st Base w/Gang",
+      "category": "Base",
+      "description": "",
+      "x": -26,
+      "z": 121
+    },
+    {
+      "name": "Spawn",
+      "category": "Landmark",
+      "description": "",
+      "x": -4,
+      "z": -21
+    },
+    {
+      "name": "Possibly Zojku's Or Dx's Base",
+      "category": "Base",
+      "description": "",
+      "x": -250,
+      "z": -295
+    },
+    {
+      "name": "Damn who did that?",
+      "category": "Base",
+      "description": "",
+      "x": 208,
+      "z": 97
+    },
+    {
+      "name": "CardIsland",
+      "category": "Base",
+      "description": "",
+      "x": -214,
+      "z": -639
+    },
+    {
+      "name": "Dxebdh's Base",
+      "category": "Base",
+      "description": "",
+      "x": -159,
+      "z": -566
+    },
+    {
+      "name": "Zojkus Base (+ Hidden Area)",
+      "category": "Base",
+      "description": "",
+      "x": -194,
+      "z": -596
+    },
+    {
+      "name": "Abandoned House on a Bridge",
+      "category": "Base",
+      "description": "",
+      "x": -203,
+      "z": -616
+    },
+    {
+      "name": "Underground Lush Caves",
+      "category": "Landmark",
+      "description": "",
+      "x": -196,
+      "z": -607
+    },
+    {
+      "name": "Farm",
+      "category": "Farm",
+      "description": "",
+      "x": -184,
+      "z": -660
+    },
+    {
+      "name": "Map",
+      "category": "Landmark",
+      "description": "",
+      "x": -227,
+      "z": -652
+    },
+    {
+      "name": "Basketball Court",
+      "category": "Landmark",
+      "description": "",
+      "x": -218,
+      "z": -676
+    },
+    {
+      "name": "Prison.. Wooo",
+      "category": "Landmark",
+      "description": "",
+      "x": -273,
+      "z": -675
+    },
+    {
+      "name": "Casical + Card's (My) Base",
+      "category": "Base",
+      "description": "",
+      "x": -256,
+      "z": -711
+    },
+    {
+      "name": "Dxebdh's 2nd Base?",
+      "category": "Base",
+      "description": "",
+      "x": -234,
+      "z": -711
+    },
+    {
+      "name": "Public Storage + Furnace Area",
+      "category": "Landmark",
+      "description": "",
+      "x": -182,
+      "z": -677
+    },
+    {
+      "name": "Beacon of CardIsland",
+      "category": "Landmark",
+      "description": "",
+      "x": -198,
+      "z": -652
+    },
+    {
+      "name": "Zojku's Museum (..Of sorts, def no hidden rooms)",
+      "category": "Base",
+      "description": "",
+      "x": -152,
+      "z": -616
+    },
+    {
+      "name": "1st House",
+      "category": "Base",
+      "description": "",
+      "x": -9,
+      "z": -1176
+    },
+    {
+      "name": "Card & Goozy's Island",
+      "category": "Base",
+      "description": "",
+      "x": -9,
+      "z": -1163
+    },
+    {
+      "name": "Dxebdh's Base.. Again? With a horse on it? 2 Floors?",
+      "category": "Base",
+      "description": "",
+      "x": -22,
+      "z": -1175
+    },
+    {
+      "name": "Public Storage & Furnace",
+      "category": "Building",
+      "description": "",
+      "x": 14,
+      "z": -1179
+    },
+    {
+      "name": "Farm",
+      "category": "Farm",
+      "description": "",
+      "x": 18,
+      "z": -1156
+    }
+  ]
 }
