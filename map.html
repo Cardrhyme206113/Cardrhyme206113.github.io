@@ -481,7 +481,7 @@ div.ol-mouse-position, .mouseposition, .ol-ctx-menu-container { background: #292
 #map, #map canvas, #map img, .ol-layer canvas, .ol-layer img { image-rendering: pixelated !important; }
 
 </style>
-<link rel="stylesheet" href="map.atlas.css?v=3">
+<link rel="stylesheet" href="map.atlas.css?v=4">
 </head>
 <body>
 
@@ -2009,6 +2009,7 @@ const worldViews = {
   'IslandCraft': { cameraBounds: [-1023,-1503,991,511], centerX:80, centerZ:-32, defaultZoom:0, maxDisplayZoom:2 }
 };
 let currentWorld='',viewer=null,poiLayer=null,poiData={},activePOIs=[],poiPopupOverlay=null,baseZoom=0;
+const poiMarkerElements=new Map();
 const views=new Map(), worldList=document.getElementById('atlas-world-list'),
   poiList=document.getElementById('atlas-poi-list'),
   poiEmpty=document.getElementById('atlas-poi-empty'),
@@ -2032,7 +2033,7 @@ for(const [name,entry] of Object.entries(sections))entry.button.addEventListener
 document.getElementById('atlas-worlds-heading').addEventListener('click',()=>setSection('maps'));
 document.getElementById('atlas-markers-heading').addEventListener('click',()=>setSection('markers'));
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(currentSection)setSection(currentSection);closePOI()}});
-function closePOI(){popup.hidden=true;poiPopupOverlay?.setPosition(undefined)}
+function closePOI(){popup.hidden=true;poiPopupOverlay?.setPosition(undefined);for(const element of poiMarkerElements.values())element.classList.remove('is-selected')}
 document.getElementById('atlas-popup-close').addEventListener('click',closePOI);
 const poiReady=fetch(new URL('map.pois.json',document.baseURI),{cache:'default'}).then(r=>{
   if(!r.ok)throw Error('Optional POI file '+r.status);
@@ -2053,6 +2054,7 @@ function updateCoordinates(point){
 }
 function showPOI(item){
   if(!viewer)return;
+  for(const [poi,element] of poiMarkerElements)element.classList.toggle('is-selected',poi===item);
   const coord=ol.proj.transform([item.x,item.z],viewer.dataProjection,viewer.viewProjection);
   const view=viewer.olMap.getView();
   view.animate({center:coord,zoom:Math.min(view.getMaxZoom(),Math.max(view.getZoom()||0,6)),duration:300});
@@ -2065,7 +2067,7 @@ function showPOI(item){
 }
 function renderPOIList(){
   const query=poiSearch.value.trim().toLowerCase();
-  const data=activePOIs.filter(item=>!query||(item.name+' '+(item.category||'')+' '+(item.description||'')).toLowerCase().includes(query));
+  const data=activePOIs.filter(item=>!query||(item.name+' '+(item.category||'')+' '+(item.description||'')+' '+item.x+' '+item.z).toLowerCase().includes(query));
   poiList.replaceChildren();
   poiEmpty.hidden=!!data.length;
   if(!data.length){
@@ -2077,15 +2079,13 @@ function renderPOIList(){
     const item=data[i],id='atlas-poi-'+i;
     const input=document.createElement('input');input.type='radio';input.id=id;input.name='atlas-poi';
     const label=document.createElement('label');label.className='marker';label.htmlFor=id;
-    const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');
-    icon.classList.add('marker__icon');icon.setAttribute('viewBox','0 0 286.89162 286.89163');
-    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
-    path.setAttribute('d','m 142.81546,0 c -49.2926,0 -89.25212,39.95957 -89.25212,89.25211 0,49.29255 82.37686,197.61111 89.25212,197.61111 7.99783,0 89.25211,-148.31856 89.25211,-197.61111 C 232.06757,39.95957 192.108,0 142.81546,0 z m 0,51.3932 a 37.8639,37.8639 0 1 1 -0.001,75.7278 37.8639,37.8639 0 0 1 .001,-75.7278 z');
-    path.setAttribute('fill','currentColor');icon.append(path);
-    const title=document.createElement('span');title.className='marker__label';title.textContent=item.name;
-    const coord=document.createElement('span');coord.className='marker__location';
-    coord.textContent='X: '+Math.round(item.x)+', Z: '+Math.round(item.z);
-    label.append(icon,title,coord);
+    const icon=document.createElement('span');icon.className='atlas-poi-list-dot';
+    icon.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 1 1 14 0z"/><circle cx="12" cy="10" r="2"/></svg>';
+    const text=document.createElement('span');text.className='atlas-poi-list-text';
+    const title=document.createElement('span');title.className='atlas-poi-list-title';title.textContent=item.name;
+    const meta=document.createElement('span');meta.className='atlas-poi-list-meta';
+    meta.textContent=(item.category||'Other')+' · X '+Math.round(item.x)+', Z '+Math.round(item.z);
+    text.append(title,meta);label.append(icon,text);
     input.addEventListener('change',()=>{if(input.checked)showPOI(item)});
     f.append(input,label);
   }
@@ -2107,26 +2107,34 @@ function renderWorldList(){
 function installPOIs(){
   if(!viewer)return;
   activePOIs=poisForWorld(currentWorld);
-  const features=activePOIs.map(item=>{
-    const feature=new ol.Feature({geometry:new ol.geom.Point(ol.proj.transform([item.x,item.z],viewer.dataProjection,viewer.viewProjection))});
-    feature.set('atlasPOI',item);
-    feature.setStyle(new ol.style.Style({
-      image:new ol.style.Circle({radius:7,fill:new ol.style.Fill({color:item.color||'#dddddd'}),
-        stroke:new ol.style.Stroke({color:'#222222',width:2})}),
-      text:new ol.style.Text({text:item.name.slice(0,55),font:'600 13px Raleway, sans-serif',offsetY:20,
-        fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#111111',width:3})})
+  poiMarkerElements.clear();
+  // Use lightweight HTML overlays so the same pin and label CSS as the editor is used on the map.
+  // Each marker is anchored by the tip of the pin at its exact block coordinates.
+  for(const item of activePOIs){
+    const element=document.createElement('button');
+    element.type='button';element.className='atlas-map-poi';
+    element.setAttribute('aria-label',item.name+', X '+Math.round(item.x)+', Z '+Math.round(item.z));
+    element.title=item.name;
+    const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    icon.classList.add('atlas-map-poi-pin');
+    icon.setAttribute('viewBox','0 0 24 32');icon.setAttribute('aria-hidden','true');
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d','M12 31 C9 25 1 19 1 11 A11 11 0 1 1 23 11 C23 19 15 25 12 31 Z');
+    const core=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    core.classList.add('atlas-map-poi-core');core.setAttribute('cx','12');core.setAttribute('cy','11');core.setAttribute('r','3.6');
+    icon.append(path,core);
+    const name=document.createElement('span');name.className='atlas-map-poi-label';name.textContent=item.name;
+    element.append(icon,name);
+    element.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();showPOI(item)});
+    const position=ol.proj.transform([item.x,item.z],viewer.dataProjection,viewer.viewProjection);
+    viewer.olMap.addOverlay(new ol.Overlay({
+      element,position,positioning:'top-center',offset:[0,-32],stopEvent:false
     }));
-    return feature;
-  });
-  poiLayer=new ol.layer.Vector({source:new ol.source.Vector({features}),zIndex:1500});
-  viewer.olMap.addLayer(poiLayer);
-  poiPopupOverlay=new ol.Overlay({element:popup,positioning:'bottom-center',offset:[0,-22],stopEvent:true,
+    poiMarkerElements.set(item,element);
+  }
+  poiPopupOverlay=new ol.Overlay({element:popup,positioning:'bottom-center',offset:[0,-38],stopEvent:true,
     autoPan:{animation:{duration:250}}});
   viewer.olMap.addOverlay(poiPopupOverlay);
-  viewer.olMap.on('singleclick',event=>{
-    const p=viewer.olMap.forEachFeatureAtPixel(event.pixel,feature=>feature.get('atlasPOI')||undefined);
-    if(p)showPOI(p);
-  });
   viewer.olMap.on('pointermove',event=>{
     if(!event.dragging)updateCoordinates(ol.proj.transform(event.coordinate,viewer.viewProjection,viewer.dataProjection));
   });
