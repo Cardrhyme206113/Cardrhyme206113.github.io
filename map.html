@@ -481,7 +481,7 @@ div.ol-mouse-position, .mouseposition, .ol-ctx-menu-container { background: #292
 #map, #map canvas, #map img, .ol-layer canvas, .ol-layer img { image-rendering: pixelated !important; }
 
 </style>
-<link rel="stylesheet" href="map.atlas.css?v=1">
+<link rel="stylesheet" href="map.atlas.css?v=2">
 </head>
 <body>
 
@@ -510,7 +510,7 @@ div.ol-mouse-position, .mouseposition, .ol-ctx-menu-container { background: #292
     </section>
   </div>
 </section>
-<div class="atlas-shell leaflet-top leaflet-left" aria-label="Map zoom controls">
+<div class="atlas-shell atlas-zoom-dock" aria-label="Map zoom controls">
   <div class="leaflet-control leaflet-bar leaflet-control-zoom">
     <button id="atlas-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button>
     <button id="atlas-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">−</button>
@@ -992,14 +992,12 @@ class Unmined {
     markersLayer = null;
     playerMarkersLayer = null;
 
-    #scaleLine = null;
     #options = null;
 
     static defaultOptions = {
         enableGrid: true,
         showGrid: true,
         binaryGrid: true,
-        showScaleBar: true,
         denseGrid: false,
         showMarkers: true,
         showPlayers: true,
@@ -1179,7 +1177,6 @@ class Unmined {
         updatePanExtent();
 
         this.updateGraticule();
-        this.updateScaleBar();
         this.updateMarkersLayer();
         this.updatePlayerMarkersLayer();
         this.olMap.addControl(this.createContextMenu());
@@ -1518,14 +1515,6 @@ class Unmined {
                     })
             }
 
-            contextmenu.push(
-                {
-                    classname: this.#options.showScaleBar ? 'menuitem-checked' : 'menuitem-unchecked',
-                    text: 'Show scalebar',
-                    callback: () => this.toggleScaleBar()
-                })
-
-
         })
         return contextmenu;
     }
@@ -1545,12 +1534,6 @@ class Unmined {
     toggleGrid() {
         this.#options.showGrid = !this.#options.showGrid;
         this.updateGraticule();
-        this.saveSettings();
-    }
-
-    toggleScaleBar() {
-        this.#options.showScaleBar = !this.#options.showScaleBar;
-        this.updateScaleBar();
         this.saveSettings();
     }
 
@@ -1578,7 +1561,6 @@ class Unmined {
         })();
 
         if (!mapSettings) return;
-        this.#options.showScaleBar = mapSettings.showScaleBar ?? this.#options.showScaleBar;
         this.#options.showGrid = mapSettings.showGrid ?? this.#options.showGrid;
         this.#options.binaryGrid = mapSettings.binaryGrid ?? this.#options.binaryGrid;
         this.#options.denseGrid = mapSettings.denseGrid ?? this.#options.denseGrid;
@@ -1589,7 +1571,6 @@ class Unmined {
 
     saveSettings() {
         const mapSettings = {
-            showScaleBar: this.#options.showScaleBar,
             showGrid: this.#options.showGrid,
             binaryGrid: this.#options.binaryGrid,
             denseGrid: this.#options.denseGrid,
@@ -1605,21 +1586,6 @@ class Unmined {
 
     updatePlayerMarkersLayer() {
         this.playerMarkersLayer?.setVisible(this.#options.showPlayers);
-    }
-
-    updateScaleBar() {
-        if (!this.#options.showScaleBar && this.#scaleLine) {
-            this.olMap.removeControl(this.#scaleLine)
-            this.#scaleLine = undefined;
-        }
-        else if (this.#options.showScaleBar && !this.#scaleLine) {
-            this.#scaleLine = new ol.control.ScaleLine({
-                bar: true,
-                minWidth: 200,
-            });
-            this.olMap.addControl(this.#scaleLine);
-
-        }
     }
 
     #initProjections(maxCoordValue) {
