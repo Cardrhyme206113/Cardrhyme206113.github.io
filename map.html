@@ -480,71 +480,57 @@ div.ol-mouse-position, .mouseposition, .ol-ctx-menu-container { background: #292
 /* Force native block pixels at 1:1 through 4x display zoom. */
 #map, #map canvas, #map img, .ol-layer canvas, .ol-layer img { image-rendering: pixelated !important; }
 
-/* LiveAtlas-inspired lightweight map chrome; existing OpenLayers renderer and tiles are retained. */
-html,body{margin:0;width:100%;height:100%;overflow:hidden}
-#map{position:absolute;inset:0}
-#map .ol-zoom,#map .ol-mouse-position{display:none!important}
-.atlas-ui{position:fixed;z-index:11000;font:13px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;color:#edf1f5}
-.atlas-toolbar{top:12px;left:12px;display:flex;align-items:center;gap:6px;max-width:calc(100vw - 24px)}
-.atlas-pill,.atlas-button,.atlas-zoom button,.atlas-panel{background:rgba(28,32,37,.93);color:#edf1f5;border:1px solid #454c55;box-shadow:0 2px 12px #0005;backdrop-filter:blur(12px)}
-.atlas-pill{height:38px;display:flex;align-items:center;gap:8px;padding:0 11px;border-radius:8px}
-.atlas-brand{font-weight:700;letter-spacing:.2px;white-space:nowrap}
-.atlas-select{min-width:0;max-width:180px;appearance:auto;background:transparent;color:inherit;border:0;font:inherit;outline-offset:3px}
-.atlas-select option{background:#24282e;color:#fff}
-.atlas-button{height:38px;border-radius:8px;padding:0 12px;cursor:pointer;font:inherit;white-space:nowrap}
-.atlas-button:hover,.atlas-zoom button:hover{background:#404851}
-.atlas-button[aria-expanded=true]{border-color:#7aa8d6}
-.atlas-count{opacity:.6;font-size:11px;margin-left:5px}
-.atlas-panel{top:58px;left:12px;width:min(320px,calc(100vw - 24px));max-height:min(70vh,500px);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
-.atlas-panel[hidden],.atlas-popup[hidden]{display:none!important}
-.atlas-panel-head{padding:13px 14px 8px;display:flex;justify-content:space-between;align-items:center}
-.atlas-panel-head strong{font-size:14px}
-.atlas-panel-close{border:0;color:#bfc6cd;background:transparent;font-size:21px;cursor:pointer;padding:0 2px}
-.atlas-search{margin:2px 12px 10px;padding:9px 11px;border:1px solid #48515a;border-radius:7px;outline:none;background:#15191ed9;color:#f0f3f7;font:inherit}
-.atlas-search:focus{border-color:#7aa8d6}
-.atlas-poi-list{overflow:auto;overscroll-behavior:contain;padding:0 7px 8px}
-.atlas-poi{width:100%;text-align:left;color:inherit;background:transparent;border:0;border-radius:7px;padding:10px 9px;cursor:pointer;display:block;font:inherit}
-.atlas-poi:hover,.atlas-poi:focus-visible{background:#ffffff17}
-.atlas-poi-name{display:block;font-weight:600;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
-.atlas-poi-sub{display:block;color:#aab4bf;font-size:11px;margin-top:3px}
-.atlas-empty{padding:14px 12px 18px;color:#acb6c1}
-.atlas-zoom{top:50%;right:12px;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px}
-.atlas-zoom button{width:40px;height:40px;border-radius:8px;font-size:22px;line-height:1;cursor:pointer}
-.atlas-coords{bottom:12px;right:12px;padding:6px 10px;border-radius:7px;background:#1b2025db;border:1px solid #40474e;font-variant-numeric:tabular-nums;color:#d8e0e8;pointer-events:none}
-.atlas-popup{bottom:12px;left:12px;width:min(290px,calc(100vw - 85px));padding:12px 15px;border-radius:9px;background:#21272dee;border:1px solid #576474;box-shadow:0 4px 22px #0008}
-.atlas-popup-title{font-size:14px;font-weight:650;padding-right:22px}
-.atlas-popup-detail{margin-top:5px;white-space:pre-wrap;color:#bec8d1;overflow-wrap:anywhere}
-.atlas-popup-close{position:absolute;right:10px;top:7px;color:#c3ccd4;background:transparent;border:0;font-size:21px;cursor:pointer}
-.atlas-popup-coords{margin-top:7px;font-variant-numeric:tabular-nums;color:#94bde2;font-size:12px}
-@media(max-width:570px){.atlas-toolbar{top:8px;left:8px;gap:5px;max-width:calc(100vw - 16px)}.atlas-pill{height:36px;padding:0 8px}.atlas-brand{display:none}.atlas-select{max-width:148px}.atlas-button{height:36px;padding:0 9px}.atlas-panel{left:8px;top:51px;max-height:min(65vh,400px)}.atlas-zoom{right:8px}.atlas-zoom button{width:36px;height:36px}.atlas-coords{bottom:8px;right:8px;font-size:11px}.atlas-popup{left:8px;bottom:8px}}
-
 </style>
+<link rel="stylesheet" href="map.atlas.css?v=1">
 </head>
 <body>
+
 <div id="map"></div>
-<div id="atlas-header" class="atlas-ui atlas-toolbar">
-  <label class="atlas-pill"><span class="atlas-brand">ATLAS</span>
-    <select id="atlas-world" class="atlas-select" aria-label="Select world"></select>
-  </label>
-  <button id="atlas-pois-toggle" class="atlas-button" type="button" aria-controls="atlas-poi-panel" aria-expanded="false">Places<span id="atlas-poi-count" class="atlas-count">0</span></button>
+<!-- LiveAtlas sidebar structure, original LiveAtlas SVG glyphs, original theme/layout CSS.
+     Lightweight JS events replace Vue; uNmINeD's original tile renderer remains unchanged. -->
+<section id="atlas-sidebar" class="atlas-shell sidebar" aria-label="Map navigation">
+  <header class="sidebar__buttons">
+    <button id="atlas-worlds-button" type="button" class="button--maps" data-section="maps" title="Worlds" aria-label="Worlds" aria-controls="atlas-worlds-section" aria-expanded="false"><svg class="svg-icon svg-icon--maps" viewBox="0 0 268.83 266.53" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path d="M5.235.662C2.153.606 0 2.945 0 6.912v216.577c0 5.288 3.828 11.41 8.582 13.725l57.835 28.165c4.755 2.316 8.582-.078 8.582-5.367V43.434c0-5.288-3.827-11.41-8.582-13.727L8.582 1.544C7.394.965 6.262.681 5.235.662zm32.283 135.96c14.394 0 26.062 11.669 26.062 26.063 0 14.394-24.167 59.55-26.062 57.654-1.854 1.854-26.063-43.26-26.063-57.654 0-14.394 11.669-26.063 26.063-26.063zM202.388 1.013l57.833 28.165c4.755 2.315 8.583 8.437 8.583 13.726v216.58c0 5.29-3.828 7.683-8.583 5.367l-57.833-28.164c-4.755-2.316-8.583-8.438-8.583-13.727V6.38c0-5.289 3.828-7.682 8.583-5.367zM172.012.39c-1.051-.035-2.209.191-3.426.709l-68.342 29.053c-4.867 2.07-8.786 7.993-8.786 13.282V260.01c0 5.29 3.919 7.88 8.786 5.811l68.342-29.053c4.867-2.07 8.786-7.991 8.786-13.28V6.91c0-3.967-2.204-6.417-5.36-6.521zm-36.949 41.216c14.394 0 26.063 11.668 26.063 26.062 0 14.394-24.168 59.55-26.063 57.655C133.209 127.177 109 82.063 109 67.668c0-14.394 11.669-26.062 26.063-26.062z"/><path d="M48.573 162.689a11.056 11.056 0 0 1-11.056 11.056 11.056 11.056 0 0 1-11.056-11.056 11.056 11.056 0 0 1 11.056-11.056 11.056 11.056 0 0 1 11.056 11.056zm97.547-95.02a11.056 11.056 0 0 1-11.057 11.056 11.056 11.056 0 0 1-11.056-11.056 11.056 11.056 0 0 1 11.056-11.056 11.056 11.056 0 0 1 11.056 11.056z"/></svg></button>
+    <button id="atlas-markers-button" type="button" class="button--markers" data-section="markers" title="Markers" aria-label="Markers" aria-controls="atlas-markers-section" aria-expanded="false"><svg class="svg-icon svg-icon--marker_point" viewBox="0 0 286.89162 286.89163" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+   <path transform="translate(-59.399373,-0.17905527)" d="m 202.21483,0.17905527 c -49.2926,0 -89.25212,39.95956873 -89.25212,89.25210973 0,49.292555 82.37686,197.611115 89.25212,197.611115 7.99783,0 89.25211,-148.31856 89.25211,-197.611115 0,-49.292541 -39.95957,-89.25210973 -89.25211,-89.25210973 z m 0,51.39320173 c 20.91016,-0.0011 37.86223,16.948751 37.86389,37.858908 0.001,20.912125 -16.95177,37.865025 -37.86389,37.863935 -20.91214,0.001 -37.86506,-16.9518 -37.86394,-37.863935 0.002,-20.910176 16.95376,-37.86003 37.86394,-37.858908 z" />
+</svg></button>
+  </header>
+  <div class="sidebar__content">
+    <section id="atlas-worlds-section" class="sidebar__section" data-section="maps" hidden>
+      <h2 class="section__heading"><button id="atlas-worlds-heading" type="button" aria-expanded="true"><span>Worlds</span></button></h2>
+      <div class="section__content"><fieldset id="atlas-world-list" class="menu" role="radiogroup" aria-labelledby="atlas-worlds-heading"></fieldset></div>
+    </section>
+    <section id="atlas-markers-section" class="sidebar__section" data-section="markers" hidden>
+      <h2 class="section__heading"><button id="atlas-markers-heading" type="button" aria-expanded="true"><span>Markers</span></button></h2>
+      <div class="section__content">
+        <input id="atlas-poi-search" class="section__search" type="search" placeholder="Search markers..." aria-label="Search markers">
+        <fieldset id="atlas-poi-list" class="menu" role="radiogroup" aria-labelledby="atlas-markers-heading"></fieldset>
+        <div id="atlas-poi-empty" class="section__skeleton" hidden>No markers exist for the current world</div>
+      </div>
+    </section>
+  </div>
+</section>
+<div class="atlas-shell leaflet-top leaflet-left" aria-label="Map zoom controls">
+  <div class="leaflet-control leaflet-bar leaflet-control-zoom">
+    <button id="atlas-zoom-in" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+    <button id="atlas-zoom-out" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+  </div>
 </div>
-<aside id="atlas-poi-panel" class="atlas-ui atlas-panel" aria-label="Points of interest" hidden>
-  <div class="atlas-panel-head"><strong>Points of interest</strong><button class="atlas-panel-close" id="atlas-pois-close" aria-label="Close places" type="button">×</button></div>
-  <input id="atlas-poi-search" class="atlas-search" type="search" placeholder="Search places" aria-label="Search points of interest" autocomplete="off">
-  <div id="atlas-poi-list" class="atlas-poi-list"></div>
-</aside>
-<div class="atlas-ui atlas-zoom" aria-label="Map zoom controls">
-  <button id="atlas-zoom-in" type="button" aria-label="Zoom in">+</button>
-  <button id="atlas-zoom-out" type="button" aria-label="Zoom out">−</button>
-  <button id="atlas-home" type="button" aria-label="Reset map view" title="Reset view" style="font-size:17px">⌂</button>
+<div class="atlas-shell leaflet-bottom leaflet-left">
+  <div class="leaflet-control leaflet-control-coordinates" aria-label="Minecraft block coordinates">
+    <span id="atlas-x" class="value" data-label="X">0</span>
+    <span id="atlas-z" class="value" data-label="Z">0</span>
+  </div>
 </div>
-<div id="atlas-coords" class="atlas-ui atlas-coords">X 0 · Z 0</div>
-<div id="atlas-popup" class="atlas-ui atlas-popup" role="dialog" aria-label="Point of interest" hidden>
-  <button id="atlas-popup-close" class="atlas-popup-close" type="button" aria-label="Close point of interest">×</button>
-  <div id="atlas-popup-title" class="atlas-popup-title"></div>
-  <div id="atlas-popup-description" class="atlas-popup-detail"></div>
-  <div id="atlas-popup-coordinates" class="atlas-popup-coords"></div>
+<div id="atlas-popup" class="atlas-shell leaflet-popup" role="dialog" aria-label="Marker details" hidden>
+  <div class="leaflet-popup-content-wrapper"><div class="leaflet-popup-content">
+    <div id="atlas-popup-title" class="atlas-poi-title"></div>
+    <div id="atlas-popup-description" class="atlas-poi-description"></div>
+    <div id="atlas-popup-coordinates" class="atlas-poi-coordinates"></div>
+  </div></div><div class="leaflet-popup-tip"></div>
+  <button id="atlas-popup-close" type="button" class="leaflet-popup-close-button" aria-label="Close marker"><svg class="svg-icon svg-icon--cross" viewBox="0 0 228.57 228.45" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><path d="M16.682 0A15.46 15.46 0 0 0 5.719 4.556L4.554 5.72a15.47 15.47 0 0 0 0 21.924l86.578 86.578L4.554 200.8a15.47 15.47 0 0 0 0 21.924l1.165 1.165a15.46 15.46 0 0 0 10.963 4.556 15.45 15.45 0 0 0 10.96-4.556l86.646-86.644 86.643 86.644a15.468 15.468 0 0 0 21.923 0l1.165-1.165a15.47 15.47 0 0 0 0-21.924l-86.578-86.578 86.578-86.578a15.47 15.47 0 0 0 0-21.924l-1.165-1.164a15.468 15.468 0 0 0-21.923 0L114.288 91.2 27.642 4.556A15.45 15.45 0 0 0 16.682 0z"/></svg></button>
 </div>
+
 <script type="text/plain" id="third-party-licenses">======= shared/lib/ol.LICENSE.txt =======
 BSD 2-Clause License
 
@@ -2039,207 +2025,199 @@ return {properties: UnminedMapProperties, regions: UnminedRegions, players: Unmi
 </script>
 <script>
 
-/* Minimal LiveAtlas-style controls for existing uNmINeD/OpenLayers map. */
+/*
+ * Minimal LiveAtlas UI bridge to uNmINeD/OpenLayers, Apache-2.0 UI source.
+ * No Vue, Leaflet, dynamic server endpoints or duplicate tile renderer.
+ */
 const worldNames = ['CardSMP', 'CardSMP-Legacy', 'IslandCraft'];
-// Preserve the original camera bounds, per-world view memory and existing tile pack.
 const worldViews = {
-    'CardSMP': { cameraBounds: [-511, -2047, 2047, 511], centerX: 1560, centerZ: -90, defaultZoom: 1, maxDisplayZoom: 2 },
-    'CardSMP-Legacy': { cameraBounds: [-1023, -1023, 1023, 1023], centerX: 0, centerZ: 0, defaultZoom: 0, maxDisplayZoom: 2 },
-    'IslandCraft': { cameraBounds: [-1023, -1503, 991, 511], centerX: 80, centerZ: -32, defaultZoom: 0, maxDisplayZoom: 2 }
+  'CardSMP': { cameraBounds: [-511,-2047,2047,511], centerX:1560, centerZ:-90, defaultZoom:1, maxDisplayZoom:2 },
+  'CardSMP-Legacy': { cameraBounds: [-1023,-1023,1023,1023], centerX:0, centerZ:0, defaultZoom:0, maxDisplayZoom:2 },
+  'IslandCraft': { cameraBounds: [-1023,-1503,991,511], centerX:80, centerZ:-32, defaultZoom:0, maxDisplayZoom:2 }
 };
-let currentWorld = '', viewer = null, poiLayer = null, poiData = {}, activePOIs = [];
-const views = new Map();
-const selector = document.getElementById('atlas-world');
-const poiPanel = document.getElementById('atlas-poi-panel');
-const poiToggle = document.getElementById('atlas-pois-toggle');
-const poiSearch = document.getElementById('atlas-poi-search');
-const poiList = document.getElementById('atlas-poi-list');
-const popup = document.getElementById('atlas-popup');
-for (const name of worldNames) {
-    const option = document.createElement('option');
-    option.value = name;
-    option.textContent = name.replace('-Legacy', ' Legacy');
-    selector.append(option);
+let currentWorld='',viewer=null,poiLayer=null,poiData={},activePOIs=[],poiPopupOverlay=null,baseZoom=0;
+const views=new Map(), worldList=document.getElementById('atlas-world-list'),
+  poiList=document.getElementById('atlas-poi-list'),
+  poiEmpty=document.getElementById('atlas-poi-empty'),
+  poiSearch=document.getElementById('atlas-poi-search'),
+  popup=document.getElementById('atlas-popup');
+const sections={
+  maps:{button:document.getElementById('atlas-worlds-button'),panel:document.getElementById('atlas-worlds-section')},
+  markers:{button:document.getElementById('atlas-markers-button'),panel:document.getElementById('atlas-markers-section')}
+};
+let currentSection=null;
+function setSection(section){
+  currentSection=(currentSection===section)?null:section;
+  for(const [name,entry] of Object.entries(sections)){
+    const visible=currentSection===name;
+    entry.panel.hidden=!visible;
+    entry.button.setAttribute('aria-expanded',String(visible));
+  }
+  if(currentSection==='markers') poiSearch.focus({preventScroll:true});
 }
-function togglePOIs(open) {
-    poiPanel.hidden = !open;
-    poiToggle.setAttribute('aria-expanded', String(open));
-    if (open) {
-        renderPOIList();
-        poiSearch.focus({preventScroll: true});
+for(const [name,entry] of Object.entries(sections))entry.button.addEventListener('click',()=>setSection(name));
+document.getElementById('atlas-worlds-heading').addEventListener('click',()=>setSection('maps'));
+document.getElementById('atlas-markers-heading').addEventListener('click',()=>setSection('markers'));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if(currentSection)setSection(currentSection);closePOI()}});
+function closePOI(){popup.hidden=true;poiPopupOverlay?.setPosition(undefined)}
+document.getElementById('atlas-popup-close').addEventListener('click',closePOI);
+const poiReady=fetch(new URL('map.pois.json',document.baseURI),{cache:'default'}).then(r=>{
+  if(!r.ok)throw Error('Optional POI file '+r.status);
+  return r.json();
+}).then(value=>{if(value && typeof value==='object')poiData=value})
+.catch(error=>console.warn('Optional map markers unavailable:',error));
+function poisForWorld(world){
+  const group=poiData[world]??poiData.worlds?.[world]??[];
+  const items=Array.isArray(group)?group:(Array.isArray(group.pois)?group.pois:[]);
+  return items.filter(item=>item&&typeof item.name==='string'&&item.name.trim()&&
+    Number.isFinite(Number(item.x))&&Number.isFinite(Number(item.z)))
+    .map(item=>({...item,x:Number(item.x),z:Number(item.z)}));
+}
+function updateCoordinates(point){
+  if(!point)return;
+  document.getElementById('atlas-x').textContent=String(Math.round(point[0]));
+  document.getElementById('atlas-z').textContent=String(Math.round(point[1]));
+}
+function showPOI(item){
+  if(!viewer)return;
+  const coord=ol.proj.transform([item.x,item.z],viewer.dataProjection,viewer.viewProjection);
+  const view=viewer.olMap.getView();
+  view.animate({center:coord,zoom:Math.min(view.getMaxZoom(),Math.max(view.getZoom()||0,6)),duration:300});
+  document.getElementById('atlas-popup-title').textContent=item.name;
+  document.getElementById('atlas-popup-description').textContent=item.description||'';
+  document.getElementById('atlas-popup-coordinates').textContent='X: '+Math.round(item.x)+', Z: '+Math.round(item.z);
+  popup.hidden=false;
+  poiPopupOverlay?.setPosition(coord);
+  if(currentSection)setSection(currentSection);
+}
+function renderPOIList(){
+  const query=poiSearch.value.trim().toLowerCase();
+  const data=activePOIs.filter(item=>!query||(item.name+' '+(item.category||'')+' '+(item.description||'')).toLowerCase().includes(query));
+  poiList.replaceChildren();
+  poiEmpty.hidden=!!data.length;
+  if(!data.length){
+    poiEmpty.textContent=activePOIs.length?'No matching markers found':'No markers exist for the current world';
+    return;
+  }
+  const f=document.createDocumentFragment();
+  for(let i=0;i<data.length;i++){
+    const item=data[i],id='atlas-poi-'+i;
+    const input=document.createElement('input');input.type='radio';input.id=id;input.name='atlas-poi';
+    const label=document.createElement('label');label.className='marker';label.htmlFor=id;
+    const icon=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    icon.classList.add('marker__icon');icon.setAttribute('viewBox','0 0 286.89162 286.89163');
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d','m 142.81546,0 c -49.2926,0 -89.25212,39.95957 -89.25212,89.25211 0,49.29255 82.37686,197.61111 89.25212,197.61111 7.99783,0 89.25211,-148.31856 89.25211,-197.61111 C 232.06757,39.95957 192.108,0 142.81546,0 z m 0,51.3932 a 37.8639,37.8639 0 1 1 -0.001,75.7278 37.8639,37.8639 0 0 1 .001,-75.7278 z');
+    path.setAttribute('fill','currentColor');icon.append(path);
+    const title=document.createElement('span');title.className='marker__label';title.textContent=item.name;
+    const coord=document.createElement('span');coord.className='marker__location';
+    coord.textContent='X: '+Math.round(item.x)+', Z: '+Math.round(item.z);
+    label.append(icon,title,coord);
+    input.addEventListener('change',()=>{if(input.checked)showPOI(item)});
+    f.append(input,label);
+  }
+  poiList.append(f);
+}
+poiSearch.addEventListener('input',renderPOIList);
+function renderWorldList(){
+  worldList.replaceChildren();
+  const f=document.createDocumentFragment();
+  for(const [i,name] of worldNames.entries()){
+    const id='atlas-world-'+i,input=document.createElement('input'),label=document.createElement('label');
+    input.type='radio';input.name='atlas-world';input.id=id;input.value=name;input.checked=name===currentWorld;
+    label.htmlFor=id;label.textContent=name.replace('-Legacy',' Legacy');
+    input.addEventListener('change',()=>{if(input.checked)loadWorld(name)});
+    f.append(input,label);
+  }
+  worldList.append(f);
+}
+function installPOIs(){
+  if(!viewer)return;
+  activePOIs=poisForWorld(currentWorld);
+  const features=activePOIs.map(item=>{
+    const feature=new ol.Feature({geometry:new ol.geom.Point(ol.proj.transform([item.x,item.z],viewer.dataProjection,viewer.viewProjection))});
+    feature.set('atlasPOI',item);
+    feature.setStyle(new ol.style.Style({
+      image:new ol.style.Circle({radius:7,fill:new ol.style.Fill({color:item.color||'#dddddd'}),
+        stroke:new ol.style.Stroke({color:'#222222',width:2})}),
+      text:new ol.style.Text({text:item.name.slice(0,55),font:'600 13px Raleway, sans-serif',offsetY:20,
+        fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#111111',width:3})})
+    }));
+    return feature;
+  });
+  poiLayer=new ol.layer.Vector({source:new ol.source.Vector({features}),zIndex:1500});
+  viewer.olMap.addLayer(poiLayer);
+  poiPopupOverlay=new ol.Overlay({element:popup,positioning:'bottom-center',offset:[0,-22],stopEvent:true,
+    autoPan:{animation:{duration:250}}});
+  viewer.olMap.addOverlay(poiPopupOverlay);
+  viewer.olMap.on('singleclick',event=>{
+    const p=viewer.olMap.forEachFeatureAtPixel(event.pixel,feature=>feature.get('atlasPOI')||undefined);
+    if(p)showPOI(p);
+  });
+  viewer.olMap.on('pointermove',event=>{
+    if(!event.dragging)updateCoordinates(ol.proj.transform(event.coordinate,viewer.viewProjection,viewer.dataProjection));
+  });
+  viewer.olMap.on('moveend',()=>{
+    if(viewer)updateCoordinates(ol.proj.transform(viewer.olMap.getView().getCenter(),viewer.viewProjection,viewer.dataProjection));
+  });
+  renderPOIList();
+}
+function zoomBy(delta){
+  if(!viewer)return;
+  const view=viewer.olMap.getView();
+  view.animate({zoom:Math.max(view.getMinZoom(),Math.min(view.getMaxZoom(),(view.getZoom()||0)+delta)),duration:180});
+}
+document.getElementById('atlas-zoom-in').addEventListener('click',()=>zoomBy(1));
+document.getElementById('atlas-zoom-out').addEventListener('click',()=>zoomBy(-1));
+async function loadWorld(name,updateUrl=true){
+  if(!worldNames.includes(name)||worldList.getAttribute('aria-busy')==='true')return;
+  worldList.setAttribute('aria-busy','true');
+  document.querySelector('.map-error')?.remove();
+  try{
+    await Promise.all([MapImages.ready,poiReady]);
+    const {properties,regions,players,customMarkers}=WorldData[name]();
+    const options={...properties,...worldViews[name],assetBasePath:name+'/',enableGrid:false,showGrid:false,background:'#151719'};
+    options.markers=[...(options.markers||[])];
+    if(customMarkers?.isEnabled&&customMarkers.markers)options.markers.push(...customMarkers.markers);
+    if(Array.isArray(players)&&players.length)options.playerMarkers=Unmined.createPlayerMarkers(players);
+    for(const marker of [...options.markers,...(options.playerMarkers||[])]){
+      if(marker.image&&!/^(?:[a-z]+:|\/|#)/i.test(marker.image)){
+        const url=await MapImages.getAsync(options.assetBasePath+marker.image);
+        if(url)marker.image=url;
+      }
     }
-}
-poiToggle.addEventListener('click', () => togglePOIs(poiPanel.hidden));
-document.getElementById('atlas-pois-close').addEventListener('click', () => togglePOIs(false));
-poiSearch.addEventListener('input', renderPOIList);
-document.getElementById('atlas-popup-close').addEventListener('click', () => { popup.hidden = true; });
-document.addEventListener('keydown', event => {
-    if (event.key === 'Escape') { togglePOIs(false); popup.hidden = true; }
-});
-const poiReady = fetch(new URL('map.pois.json', document.baseURI), { cache: 'default' })
-    .then(response => {
-        if (!response.ok) throw Error('POI file HTTP ' + response.status);
-        return response.json();
-    })
-    .then(data => { if (data && typeof data === 'object') poiData = data; })
-    .catch(error => { console.warn('Optional points of interest unavailable:', error); });
-function getWorldPOIs(world) {
-    const group = poiData[world] ?? poiData.worlds?.[world] ?? [];
-    const items = Array.isArray(group) ? group : (Array.isArray(group.pois) ? group.pois : []);
-    return items.filter(item => item && Number.isFinite(Number(item.x)) &&
-        Number.isFinite(Number(item.z)) && typeof item.name === 'string' && item.name.trim())
-        .map(item => ({ ...item, x: Number(item.x), z: Number(item.z) }));
-}
-function showPOI(item) {
-    if (!viewer) return;
-    const view = viewer.olMap.getView();
-    const coordinate = ol.proj.transform([item.x, item.z], viewer.dataProjection, viewer.viewProjection);
-    view.animate({ center: coordinate, zoom: Math.min(view.getMaxZoom(), Math.max(view.getZoom() || 0, 6)), duration: 320 });
-    document.getElementById('atlas-popup-title').textContent = item.name;
-    document.getElementById('atlas-popup-description').textContent = item.description || '';
-    document.getElementById('atlas-popup-coordinates').textContent = 'X ' + Math.round(item.x) + ' · Z ' + Math.round(item.z);
-    popup.hidden = false;
-    togglePOIs(false);
-}
-function renderPOIList() {
-    const search = poiSearch.value.trim().toLowerCase();
-    const filtered = activePOIs.filter(p =>
-        !search || (p.name + ' ' + (p.category || '') + ' ' + (p.description || '')).toLowerCase().includes(search));
-    poiList.replaceChildren();
-    if (!filtered.length) {
-        const empty = document.createElement('div');
-        empty.className = 'atlas-empty';
-        empty.textContent = activePOIs.length ? 'No matching places.' : 'No places yet. Add them to map.pois.json.';
-        poiList.append(empty);
-        return;
+    if(viewer){
+      const view=viewer.olMap.getView();
+      views.set(currentWorld,{center:view.getCenter(),zoom:view.getZoom()});
+      closePOI();
+      if(poiPopupOverlay)viewer.olMap.removeOverlay(poiPopupOverlay);
+      viewer.dispose();poiPopupOverlay=null;
     }
-    const fragment = document.createDocumentFragment();
-    for (const item of filtered) {
-        const row = document.createElement('button');
-        row.type = 'button'; row.className = 'atlas-poi';
-        const title = document.createElement('span');
-        title.className = 'atlas-poi-name'; title.textContent = item.name;
-        const detail = document.createElement('span');
-        detail.className = 'atlas-poi-sub';
-        detail.textContent = (item.category ? item.category + ' · ' : '') + 'X ' + Math.round(item.x) + ', Z ' + Math.round(item.z);
-        row.append(title, detail);
-        row.addEventListener('click', () => showPOI(item));
-        fragment.append(row);
+    viewer=new Unmined(document.getElementById('map'),options,regions);
+    if(views.has(name)){
+      const saved=views.get(name),view=viewer.olMap.getView();
+      view.setCenter(saved.center);view.setZoom(saved.zoom);
     }
-    poiList.append(fragment);
-}
-function installPOIs() {
-    if (!viewer) return;
-    activePOIs = getWorldPOIs(currentWorld);
-    document.getElementById('atlas-poi-count').textContent = String(activePOIs.length);
-    const features = activePOIs.map(item => {
-        const feature = new ol.Feature({
-            geometry: new ol.geom.Point(ol.proj.transform([item.x, item.z], viewer.dataProjection, viewer.viewProjection))
-        });
-        feature.set('atlasPOI', item);
-        const label = String(item.name).slice(0, 55);
-        feature.setStyle(new ol.style.Style({
-            image: new ol.style.Circle({
-                radius: 7,
-                fill: new ol.style.Fill({ color: item.color || '#76b9ed' }),
-                stroke: new ol.style.Stroke({ color: '#17212c', width: 2 })
-            }),
-            text: new ol.style.Text({
-                text: label,
-                font: '600 12px system-ui, sans-serif',
-                offsetY: 19,
-                fill: new ol.style.Fill({ color: '#ffffff' }),
-                stroke: new ol.style.Stroke({ color: '#151719', width: 3 })
-            })
-        }));
-        return feature;
-    });
-    poiLayer = new ol.layer.Vector({ source: new ol.source.Vector({ features }), zIndex: 1500 });
-    viewer.olMap.addLayer(poiLayer);
-    viewer.olMap.on('singleclick', event => {
-        const match = viewer.olMap.forEachFeatureAtPixel(event.pixel, feature => feature.get('atlasPOI') || undefined);
-        if (match) showPOI(match);
-    });
-    viewer.olMap.on('pointermove', event => {
-        if (event.dragging) return;
-        const point = ol.proj.transform(event.coordinate, viewer.viewProjection, viewer.dataProjection);
-        document.getElementById('atlas-coords').textContent = 'X ' + Math.round(point[0]) + ' · Z ' + Math.round(point[1]);
-    });
-    viewer.olMap.on('moveend', () => {
-        if (!viewer) return;
-        const point = ol.proj.transform(viewer.olMap.getView().getCenter(), viewer.viewProjection, viewer.dataProjection);
-        document.getElementById('atlas-coords').textContent = 'X ' + Math.round(point[0]) + ' · Z ' + Math.round(point[1]);
-    });
-    renderPOIList();
-}
-function zoomBy(delta) {
-    if (!viewer) return;
-    const view = viewer.olMap.getView();
-    const zoom = Math.max(view.getMinZoom(), Math.min(view.getMaxZoom(), (view.getZoom() || 0) + delta));
-    view.animate({ zoom, duration: 180 });
-}
-document.getElementById('atlas-zoom-in').addEventListener('click', () => zoomBy(1));
-document.getElementById('atlas-zoom-out').addEventListener('click', () => zoomBy(-1));
-document.getElementById('atlas-home').addEventListener('click', () => {
-    if (!viewer) return;
-    const bounds = worldViews[currentWorld], view = viewer.olMap.getView();
-    view.animate({
-        center: ol.proj.transform([bounds.centerX, bounds.centerZ], viewer.dataProjection, viewer.viewProjection),
-        zoom: (bounds.defaultZoom ?? 0) + 6, duration: 280
-    });
-});
-selector.addEventListener('change', () => loadWorld(selector.value));
-async function loadWorld(name, updateUrl = true) {
-    if (!worldNames.includes(name) || selector.disabled) return;
-    selector.disabled = true;
-    document.querySelector('.map-error')?.remove();
-    try {
-        await Promise.all([MapImages.ready, poiReady]);
-        const { properties, regions, players, customMarkers } = WorldData[name]();
-        const options = { ...properties, ...worldViews[name], assetBasePath: name + '/', enableGrid: false, showGrid: false, background: '#151719' };
-        options.markers = [...(options.markers || [])];
-        if (customMarkers?.isEnabled && customMarkers.markers) options.markers.push(...customMarkers.markers);
-        if (Array.isArray(players) && players.length) options.playerMarkers = Unmined.createPlayerMarkers(players);
-        for (const marker of [...(options.markers || []), ...(options.playerMarkers || [])]) {
-            if (marker.image && !/^(?:[a-z]+:|\/|#)/i.test(marker.image)) {
-                const url = await MapImages.getAsync(options.assetBasePath + marker.image);
-                if (url) marker.image = url;
-            }
-        }
-        if (viewer) {
-            const view = viewer.olMap.getView();
-            views.set(currentWorld, { center: view.getCenter(), zoom: view.getZoom() });
-            viewer.dispose();
-        }
-        viewer = new Unmined(document.getElementById('map'), options, regions);
-        if (views.has(name)) {
-            const saved = views.get(name), view = viewer.olMap.getView();
-            view.setCenter(saved.center);
-            view.setZoom(saved.zoom);
-        }
-        currentWorld = name;
-        selector.value = name;
-        popup.hidden = true;
-        installPOIs();
-        document.title = name + ' - Atlas';
-        if (updateUrl) {
-            const url = new URL(location.href);
-            url.searchParams.set('world', name);
-            try { history.replaceState(null, '', url); } catch {}
-        }
-    } catch (error) {
-        console.error(error);
-        selector.value = currentWorld || worldNames[0];
-        const message = document.createElement('div');
-        message.className = 'map-error'; message.setAttribute('role', 'alert');
-        message.textContent = error.message + ' Please reload to try again.';
-        document.body.append(message);
-    } finally {
-        selector.disabled = false;
+    currentWorld=name;
+    baseZoom=(options.defaultZoom??0)-(options.minZoom??0);
+    installPOIs();
+    renderWorldList();
+    updateCoordinates(ol.proj.transform(viewer.olMap.getView().getCenter(),viewer.viewProjection,viewer.dataProjection));
+    document.title=name+' - LiveAtlas';
+    if(updateUrl){
+      const url=new URL(location.href);url.searchParams.set('world',name);
+      try{history.replaceState(null,'',url)}catch{}
     }
+  }catch(error){
+    console.error(error);
+    const e=document.createElement('div');e.className='map-error';e.setAttribute('role','alert');
+    e.textContent=error.message+' Please reload to try again.';document.body.append(e);
+    renderWorldList();
+  }finally{worldList.setAttribute('aria-busy','false')}
 }
-const requestedWorld = new URLSearchParams(location.search).get('world');
-loadWorld(worldNames.includes(requestedWorld) ? requestedWorld : worldNames[0]);
+renderWorldList();
+const requestedWorld=new URLSearchParams(location.search).get('world');
+loadWorld(worldNames.includes(requestedWorld)?requestedWorld:worldNames[0]);
 
 </script>
 </body>
