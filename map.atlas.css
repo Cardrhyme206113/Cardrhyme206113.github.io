@@ -189,7 +189,8 @@ font-size:1.25rem;font-family:Raleway,sans-serif
 .atlas-shell .leaflet-control-coordinates .value+.value{margin-left:2rem}
 @media(max-width:480px),(max-height:480px){.atlas-shell .leaflet-control-coordinates .value{font-size:1.6rem}}
 /* Original LiveAtlas leaflet/_popups.scss wrapper/popup colours and shape */
-.atlas-shell.leaflet-popup{z-index:2000;position:absolute;pointer-events:auto}
+/* OpenLayers positions the overlay container; the popup must remain in normal flow for correct width/centering. */
+.atlas-shell.leaflet-popup{z-index:2000;position:relative;pointer-events:auto}
 .atlas-shell.leaflet-popup .leaflet-popup-content-wrapper,.atlas-shell.leaflet-popup .leaflet-popup-tip{
 background-color:var(--background-base);color:var(--text-base);
 box-shadow:var(--box-shadow)
