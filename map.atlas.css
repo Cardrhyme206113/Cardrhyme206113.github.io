@@ -1,0 +1,217 @@
+/*!
+ * LiveAtlas UI CSS port (only retained controls and sidebar components).
+ * Source: https://github.com/JLyne/LiveAtlas
+ * Copyright 2022 James Lyne. Licensed under Apache License 2.0.
+ * https://www.apache.org/licenses/LICENSE-2.0
+ * Transcribed from LiveAtlas index.html, style.scss, _mixins.scss,
+ * _placeholders.scss, Sidebar.vue, SidebarSection.vue,
+ * WorldListItem.vue, MarkerListItem.vue and leaflet/_controls.scss.
+ * Vue/Sass selectors flattened; no Vue runtime or LiveAtlas renderer used.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700&display=swap');
+:root{
+--background-base:#222222;--background-dark:#121212;--background-light:#363636;
+--background-error:#771616;--background-marker:var(--background-dark);
+--background-disabled:#555555;--background-hover:#363636;
+--background-active:#6d6d6d;--background-selected:#BDBDBD;--outline-focus:#eeeeee;
+--border-radius:0.5rem;--border-color:#333333;--border-error:#cc0e0e;
+--box-shadow:2px 2px 0px #111111;
+--text-base:rgba(255,255,255,.7);--text-emphasis:rgba(255,255,255,.87);
+--text-subtle:rgba(255,255,255,.5);--text-disabled:var(--text-subtle);
+--text-marker:var(--text-base);--text-hover:var(--text-base);
+--text-active:var(--text-base);--text-selected:var(--background-base);
+--text-shadow:0.1rem 0.1rem #000000;
+--ui-button-size:5rem;--ui-element-spacing:1rem
+}
+@media(max-width:400px),(max-height:480px){
+:root{--ui-button-size:4.4rem;--ui-element-spacing:.7rem}
+}
+html{font-size:62.5%}
+html,body{background-color:var(--background-dark);height:100%;width:100%;margin:0;padding:0;overscroll-behavior:none}
+body{font-family:Raleway,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--text-base);text-shadow:var(--text-shadow);letter-spacing:.02rem}
+body #map{position:absolute;inset:0;background:#151719}
+#map .ol-zoom,#map .ol-mouse-position{display:none!important}
+.atlas-shell{font-family:Raleway,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--text-base);font-size:1.5rem;line-height:normal}
+.atlas-shell *{box-sizing:border-box}
+.atlas-shell *:focus-visible{outline:var(--outline-focus) solid .3rem!important}
+.atlas-shell button,.atlas-shell input,.atlas-shell label{font-family:inherit}
+.atlas-shell button{
+appearance:none;box-shadow:none;background-color:var(--background-base);
+color:var(--text-base);border-radius:var(--border-radius);border:none;
+cursor:pointer;display:block;text-align:center;position:relative;
+transition:color .2s ease-in,background-color .2s ease-in;
+font-size:1.6rem;box-sizing:border-box;text-shadow:var(--text-shadow);
+user-select:none;padding:.8rem .8rem .7rem;line-height:2rem;
+-webkit-tap-highlight-color:transparent
+}
+.atlas-shell button:hover{background-color:var(--background-hover);color:var(--text-hover)}
+.atlas-shell button[aria-expanded=true],.atlas-shell button[aria-pressed=true]{
+background-color:var(--background-selected);color:var(--text-selected);
+font-weight:700;text-shadow:none
+}
+.atlas-shell button:active{background-color:var(--background-active);color:var(--text-active)}
+.atlas-shell button:disabled{background-color:var(--background-disabled);color:var(--text-disabled);cursor:not-allowed}
+.atlas-shell .svg-icon{pointer-events:none;fill:currentColor;height:24px;width:24px;display:inline-block;max-width:3rem;max-height:3rem}
+.atlas-shell button>.svg-icon:only-child{
+position:absolute;width:calc(100% - 1.6rem);height:calc(100% - 1.6rem);
+min-width:1.5rem;min-height:1.5rem;top:0;right:0;bottom:0;left:0;margin:auto
+}
+.atlas-shell button>span{display:block;text-overflow:inherit;overflow:inherit;white-space:inherit}
+.atlas-shell [hidden]{display:none!important}
+/* Original LiveAtlas Sidebar.vue positions and dimensions */
+.atlas-shell.sidebar{
+position:fixed;z-index:110;top:0;right:0;bottom:0;
+display:flex;flex-direction:column;padding:var(--ui-element-spacing);
+font-size:1.5rem;will-change:transform;pointer-events:none
+}
+.atlas-shell.sidebar ul,.atlas-shell.sidebar ol,.atlas-shell.sidebar li{padding:0;list-style:none;margin:0}
+.sidebar .sidebar__buttons{
+display:flex;flex-direction:row;flex-shrink:0;align-items:center;
+justify-content:flex-end;margin-bottom:var(--ui-element-spacing);
+pointer-events:auto;align-self:flex-end
+}
+.sidebar .sidebar__buttons button{
+width:var(--ui-button-size);height:var(--ui-button-size);box-shadow:var(--box-shadow)
+}
+.sidebar .sidebar__buttons button+button{margin-left:var(--ui-element-spacing)}
+.sidebar .sidebar__content{
+position:relative;display:flex;flex-direction:column;flex-shrink:1;min-height:0;
+overflow:auto;pointer-events:auto;margin-right:-.5rem;
+padding:.3rem .5rem 0 .3rem;width:26rem;align-items:flex-end;
+overscroll-behavior:contain;will-change:transform
+}
+.sidebar .sidebar__content:not(:hover):not(:focus-within){scrollbar-color:var(--background-base) transparent}
+.sidebar .sidebar__section{
+background-color:var(--background-base);color:var(--text-base);
+border-radius:var(--border-radius);box-shadow:var(--box-shadow);
+display:flex;flex-direction:column;padding:1.5rem;position:relative;
+margin-bottom:var(--ui-element-spacing);box-sizing:border-box;
+width:100%;max-width:26rem;flex:0 0 auto
+}
+.sidebar .sidebar__section[hidden]{display:none}
+.sidebar .sidebar__section .section__heading{
+cursor:pointer;user-select:none;text-align:left;align-items:center;
+position:sticky;top:-.2rem;background-color:inherit;z-index:3;
+border-radius:inherit;margin:-1.5rem -1.5rem 0;
+padding:1.5rem;font-size:2rem;line-height:2.4rem;font-weight:400;color:var(--text-emphasis)
+}
+.sidebar .sidebar__section .section__heading button{
+text-overflow:ellipsis;white-space:nowrap;overflow:hidden;display:flex;
+font-size:2rem;background-color:transparent;font-weight:400;color:inherit;
+width:calc(100% + 3rem);align-items:center;text-shadow:var(--text-shadow);
+padding:1rem 1.5rem;line-height:1.5;margin:-1.5rem;text-align:left
+}
+.sidebar .sidebar__section .section__heading button:hover{background-color:transparent}
+.sidebar .sidebar__section .section__heading .svg-icon{margin-left:auto;width:1.5rem;height:1.5rem}
+.sidebar .sidebar__section .section__content{
+padding:0 .5rem;margin:0 -.5rem 1rem;min-width:0;position:relative
+}
+.sidebar .sidebar__section .section__content:last-child{margin-bottom:0}
+.sidebar .sidebar__section .section__search{
+appearance:none;background-color:var(--background-light);box-shadow:0 1.5rem .5em var(--background-base);
+color:var(--text-base);font-size:1.6rem;padding:.5rem 1rem;
+border:.2rem solid var(--border-color);border-radius:.3rem;
+margin-bottom:1.5rem;box-sizing:border-box;width:100%;
+position:sticky;top:4.8rem;z-index:3
+}
+.sidebar .sidebar__section .section__search:focus{color:var(--text-emphasis)}
+.sidebar .sidebar__section .section__skeleton{
+font-style:italic;color:var(--text-disabled);text-align:center;
+align-self:center;margin-top:1rem;font-size:1.5rem
+}
+.sidebar .menu{list-style:none;margin:0;padding:0;font-size:1.6rem;min-width:0}
+.sidebar .menu>input[type=radio]{clip:rect(1px,1px,1px,1px);height:1px;width:1px;position:absolute;padding:0;border:none}
+.sidebar .menu>input[type=radio]+label{
+appearance:none;box-shadow:none;background-color:transparent;
+color:var(--text-base);border-radius:.5rem;border:none;cursor:pointer;
+display:block;text-align:left;position:relative;
+transition:color .2s ease-in,background-color .2s ease-in;
+font-size:1.6rem;box-sizing:border-box;text-shadow:var(--text-shadow);
+user-select:none;padding:.8rem .8rem .7rem;line-height:2rem;
+margin-bottom:.1rem;text-overflow:ellipsis;overflow:hidden;white-space:nowrap
+}
+.sidebar .menu>input[type=radio]+label:hover{background-color:var(--background-hover);color:var(--text-hover)}
+.sidebar .menu>input[type=radio]:checked+label{
+background-color:var(--background-selected);color:var(--text-selected);
+font-weight:700;text-shadow:none
+}
+.sidebar .menu>input[type=radio]:focus-visible+label{outline:var(--outline-focus) solid .3rem!important}
+.sidebar .menu>input[type=radio]:active+label{background-color:var(--background-active);color:var(--text-active)}
+.sidebar .menu>input[type=radio]:disabled+label{background-color:var(--background-disabled);color:var(--text-disabled)}
+.sidebar .menu>.marker{display:block}
+.sidebar .menu>input[type=radio]+label.marker{
+padding-left:3.9rem;white-space:normal
+}
+.sidebar .menu .marker__icon{max-width:1.6rem;position:absolute;top:0;left:.8rem;bottom:0;margin:auto;width:1.6rem;height:1.6rem}
+.sidebar .menu .marker__label{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar .menu .marker__location{display:block;font-size:1.4rem;font-family:monospace}
+@media(max-width:480px){
+.sidebar .sidebar__buttons{flex-direction:column;align-items:flex-end;margin:0;position:absolute;right:var(--ui-element-spacing);top:var(--ui-element-spacing)}
+.sidebar .sidebar__buttons button+button{margin-left:0;margin-top:var(--ui-element-spacing)}
+.atlas-shell.sidebar{padding-right:7rem;padding-top:.8rem}
+}
+@media(max-width:400px){.atlas-shell.sidebar{padding-right:6.5rem;padding-top:.3rem;padding-bottom:.3rem}}
+/* Original LiveAtlas leaflet/_controls.scss controls, mapped onto existing OL map */
+.atlas-shell.leaflet-top,.atlas-shell.leaflet-bottom{display:flex;position:fixed;pointer-events:none}
+.atlas-shell.leaflet-top{padding-top:var(--ui-element-spacing);flex-direction:column;top:0;bottom:calc(var(--ui-element-spacing)*2 + var(--ui-button-size));align-items:flex-start;z-index:1003}
+.atlas-shell.leaflet-bottom{padding-bottom:var(--ui-element-spacing);bottom:0;align-items:stretch;z-index:1002}
+.atlas-shell.leaflet-left{padding-left:var(--ui-element-spacing);left:0}
+.atlas-shell.leaflet-right{padding-right:var(--ui-element-spacing);right:0}
+.atlas-shell .leaflet-control{
+background-color:var(--background-base);border-radius:var(--border-radius);
+box-shadow:var(--box-shadow);margin:0;box-sizing:border-box;
+overflow:visible;font-size:1.5rem;flex-shrink:0;pointer-events:auto
+}
+.atlas-shell.leaflet-top .leaflet-control{
+order:2;min-width:var(--ui-button-size);margin-bottom:var(--ui-element-spacing)
+}
+.atlas-shell .leaflet-bar{display:flex;flex-direction:column;align-items:center;padding:0;border:none;box-shadow:var(--box-shadow)}
+.atlas-shell .leaflet-bar button{
+border-radius:0;border-bottom:.1rem solid var(--border-color);
+line-height:3.5rem;width:var(--ui-button-size);height:var(--ui-button-size);
+padding:0;display:block;text-align:center;box-shadow:none
+}
+.atlas-shell .leaflet-bar button:first-child{
+border-top-left-radius:var(--border-radius);border-top-right-radius:var(--border-radius)
+}
+.atlas-shell .leaflet-bar button:last-child{
+border-bottom-left-radius:var(--border-radius);border-bottom-right-radius:var(--border-radius);border-bottom:none
+}
+.atlas-shell .leaflet-control-zoom button{font-family:sans-serif;font-size:2.4rem}
+.atlas-shell .leaflet-control-coordinates{display:flex;align-items:center;padding:.5rem 1.5rem}
+.atlas-shell .leaflet-control-coordinates .value{
+line-height:1;font-family:monospace;white-space:pre;font-size:2rem
+}
+.atlas-shell .leaflet-control-coordinates .value[data-label]:before{
+content:attr(data-label);display:block;line-height:1;margin-bottom:.5rem;
+font-size:1.25rem;font-family:Raleway,sans-serif
+}
+.atlas-shell .leaflet-control-coordinates .value+.value{margin-left:2rem}
+@media(max-width:480px),(max-height:480px){.atlas-shell .leaflet-control-coordinates .value{font-size:1.6rem}}
+/* Original LiveAtlas leaflet/_popups.scss wrapper/popup colours and shape */
+.atlas-shell.leaflet-popup{z-index:2000;position:absolute;pointer-events:auto}
+.atlas-shell.leaflet-popup .leaflet-popup-content-wrapper,.atlas-shell.leaflet-popup .leaflet-popup-tip{
+background-color:var(--background-base);color:var(--text-base);
+box-shadow:var(--box-shadow)
+}
+.atlas-shell.leaflet-popup .leaflet-popup-content-wrapper{
+max-height:50vh;display:flex;border-radius:var(--border-radius);box-shadow:var(--box-shadow)
+}
+.atlas-shell.leaflet-popup .leaflet-popup-content{
+margin:1rem;overflow:auto;word-break:break-word;min-width:16rem;max-width:min(28rem,80vw);font-size:1.5rem
+}
+.atlas-shell.leaflet-popup .leaflet-popup-close-button{
+background-color:var(--background-base);border-radius:var(--border-radius);
+width:2rem;height:2rem;top:-1rem;right:-1rem;text-align:center;
+padding:0;line-height:2rem;position:absolute;z-index:5;
+box-shadow:var(--box-shadow)
+}
+.atlas-shell.leaflet-popup .leaflet-popup-tip{
+width:1.4rem;height:1.4rem;transform:rotate(45deg);
+position:absolute;bottom:-.5rem;left:calc(50% - .7rem)
+}
+.atlas-shell.leaflet-popup .atlas-poi-title{font-weight:700;color:var(--text-emphasis);margin-bottom:.4rem}
+.atlas-shell.leaflet-popup .atlas-poi-description{white-space:pre-wrap;margin-top:.3rem}
+.atlas-shell.leaflet-popup .atlas-poi-coordinates{font:1.3rem monospace;margin-top:.7rem;color:var(--text-subtle)}
+/* Keep all optional map chrome hidden on print. */
+@media print{.atlas-shell.sidebar,.atlas-shell.leaflet-top,.atlas-shell.leaflet-bottom,.atlas-shell.leaflet-popup{display:none!important}}
