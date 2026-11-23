@@ -3654,7 +3654,15 @@ let normalTTSPromise=null,normalTTS=null;
 let activeSpeech=null; // audio node and cleanup for cancellation
 const piperEngines=new Map(),piperPromises=new Map();
 let piperScripts=null,aiLoadPromise=null,aiProgressCallback=updateAIDownloadUI;
-const AI_MODELS={en:'tts-ai-en.onnx',tr:'tts-ai-tr.onnx'};
+// AI TTS assets are hosted externally. The runtime commit is pinned to avoid
+// breaking changes, and voices are fetched from the canonical Piper model repo.
+// No /p2p/vendor/ or /p2p/tts-ai-* files are required on GitHub Pages.
+const PIPER_CDN='https://cdn.jsdelivr.net/gh/piper-tts/piper-tts.github.io@533f940c86e353b5504d34d62ab5107894271d3b/';
+const PIPER_VOICES='https://huggingface.co/rhasspy/piper-voices/resolve/main/';
+const AI_MODELS={
+ en:{onnx:PIPER_VOICES+'en/en_US/lessac/low/en_US-lessac-low.onnx',json:PIPER_VOICES+'en/en_US/lessac/low/en_US-lessac-low.onnx.json'},
+ tr:{onnx:PIPER_VOICES+'tr/tr_TR/dfki/medium/tr_TR-dfki-medium.onnx',json:PIPER_VOICES+'tr/tr_TR/dfki/medium/tr_TR-dfki-medium.onnx.json'}
+};
 function stopReading(){
  speechGeneration++;
  window.speechSynthesis?.cancel();
@@ -3682,17 +3690,19 @@ function loadScript(src){return new Promise((resolve,reject)=>{
 async function ensurePiperScripts(){
  if(piperScripts)return piperScripts;
  piperScripts=(async()=>{
-   await loadScript('vendor/ort/ort.wasm.min.js');
-  await loadScript('vendor/phonemize/piper_phonemize.js');
-  await loadScript('piper-browser.js');
+   // Load prebuilt browser runtime from one pinned CDN release.
+   await loadScript(PIPER_CDN+'vendor/ort/ort.wasm.min.js');
+   await loadScript(PIPER_CDN+'vendor/phonemize/piper_phonemize.js');
+   await loadScript(PIPER_CDN+'piper-browser.js');
    if(!window.Piper||!window.ort||typeof window.createPiperPhonemize!=='function')throw Error('Piper browser runtime unavailable');
-   // Upstream Piper uses ./vendor paths relative to the HTML root. Our exact,
-   // unmodified prebuilt files live in the GitHub Pages /p2p/ asset directory.
-   window.ort.env.wasm.wasmPaths=new URL('vendor/ort/',P2P_ASSETS).href;
+   // Piper's upstream implementation defaults to relative WASM/data paths.
+   // Override both so every dependency also resolves to the CDN rather than
+   // non-existent /vendor/ files in the user's GitHub Pages repository.
+   window.ort.env.wasm.wasmPaths=PIPER_CDN+'vendor/ort/';
    if(!window.__p2pPiperPhonemizePathsFixed){
     const original=window.createPiperPhonemize;
     window.createPiperPhonemize=(options={})=>original({
-      ...options,locateFile:(name)=>new URL('vendor/phonemize/'+name,P2P_ASSETS).href
+      ...options,locateFile:(name)=>PIPER_CDN+'vendor/phonemize/'+name
     });
     window.__p2pPiperPhonemizePathsFixed=true;
    }
@@ -3720,11 +3730,11 @@ async function ensureAIModel(lang){
  if(piperPromises.has(lang))return piperPromises.get(lang);
  const promise=(async()=>{
   await ensurePiperScripts();
-  const url=new URL(AI_MODELS[lang],P2P_ASSETS).href;
+  const url=AI_MODELS[lang].onnx;
   const buffer=await fetchWithProgress(url,lang);
   const objectUrl=URL.createObjectURL(new Blob([buffer],{type:'application/octet-stream'}));
   try{
-   const engine=await window.Piper.createEngine(objectUrl,new URL('tts-ai-'+lang+'.json',P2P_ASSETS).href);
+   const engine=await window.Piper.createEngine(objectUrl,AI_MODELS[lang].json);
    piperEngines.set(lang,engine);return engine;
   }finally{URL.revokeObjectURL(objectUrl)}
  })().finally(()=>piperPromises.delete(lang));
