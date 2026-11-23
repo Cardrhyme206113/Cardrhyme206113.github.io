@@ -1,0 +1,790 @@
+/**
+ * FastEnhancer AudioWorkletProcessor
+ *
+ * Directly instantiates the WASM engine inside the AudioWorklet
+ * and performs real-time noise removal.
+ *
+ * Initialization flow:
+ *   Main thread → postMessage({ type:'init', wasmBytes, weightBytes, exportMap, modelSize })
+ *   Worklet     → synchronously create WebAssembly.Module/Instance → fe_init() → postMessage({ type:'ready' })
+ *
+ * process() flow:
+ *   1. Accumulate 128 input samples into the frame buffer
+ *   2. Once hopSize samples have accumulated, run WASM processing → update outputFrame
+ *   3. Output 128 samples from the current position of outputFrame
+ */
+
+/* global registerProcessor, AudioWorkletProcessor, sampleRate, currentTime */
+
+const DEFAULT_HOP_SIZE = 512;
+const QUANTUM = 128;
+const MAX_STORED_TIMES = 2000;
+const DEFAULT_STATS_INTERVAL = 100;
+const LOAD_WINDOW_MS = 200;
+const PERSISTENT_LOAD_MS = 1000;
+const ENTRY_LOAD = 1.10;
+const FAST_ENTRY_LOAD = 1.50;
+const RECOVERY_LOAD = ENTRY_LOAD;
+const SLOW_FRAME_LOAD = 1.05;
+const SEVERE_FRAME_LOAD = 2;
+const SEVERE_FRAMES = 3;
+const RECOVERY_FRAMES = 4;
+const MAX_RECOVERY_FRAMES = 12;
+const RECOVERY_WARMUP_FRAMES = 2;
+const INITIAL_PROBE_MS = 32;
+const MAX_PROBE_MS = 128;
+const NONZERO_THRESHOLD = 1e-8;
+
+const _perf = typeof performance !== 'undefined' ? performance : null;
+const _dateNow = typeof Date !== 'undefined' ? Date.now : null;
+
+let _timerChecked = false;
+let _perfNowFrozen = false;
+let _timerCheckCount = 0;
+let _timerCheckPrev = 0;
+const TIMER_CHECK_CALLBACKS = 3;
+
+function _checkTimerAcrossCallbacks() {
+  if (_timerChecked) return;
+  if (!_perf) { _timerChecked = true; _perfNowFrozen = true; return; }
+
+  const now = _perf.now();
+  if (_timerCheckCount === 0) {
+    _timerCheckPrev = now;
+    _timerCheckCount = 1;
+    return;
+  }
+
+  if (now === _timerCheckPrev) {
+    _timerCheckCount++;
+    if (_timerCheckCount >= TIMER_CHECK_CALLBACKS) {
+      _perfNowFrozen = true;
+      _timerChecked = true;
+    }
+    return;
+  }
+
+  // Timer is progressing normally
+  _timerChecked = true;
+  _perfNowFrozen = false;
+}
+
+// Keep the policy in the shipped processor: tests exercise this same code,
+// rather than a separate scheduler with different behavior.
+class ProcessingMonitor {
+  constructor(budgetMs) {
+    this.budgetMs = budgetMs;
+    this.background = false;
+    this._times = new Float64Array(Math.ceil(LOAD_WINDOW_MS * 4 / budgetMs));
+    this.reset();
+  }
+
+  reset() {
+    this.mode = 'processing';
+    this.averageMs = 0;
+    this._clearWindow();
+    this._probeDelayMs = INITIAL_PROBE_MS;
+    this._probeFrames = 0;
+    this._trialCount = 0;
+    this._trialSum = 0;
+  }
+
+  _clearWindow() {
+    this._windowFrames = Math.ceil(LOAD_WINDOW_MS * (this.background ? 4 : 1) / this.budgetMs);
+    this._times.fill(0);
+    this._count = 0;
+    this._index = 0;
+    this._sum = 0;
+    this._slowCount = 0;
+    this._debtMs = 0;
+    this._severeCount = 0;
+    this._trendFrames = 0;
+  }
+
+  timingChanged() {
+    // Never combine quantized performance ticks with Date measurements. The
+    // zero-tick fallback otherwise makes their average systematically too high.
+    this._clearWindow();
+    this.averageMs = 0;
+    this._trialCount = 0;
+    this._trialSum = 0;
+  }
+
+  setBackground(enabled) {
+    if (this.background === enabled) return;
+    this.background = enabled;
+    this._clearWindow();
+    if (!enabled && this.mode !== 'processing') {
+      this.mode = 'bypass';
+      this._probeFrames = 0; // Retry on the very next frame after foreground return.
+      this._probeDelayMs = INITIAL_PROBE_MS;
+    }
+  }
+
+  shouldProcess() {
+    if (this.mode !== 'bypass') return true;
+    if (--this._probeFrames > 0) return false;
+    this.mode = 'recovering';
+    this._trialCount = 0;
+    this._trialSum = 0;
+    this._severeCount = 0;
+    return true;
+  }
+
+  _waitForProbe() {
+    this.mode = 'bypass';
+    this._probeFrames = Math.ceil(this._probeDelayMs / this.budgetMs);
+  }
+
+  fail() {
+    if (this.mode === 'processing') this._probeDelayMs = INITIAL_PROBE_MS;
+    else this._probeDelayMs = Math.min(MAX_PROBE_MS, this._probeDelayMs * 2);
+    this._waitForProbe();
+  }
+
+  record(ms, timingToleranceMs = 0) {
+    // A wall clock can move backwards and some worklets expose a frozen timer.
+    // Unknown timing is not evidence of either overload or successful recovery.
+    if (!Number.isFinite(ms) || ms < 0) {
+      if (this.mode === 'recovering') this.fail();
+      else { this._clearWindow(); this.averageMs = 0; }
+      return;
+    }
+    const budget = this.budgetMs;
+    if (this.mode === 'recovering') {
+      this._severeCount = ms >= budget * SEVERE_FRAME_LOAD ? this._severeCount + 1 : 0;
+      if (this._severeCount >= SEVERE_FRAMES * (this.background ? 4 : 1)) {
+        this.fail();
+        return;
+      }
+      this._trialCount++;
+      // Reset STFT/RNN state needs consecutive input, and the first calls may
+      // also have cold caches. These two frames stay dry and do not decide
+      // whether steady inference is sustainable; severe overload still counts.
+      if (this._trialCount <= RECOVERY_WARMUP_FRAMES) return;
+      this._trialSum += ms;
+      const measuredFrames = this._trialCount - RECOVERY_WARMUP_FRAMES;
+      this.averageMs = this._trialSum / measuredFrames;
+      // Entry and recovery must agree on sustainable load. A stricter recovery
+      // threshold traps an otherwise accepted model in repeated bypass trials.
+      const recoveryBudget = budget * RECOVERY_LOAD;
+      if (this._trialSum > recoveryBudget * RECOVERY_FRAMES
+        && this.averageMs > recoveryBudget + timingToleranceMs) {
+        this.fail();
+      } else if (measuredFrames >= RECOVERY_FRAMES) {
+        if (this.averageMs <= recoveryBudget) {
+          this.mode = 'processing';
+          this._clearWindow();
+          this._probeDelayMs = INITIAL_PROBE_MS;
+        } else if (measuredFrames >= MAX_RECOVERY_FRAMES) this.fail();
+        // Millisecond rounding can make four healthy frames look slightly too
+        // slow. Extend only such borderline trials; keep the same threshold,
+        // and bound the extra work instead of resetting and cooling again.
+      }
+      return;
+    }
+
+    if (this._count === this._windowFrames) {
+      const old = this._times[this._index];
+      this._sum -= old;
+      if (old > budget * SLOW_FRAME_LOAD) this._slowCount--;
+    } else this._count++;
+    this._times[this._index] = ms;
+    this._index = (this._index + 1) % this._windowFrames;
+    this._sum += ms;
+    if (ms > budget * SLOW_FRAME_LOAD) this._slowCount++;
+    this.averageMs = this._sum / this._count;
+    this._debtMs = Math.min(this._windowFrames * budget, Math.max(0, this._debtMs + ms - budget));
+    this._severeCount = ms >= budget * SEVERE_FRAME_LOAD ? this._severeCount + 1 : 0;
+
+    const highAverage = this._count === this._windowFrames && this.averageMs > budget * ENTRY_LOAD;
+    this._trendFrames = highAverage ? this._trendFrames + 1 : 0;
+    // A 200 ms scheduling/CPU-frequency fluctuation is not enough evidence for
+    // modest overload. Demand roughly a second of continuously high averages;
+    // large, mostly slow load still protects after one short window.
+    const mostlySlow = this._slowCount >= Math.ceil(this._windowFrames * 0.7);
+    const persistentFrames = Math.ceil(PERSISTENT_LOAD_MS * (this.background ? 4 : 1) / budget);
+    const sustained = highAverage
+      && ((mostlySlow && this.averageMs >= budget * FAST_ENTRY_LOAD) || this._trendFrames >= persistentFrames)
+      && ms > budget * SLOW_FRAME_LOAD;
+    const severe = this._severeCount >= SEVERE_FRAMES * (this.background ? 4 : 1);
+    if ((sustained || severe) && this._debtMs >= budget * 3) {
+      this._probeDelayMs = INITIAL_PROBE_MS;
+      this._waitForProbe();
+    }
+  }
+}
+
+class FastEnhancerProcessor extends AudioWorkletProcessor {
+  constructor(options = {}) {
+    super();
+    this._channelCount = options.processorOptions?.channelCount ?? 1;
+    this._channels = [];
+    this._initialized = false;
+    this._destroyed = false;
+    this._bypass = false;
+    this._agcEnabled = false;
+    this._hpfEnabled = false;
+
+    this._hopSize = DEFAULT_HOP_SIZE;
+    this._budgetMs = (DEFAULT_HOP_SIZE / 48000) * 1000;
+    this._monitor = new ProcessingMonitor(this._budgetMs);
+    this._autoPassthrough = false;
+    this._engineNeedsReset = false;
+    this._warmupFrames = 0;
+    this._wetMix = 1;
+    this._latencySamples = DEFAULT_HOP_SIZE;
+    this._dryDelayPos = 0;
+    this._timingSource = _perf ? 'performance' : _dateNow ? 'date' : 'unavailable';
+    this._useDateTiming = !_perf;
+    this._audioFrameCount = 0;
+    this._passthroughFrames = 0;
+    this._inputWritePos = 0;
+
+    this._outputPos = 0;
+    this._frameCount = 0;
+    this._processingTimes = new Float64Array(MAX_STORED_TIMES);
+    this._maxStoredTimes = MAX_STORED_TIMES;
+    this._timesIndex = 0;
+    this._timesCount = 0;
+    this._statsInterval = 0;
+    this._statsTimer = 0;
+    this._outputRmsSum = 0;
+    this._outputNonZeroCount = 0;
+    this._outputTotalSamples = 0;
+    this._hasNaN = false;
+    this._hasInf = false;
+
+    this.port.onmessage = (e) => this._handleMessage(e);
+  }
+
+  _handleMessage(e) {
+    const msg = e.data;
+    switch (msg.type) {
+      case 'init':
+        this._initWasm(msg);
+        break;
+      case 'destroy':
+        this._destroy();
+        break;
+      case 'set_hpf':
+        this._hpfEnabled = !!msg.enabled;
+        this._forEachState('_fe_set_hpf', msg.enabled ? 1 : 0);
+        break;
+      case 'set_agc':
+        this._agcEnabled = !!msg.enabled;
+        this._forEachState('_fe_set_agc', msg.enabled ? 1 : 0);
+        break;
+      case 'reset':
+        this._forEachState('_fe_reset');
+        this._inputWritePos = 0;
+        this._outputPos = this._hopSize;
+        this._dryDelayPos = 0;
+        for (const channel of this._channels) {
+          channel.inputBuffer.fill(0);
+          channel.dryDelayBuffer.fill(0);
+          channel.outputBuffer.fill(0);
+        }
+        this._monitor.reset();
+        this._engineNeedsReset = false;
+        this._warmupFrames = 0;
+        this._wetMix = 1;
+        this._syncAutoPassthrough();
+        break;
+      case 'get_stats':
+        this._sendStats();
+        break;
+      case 'start_stats':
+        this._statsInterval = msg.intervalFrames || DEFAULT_STATS_INTERVAL;
+        this._statsTimer = 0;
+        break;
+      case 'stop_stats':
+        this._statsInterval = 0;
+        break;
+      case 'get_output_info':
+        this._sendOutputInfo();
+        break;
+      case 'set_bypass':
+        if (this._bypass !== !!msg.enabled) {
+          this._bypass = !!msg.enabled;
+          this._monitor.reset();
+          this._engineNeedsReset = true;
+          this._warmupFrames = 2;
+          this._syncAutoPassthrough();
+        }
+        break;
+      case 'set_background_mode':
+        this._handleBackgroundMode(!!msg.enabled);
+        break;
+      case 'get_state':
+        this.port.postMessage({
+          type: 'state',
+          requestId: msg.requestId,
+          bypass: this._bypass,
+          agcEnabled: this._agcEnabled,
+          hpfEnabled: this._hpfEnabled,
+          initialized: this._initialized,
+          destroyed: this._destroyed,
+          autoPassthrough: this._autoPassthrough,
+          ...this._monitorStats(),
+        });
+        break;
+    }
+  }
+
+  _handleBackgroundMode(enabled) {
+    this._monitor.setBackground(enabled);
+  }
+
+  _syncAutoPassthrough() {
+    const enabled = this._monitor.mode !== 'processing';
+    if (enabled === this._autoPassthrough) return;
+    this._autoPassthrough = enabled;
+    this.port.postMessage({ type: 'auto_bypass', enabled, averageMs: this._monitor.averageMs, budgetMs: this._budgetMs });
+  }
+
+  _forEachState(method, ...args) {
+    for (const channel of this._channels) channel.wasm[method](channel.statePtr, ...args);
+  }
+
+  _releaseStates() {
+    this._forEachState('_fe_destroy');
+    this._channels = [];
+    this._initialized = false;
+  }
+
+  _initWasm({ wasmBytes, weightBytes, exportMap, modelSize, channelCount = this._channelCount }) {
+    this._releaseStates();
+    try {
+      if (channelCount !== 1 && channelCount !== 2) throw new Error('channelCount must be 1 or 2');
+      this._channelCount = channelCount;
+      // NOTE: Synchronous compilation is required inside AudioWorklet (no async in process()).
+      // This blocks the audio thread for the duration of compilation (~50-200ms).
+      // WebAssembly.compileStreaming is not available in AudioWorkletGlobalScope.
+      const module = new WebAssembly.Module(wasmBytes);
+
+      const needed = WebAssembly.Module.imports(module);
+      const importObject = {};
+      const ABORT_IMPORT_NAMES = new Set(['abort', 'c', '__assert_fail', '__cxa_throw']);
+      const KNOWN_SAFE_STUBS = new Set([
+        'emscripten_notify_memory_growth',
+        'emscripten_resize_heap',
+        '__cxa_atexit',
+        '__syscall_openat',
+        '__syscall_fcntl64',
+        '__syscall_ioctl',
+        'fd_write',
+        'fd_read',
+        'fd_close',
+        'fd_seek',
+        'environ_sizes_get',
+        'environ_get',
+        'proc_exit',
+        'clock_time_get',
+        'args_sizes_get',
+        'args_get',
+      ]);
+      const MINIFIED_NAME_RE = /^[a-z]{1,2}$/;
+      const unknownImports = [];
+      for (const imp of needed) {
+        if (!importObject[imp.module]) importObject[imp.module] = {};
+        if (imp.kind === 'function') {
+          if (ABORT_IMPORT_NAMES.has(imp.name)) {
+            importObject[imp.module][imp.name] = (...args) => {
+              throw new Error(`WASM fatal: ${imp.name}(${args.join(', ')})`);
+            };
+          } else if (KNOWN_SAFE_STUBS.has(imp.name)) {
+            importObject[imp.module][imp.name] = () => 0;
+          } else if (MINIFIED_NAME_RE.test(imp.module) && MINIFIED_NAME_RE.test(imp.name)) {
+            // Emscripten -O3 minified import — safe to stub
+            importObject[imp.module][imp.name] = () => 0;
+          } else {
+            unknownImports.push(`${imp.module}.${imp.name}`);
+          }
+        }
+      }
+      if (unknownImports.length > 0) {
+        throw new Error(
+          `Unknown WASM imports detected: ${unknownImports.join(', ')}. ` +
+          'If these are safe to stub, add them to KNOWN_SAFE_STUBS.'
+        );
+      }
+
+      // Share compiled code, but give each channel a separate fixed-size heap.
+      const createEngine = () => {
+        const instance = new WebAssembly.Instance(module, importObject);
+
+        let memory = null;
+        for (const val of Object.values(instance.exports)) {
+          if (val instanceof WebAssembly.Memory) { memory = val; break; }
+        }
+        if (!memory) throw new Error('WASM memory export not found');
+
+        const wasm = {};
+        for (const [readable, minified] of Object.entries(exportMap)) {
+          const exp = instance.exports[minified];
+          if (typeof exp === 'function') wasm[readable] = exp;
+        }
+
+        const WORKLET_REQUIRED_EXPORTS = [
+          '_malloc', '_free', '_fe_init', '_fe_destroy',
+          '_fe_process_inplace', '_fe_get_input_ptr', '_fe_get_output_ptr',
+          '_fe_get_hop_size', '_fe_get_n_fft',
+          '_fe_set_agc', '_fe_set_hpf', '_fe_reset',
+        ];
+        const missingExports = [];
+        for (const name of WORKLET_REQUIRED_EXPORTS) {
+          if (typeof wasm[name] !== 'function') missingExports.push(name);
+        }
+        if (missingExports.length > 0) {
+          throw new Error(
+            `WASM module is missing required exports: ${missingExports.join(', ')}. ` +
+            'Check that the export map matches the compiled WASM binary.'
+          );
+        }
+        return { wasm, memory };
+
+      };
+
+      const weightLen = weightBytes.byteLength;
+      for (let c = 0; c < channelCount; c++) {
+        const { wasm, memory } = createEngine();
+        const weightPtr = wasm._malloc(weightLen);
+        if (!weightPtr) throw new Error('malloc failed for weight allocation');
+        try {
+          new Uint8Array(memory.buffer).set(new Uint8Array(weightBytes), weightPtr);
+          const statePtr = wasm._fe_init(modelSize, weightPtr, weightLen);
+          if (!statePtr) throw new Error('fe_init returned null (weight validation failed?)');
+          const hopSize = wasm._fe_get_hop_size(statePtr);
+          const latency = wasm._fe_get_n_fft(statePtr) - hopSize;
+          this._channels.push({
+            wasm, memory, statePtr,
+            inputPtr: wasm._fe_get_input_ptr(statePtr),
+            outputPtr: wasm._fe_get_output_ptr(statePtr),
+            inputBuffer: new Float32Array(hopSize + QUANTUM),
+            passthroughBuffer: new Float32Array(hopSize),
+            dryDelayBuffer: new Float32Array(latency),
+            outputBuffer: new Float32Array(hopSize),
+            cachedHeapF32: null,
+            cachedBuffer: null,
+          });
+          this._hopSize = hopSize;
+          this._latencySamples = latency;
+          wasm._fe_set_hpf(statePtr, this._hpfEnabled ? 1 : 0);
+          wasm._fe_set_agc(statePtr, this._agcEnabled ? 1 : 0);
+        } finally {
+          wasm._free(weightPtr);
+        }
+      }
+      const hopSize = this._hopSize;
+      this._inputWritePos = 0;
+      this._outputPos = hopSize;
+      this._budgetMs = (hopSize / sampleRate) * 1000;
+      const background = this._monitor.background;
+      this._monitor = new ProcessingMonitor(this._budgetMs);
+      this._monitor.setBackground(background);
+      this._autoPassthrough = false;
+      this._engineNeedsReset = false;
+      this._warmupFrames = 0;
+      this._wetMix = 1;
+      this._dryDelayPos = 0;
+
+      // Run timer diagnostics during init (avoids busy-waiting inside process())
+      _checkTimerAcrossCallbacks();
+      if (_perfNowFrozen) {
+        this._timingSource = _dateNow ? 'date' : 'unavailable';
+        this.port.postMessage({
+          type: 'timer_info',
+          perfNowFrozen: true,
+          fallback: _dateNow ? 'Date.now' : 'unavailable',
+        });
+      }
+
+      this._initialized = true;
+      this.port.postMessage({ type: 'ready', hopSize, channelCount, latencySamples: this._latencySamples });
+    } catch (err) {
+      this._releaseStates();
+      this.port.postMessage({ type: 'error', message: err.message });
+    }
+  }
+
+  _destroy() {
+    this._releaseStates();
+    this._destroyed = true;
+    this.port.postMessage({ type: 'destroyed' });
+  }
+
+  _sendStats() {
+    const count = this._timesCount;
+    if (count === 0) {
+      this.port.postMessage({ type: 'stats', frameCount: this._frameCount, totalFrames: 0,
+        overBudgetFrames: 0, overBudgetRate: 0, ...this._monitorStats() });
+      return;
+    }
+    const sorted = new Float64Array(count);
+    for (let i = 0; i < count; i++) sorted[i] = this._processingTimes[i];
+    sorted.sort();
+    let sum = 0;
+    for (let i = 0; i < count; i++) sum += sorted[i];
+    const budgetMs = (this._hopSize / sampleRate) * 1000;
+    let dropped = 0;
+    for (let i = 0; i < count; i++) {
+      if (sorted[i] > budgetMs) dropped++;
+    }
+    this.port.postMessage({
+      type: 'stats',
+      frameCount: this._frameCount,
+      totalFrames: count,
+      avgMs: sum / count,
+      medianMs: sorted[Math.floor(count / 2)],
+      p99Ms: sorted[Math.floor(count * 0.99)],
+      minMs: sorted[0],
+      maxMs: sorted[count - 1],
+      budgetMs,
+      droppedFrames: dropped,
+      dropRate: dropped / count,
+      // Historical names are retained for compatibility. Timing overruns are
+      // estimates, not observed device underruns or discarded audio frames.
+      overBudgetFrames: dropped,
+      overBudgetRate: dropped / count,
+      ...this._monitorStats(),
+    });
+  }
+
+  _monitorStats() {
+    return {
+      performanceMode: this._bypass ? 'manual' : this._monitor.mode,
+      averageProcessingMs: this._monitor.averageMs,
+      budgetMs: this._budgetMs,
+      timingSource: this._timingSource,
+      audioFrames: this._audioFrameCount,
+      passthroughFrames: this._passthroughFrames,
+    };
+  }
+
+  _sendOutputInfo() {
+    const total = this._outputTotalSamples;
+    const rms = total > 0 ? Math.sqrt(this._outputRmsSum / total) : 0;
+    const nonZeroRatio = total > 0 ? this._outputNonZeroCount / total : 0;
+    this.port.postMessage({
+      type: 'output_info',
+      frameCount: this._frameCount,
+      rms,
+      nonZeroRatio,
+      totalSamples: total,
+      hasNaN: this._hasNaN,
+      hasInf: this._hasInf,
+    });
+  }
+
+  _prepareDryFrame(hopSize) {
+    const latency = this._latencySamples;
+    for (const channel of this._channels) {
+      const input = channel.inputBuffer;
+      const dry = channel.passthroughBuffer;
+      const delay = channel.dryDelayBuffer;
+      if (latency === hopSize) {
+        dry.set(delay);
+        delay.set(input.subarray(0, hopSize));
+      } else if (latency === 0) {
+        dry.set(input.subarray(0, hopSize));
+      } else {
+        let pos = this._dryDelayPos;
+        for (let i = 0; i < hopSize; i++) {
+          dry[i] = delay[pos];
+          delay[pos] = input[i];
+          pos = (pos + 1) % latency;
+        }
+      }
+    }
+    if (latency > 0) this._dryDelayPos = (this._dryDelayPos + hopSize) % latency;
+  }
+
+  _renderFrame(hopSize, hasWet) {
+    const targetMix = hasWet && !this._bypass && this._monitor.mode === 'processing' && this._warmupFrames === 0 ? 1 : 0;
+    const startMix = hasWet ? this._wetMix : 0;
+    for (const channel of this._channels) {
+      const output = channel.outputBuffer;
+      const dry = channel.passthroughBuffer;
+      if (targetMix === 0 && startMix === 0) output.set(dry);
+      else {
+        const heap = this._getHeapF32(channel);
+        const offset = channel.outputPtr >> 2;
+        if (targetMix === 1 && startMix === 1) output.set(heap.subarray(offset, offset + hopSize));
+        else {
+          // The two signals share the STFT delay. Use the same ramp on both
+          // channels; probe output stays dry until consecutive recovery passes.
+          for (let i = 0; i < hopSize; i++) {
+            const mix = startMix + (targetMix - startMix) * i / (hopSize - 1);
+            output[i] = dry[i] * (1 - mix) + heap[offset + i] * mix;
+          }
+        }
+      }
+    }
+    this._wetMix = targetMix;
+    if (targetMix === 0 && startMix === 0) this._passthroughFrames++;
+  }
+
+  _getHeapF32(channel) {
+    if (!channel.cachedHeapF32 || channel.cachedBuffer !== channel.memory.buffer) {
+      channel.cachedBuffer = channel.memory.buffer;
+      channel.cachedHeapF32 = new Float32Array(channel.cachedBuffer);
+    }
+    return channel.cachedHeapF32;
+  }
+
+  _updateOutputDiagnostics(hopSize) {
+    if (this._statsInterval <= 0) return;
+
+    for (const channel of this._channels) {
+      for (let i = 0; i < hopSize; i++) {
+        const v = channel.outputBuffer[i];
+        if (v !== v) {
+          this._hasNaN = true;
+          continue;
+        }
+        if (v === Infinity || v === -Infinity) {
+          this._hasInf = true;
+          continue;
+        }
+        this._outputRmsSum += v * v;
+        if (v > NONZERO_THRESHOLD || v < -NONZERO_THRESHOLD) this._outputNonZeroCount++;
+        this._outputTotalSamples++;
+      }
+    }
+  }
+
+  _runWasmFrame(hopSize) {
+    if (this._engineNeedsReset) {
+      this._forEachState('_fe_reset');
+      this._engineNeedsReset = false;
+    }
+
+    // Reset is a one-off cost, not the model's sustained inference rate. It can
+    // be substantial for Small and must not poison every new recovery trial.
+    const perfStart = _perf ? _perf.now() : NaN;
+    const dateStart = _dateNow ? _dateNow() : NaN;
+
+    for (const channel of this._channels) {
+      const heapF32 = this._getHeapF32(channel);
+      heapF32.set(channel.inputBuffer.subarray(0, hopSize), channel.inputPtr >> 2);
+      channel.wasm._fe_process_inplace(channel.statePtr);
+    }
+
+    const perfElapsed = _perf ? _perf.now() - perfStart : NaN;
+    const dateElapsed = _dateNow ? _dateNow() - dateStart : NaN;
+    let elapsed = NaN;
+    if (!this._useDateTiming && _dateNow
+      && (_perfNowFrozen || (perfElapsed === 0 && Number.isFinite(dateElapsed) && dateElapsed > 0))) {
+      this._useDateTiming = true;
+      this._monitor.timingChanged();
+      this._timesIndex = 0;
+      this._timesCount = 0;
+    }
+    if (!this._useDateTiming && !_perfNowFrozen && Number.isFinite(perfElapsed) && perfElapsed > 0) {
+      elapsed = perfElapsed;
+      this._timingSource = 'performance';
+    } else if (Number.isFinite(dateElapsed) && dateElapsed >= 0) {
+      // Once a frozen/coarse intra-callback clock is observed, keep Date as the
+      // source instead of selecting only the nonzero (upward-rounded) ticks.
+      elapsed = dateElapsed;
+      this._timingSource = 'date';
+    } else {
+      this._timingSource = 'unavailable';
+    }
+    this._frameCount++;
+    if (Number.isFinite(elapsed)) {
+      this._processingTimes[this._timesIndex] = elapsed;
+      this._timesIndex = (this._timesIndex + 1) % this._maxStoredTimes;
+      this._timesCount = Math.min(this._timesCount + 1, this._maxStoredTimes);
+    }
+
+    return elapsed;
+  }
+
+  _processFrame(hopSize) {
+    this._audioFrameCount++;
+    this._prepareDryFrame(hopSize);
+    if (this._bypass) {
+      this._renderFrame(hopSize, false);
+      return;
+    }
+
+    if (!this._monitor.shouldProcess()) {
+      this._renderFrame(hopSize, false);
+      return;
+    }
+
+    const elapsed = this._runWasmFrame(hopSize);
+    this._monitor.record(elapsed, this._timingSource === 'date' ? 1 : 0);
+    if (this._monitor.mode === 'bypass') this._engineNeedsReset = true;
+    this._renderFrame(hopSize, true);
+    if (this._warmupFrames > 0) this._warmupFrames--;
+    this._syncAutoPassthrough();
+  }
+
+  process(inputs, outputs) {
+    if (this._destroyed) return false;
+    if (!_timerChecked) _checkTimerAcrossCallbacks();
+
+    const outputChannels = outputs[0];
+    if (!outputChannels || !outputChannels[0]) return true;
+    const inputChannels = inputs[0] || [];
+    const len = Math.min(QUANTUM, outputChannels[0].length);
+
+    if (!this._initialized) {
+      for (let c = 0; c < outputChannels.length; c++) {
+        outputChannels[c].fill(0);
+        if (inputChannels[c]) outputChannels[c].set(inputChannels[c].subarray(0, len));
+      }
+      return true;
+    }
+
+    // Both channels share frame positions and bypass decisions, but never model state.
+    const hopSize = this._hopSize;
+    for (let c = 0; c < this._channels.length; c++) {
+      const buffer = this._channels[c].inputBuffer;
+      buffer.fill(0, this._inputWritePos, this._inputWritePos + len);
+      if (inputChannels[c]) buffer.set(inputChannels[c].subarray(0, len), this._inputWritePos);
+    }
+    this._inputWritePos += len;
+
+    if (this._inputWritePos >= hopSize) {
+      try {
+        this._processFrame(hopSize);
+      } catch (err) {
+        this._monitor.fail();
+        this._engineNeedsReset = true;
+        this._renderFrame(hopSize, false);
+        this._syncAutoPassthrough();
+        this._lastError = err.message || String(err);
+        this.port.postMessage({ type: 'process_error', message: this._lastError });
+      }
+      const leftover = this._inputWritePos - hopSize;
+      if (leftover > 0) {
+        for (const channel of this._channels) channel.inputBuffer.copyWithin(0, hopSize, this._inputWritePos);
+      }
+      this._inputWritePos = leftover;
+      this._outputPos = 0;
+      this._updateOutputDiagnostics(hopSize);
+      if (this._statsInterval > 0 && ++this._statsTimer >= this._statsInterval) {
+        this._statsTimer = 0;
+        this._sendStats();
+      }
+    }
+
+    const available = this._outputPos < hopSize ? Math.min(len, hopSize - this._outputPos) : 0;
+    for (let c = 0; c < outputChannels.length; c++) {
+      const output = outputChannels[c];
+      output.fill(0);
+      const channel = this._channels[c];
+      if (!channel || available === 0) continue;
+      output.set(channel.outputBuffer.subarray(this._outputPos, this._outputPos + available));
+    }
+    this._outputPos += len;
+    return true;
+  }
+
+}
+
+registerProcessor('fastenhancer-processor', FastEnhancerProcessor);
